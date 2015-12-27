@@ -1,0 +1,31 @@
+# Astrolog (Version 6.00) File: makefile (PC version)
+#
+# IMPORTANT NOTICE: Astrolog and all chart display routines and anything
+# not enumerated elsewhere in this program are Copyright (C) 1991-2015 by
+# Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
+# Permission is granted to freely use, modify, and distribute these
+# routines provided these credits and notices remain unmodified with any
+# altered or distributed versions of the program.
+#
+# This Makefile created for Borland Turbo C/C++ compiler.
+# First created 8/21/1994.
+
+CFLAGS = -ml -Ff=50  -G- -O -r  -w-pia -w-sus
+
+CC = tcc
+TLINK = tlink
+LIBPATH = C:\APPS\TC\LIB
+name = astrolog
+objs = attf.obj cgaf.obj egavgaf.obj hercf.obj ibm8514f.obj pc3270f.obj\
+ astrolog.obj data.obj data2.obj general.obj io.obj\
+ calc.obj matrix.obj placalc.obj placalc2.obj\
+ charts0.obj charts1.obj charts2.obj charts3.obj intrpret.obj\
+ xdata.obj xgeneral.obj xdevice.obj\
+ xcharts0.obj xcharts1.obj xcharts2.obj xscreen.obj\
+ swedate.obj swejpl.obj swemmoon.obj swemplan.obj swemptab.obj\
+ sweph.obj swephlib.obj
+
+$(name).exe : $(objs)
+# We are compiling in Large memory model with 16,384 bytes for stack storage.
+  $(TLINK) /c /x /L$(LIBPATH) @makefile.cfg
+#

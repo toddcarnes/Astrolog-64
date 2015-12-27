@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Astrolog", "Astrolog.vcproj", "{CEF86845-ADDB-4E8D-8586-2BDFB2F31698}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CEF86845-ADDB-4E8D-8586-2BDFB2F31698}.Debug|Win32.ActiveCfg = Debug|Win32
+		{CEF86845-ADDB-4E8D-8586-2BDFB2F31698}.Debug|Win32.Build.0 = Debug|Win32
+		{CEF86845-ADDB-4E8D-8586-2BDFB2F31698}.Release|Win32.ActiveCfg = Release|Win32
+		{CEF86845-ADDB-4E8D-8586-2BDFB2F31698}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
