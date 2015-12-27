@@ -59,15 +59,15 @@
 ** the X11 graphics can be disabled even if you are running X windows.
 */
 
-/*#define PC /* Comment out this #define if you have a Unix, Mac, or other */
+#define PC /* Comment out this #define if you have a Unix, Mac, or other */
            /* system that isn't a generic PC running DOS or MS Windows.  */
 
 /*#define MAC /* Comment out this #define if you're not compiling for a Mac. */
 
-#define X11 /* Comment out this #define if you don't have X windows, or */
+/*#define X11 /* Comment out this #define if you don't have X windows, or */
             /* else have them and don't wish to compile in X graphics.  */
 
-/*#define WIN /* Comment out this #define if you don't have MS Windows, or */
+#define WIN /* Comment out this #define if you don't have MS Windows, or */
             /* else have them but want to compile a DOS version instead. */
 
 /*#define MSG /* Comment out this #define if you don't have access to the     */
@@ -161,7 +161,11 @@
   /* files (-i switch) if not in the current directory. This is normally */
   /* the default dir above but may be changed to be somewhere else.      */
 
+#ifndef PC
 #define EPHE_DIR DEFAULT_DIR
+#else
+#define EPHE_DIR ".\\ephem"
+#endif
   /* This string is the directory the program looks in for the ephemeris */
   /* files as accessed with the -b switch. This is normally the default  */
   /* dir above but may be changed to be somewhere else.                  */
@@ -319,7 +323,10 @@
 #include <comdef.h>
 #include <comdefsp.h>
 #include <shlobj.h>
-#include <shfolder.h>
+// Only versions of Windows prior to XP service pack 3 require shfolder.h
+// This won't even compile if you include it when compiling for Windows 10.
+//
+// #include <shfolder.h>
 #include <shobjidl.h>
 #include <shlwapi.h>
 #include "resource.h"
