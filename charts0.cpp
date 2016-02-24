@@ -624,7 +624,7 @@ void PrintObjects(void)
       PrintTab(' ', 3);
       PrintAltitude(planetalt[j]);
       AnsiColor(kObjA[j]);
-      sprintf(sz, " %5.2f\n", rStarBright[j-oNorm], i-starLo+1); PrintSz(sz);
+	  sprintf(sz, " %5.2f\n", rStarBright[j - oNorm]); PrintSz(sz);
     }
   }
   AnsiColor(kDefault);

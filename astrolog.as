@@ -1,27 +1,27 @@
 @0309  ; Astrolog (6.00) default settings file astrolog.as
 
 -z 8:00W                ; Default time zone     [hours W or E of GMT   ]
--z0 Autodetect          ; Default Daylight time [0 standard, 1 daylight]
+-z0 0                   ; Default Daylight time [0 standard, 1 daylight]
 -zl 122W19:59 47N36:35  ; Default longitude and latitude
 
 -Yz 0   ; Time minute addition to be used when "now" charts are off.
-;-n     ; Comment out this line to not start with chart for "now".
+-n      ; Comment out this line to not start with chart for "now".
 
 _s      ; Zodiac selection          ["_s" is tropical, "=s" is sidereal]
 :s 0    ; Zodiac offset value       [Change "0" to desired ayanamsa    ]
 -A 5    ; Number of aspects         [Change "5" to desired number      ]
--c Plac ; House system              [Change "Plac" to desired system   ]
+-c Regi ; House system              [Change "Plac" to desired system   ]
 _k      ; Ansi color text           ["=k" is color, "_k" is normal     ]
 :d 48   ; Searching divisions       [Change "48" to desired divisions  ]
 _b0     ; Print zodiac seconds      ["_b0" to minute, "=b0" to second  ]
 =b      ; Use ephemeris files       ["=b" uses them, "_b" doesn't      ]
-=C      ; Show house cusp objects   ["_C" hides them, "=C" shows them  ]
+_C      ; Show house cusp objects   ["_C" hides them, "=C" shows them  ]
 _v7     ; Show esoteric rulerships  ["=v7" shows them, "_v7" hides them]
 :w 4    ; Wheel chart text rows     [Change "4" to desired wheel rows  ]
 :I 80   ; Text screen columns       [Change "80" to desired columns    ]
 -YQ 24  ; Text screen scroll limit  [Change "24" or set to "0" for none]
 _Yd     ; European date format      ["_Yd" is MDY, "=Yd" is DMY        ]
-_Yt     ; European time format      ["_Yt" is AM/PM, "=Yt" is 24 hour  ]
+=Yt     ; European time format      ["_Yt" is AM/PM, "=Yt" is 24 hour  ]
 _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 =YC     ; Smart cusp displays       ["=YC" is smart, "_YC" is normal   ]
 =Y8     ; Clip text to end of line  ["=Y8" clips, "_Y8" doesn't clip   ]
@@ -29,17 +29,17 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 
 ; DEFAULT RESTRICTIONS:
 
--YR 0 10     1 0 0 0 0 0 0 0 0 0 0    ; Planets
--YR 11 21    0 0 0 0 0 0 1 0 0 1 1    ; Minor planets
--YR 22 33    0 1 1 1 1 1 1 1 1 0 1 1  ; House cusps
+-YR 0 10     1 0 0 0 0 0 0 0 1 1 1    ; Planets
+-YR 11 21    1 1 1 1 1 0 1 1 0 1 1    ; Minor planets
+-YR 22 33    1 1 1 1 1 1 1 1 1 1 1 1  ; House cusps
 -YR 34 42    1 1 1 1 1 1 1 1 1        ; Uranians
 
 ; DEFAULT TRANSIT RESTRICTIONS:
 
--YRT 0 10    1 0 1 0 0 0 0 0 0 0 0    ; Planets
--YRT 11 21   0 0 0 0 0 0 1 0 1 1 1    ; Minor planets
+-YRT 0 10    1 0 1 0 0 0 0 0 1 1 1    ; Planets
+-YRT 11 21   1 1 1 1 1 0 1 1 1 1 1    ; Minor planets
 -YRT 22 33   1 1 1 1 1 1 1 1 1 1 1 1  ; House cusps
--YRT 34 42   0 0 0 0 0 0 0 0 0        ; Uranians
+-YRT 34 42   1 1 1 1 1 1 1 1 1        ; Uranians
 
 -YR0 0 0  ; Restrict sign, direction changes
 
@@ -116,8 +116,8 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 
 ; GRAPHICS DEFAULTS:
 
-_X              ; Graphics chart flag ["_X" is text, "=X" is graphics]
-:Xw 480 480     ; Default X and Y resolution
+=X              ; Graphics chart flag ["_X" is text, "=X" is graphics]
+:Xw 448 443     ; Default X and Y resolution
 :Xbb            ; Bitmap file type
 :YXG 1111       ; Glyph selections [Capricorn, Uranus, Pluto, Lilith]
 :YXg 20         ; Aspect grid cells
