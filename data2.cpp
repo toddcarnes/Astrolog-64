@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: data2.cpp
+** Astrolog (Version 6.10) File: data2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -140,8 +140,8 @@ CONST char *szCnstlGenitive[cCnstl+1] = {"",
 */
 
 #ifdef MATRIX
-CONST byte rErrorCount[oPlu-oJup+1] = {11, 5, 4, 4, 4};
-CONST byte rErrorOffset[oPlu-oJup+1] = {0, 72, 72+51, 72+51+42, 72+51+42+42};
+CONST int cErrorCount[oPlu-oJup+1] = {11, 5, 4, 4, 4};
+CONST int iErrorOffset[oPlu-oJup+1] = {0, 72, 72+51, 72+51+42, 72+51+42+42};
 
 CONST real rErrorData[72+51+42*3] = {
 -.001,-.0005,.0045,.0051,581.7,-9.7,-.0005,2510.7,-12.5,-.0026,1313.7,-61.4,
@@ -241,7 +241,6 @@ CONST real rStarData[cStar*6] = {
 18,24,10.3,-34,23, 5,  18,36,56.2, 38,47, 1,  19,50,46.9,  8,52, 6,
 20,25,38.8,-56,44, 7,  20,41,25.8, 45,16,49,  22, 8,13.9,-46,57,40,
 22,57,39.0,-29,37,20,   0,42, 7.0, 41,16, 0};
-
 
 #ifdef INTERPRET
 /*

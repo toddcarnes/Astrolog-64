@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: charts0.cpp
+** Astrolog (Version 6.10) File: charts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -60,7 +60,7 @@
 /* of credit information on the screen. Given a string, it's displayed    */
 /* centered with left and right borders around it, in the given color.    */
 
-void PrintW(char *sz, int col)
+void PrintW(CONST char *sz, int col)
 {
   int i;
 
@@ -93,12 +93,17 @@ void PrintW(char *sz, int col)
 
 void DisplayCredits(void)
 {
-  char sz[cchSzDef];
+  char sz[cchSzDef], szT[cchSzDef];
 
   PrintW(NULL, -1);
-  sprintf(sz, "** %s version %s **", szAppName, szVersionCore);
+#ifdef WIN
+  sprintf(szT, " for %s Windows", szArchCore);
+#else
+  *szT = chNull;
+#endif
+  sprintf(sz, "** %s version %s%s **", szAppName, szVersionCore, szT);
   PrintW(sz, kMainA[1]);
-  sprintf(sz, "As of %s - By Walter D. Pullen", szDateCore);
+  sprintf(sz, "Released %s - By Walter D. Pullen", szDateCore);
   PrintW(sz, kMainA[2]);
   PrintW(szAddressCore, kRainbowA[5]);
   PrintW(NULL, 0);
@@ -155,7 +160,7 @@ void DisplayCredits(void)
 /* rest of the line telling what it does. We also prefix each switch with   */
 /* either Unix's '-' or PC's '/', whichever is appropriate for the system.  */
 
-void PrintS(char *sz)
+void PrintS(CONST char *sz)
 {
   int chDash;
   char ch;
@@ -166,8 +171,10 @@ void PrintS(char *sz)
   else if (chDash != ' ')
     AnsiColor(chDash == 'P' || sz[3] == ' ' || sz[3] == ':' ?
       kRainbowA[4] : kMainA[5]);
-  else
+  else {
     AnsiColor(kDefault);
+    PrintSz("   ");
+  }
   while ((ch = *sz) && ch != ':' &&
     (chDash != 'P' || (ch != ' ' || *(sz+1) != 't'))) {
     if (ch != '_')
@@ -306,8 +313,10 @@ void DisplaySwitches(void)
   PrintS(" _n[d,m,y]: Compute chart for start of current day, month, year.");
 #endif
   PrintS(" _z [<zone>]: Change the default time zone (for _d_E_t_q options).");
-  PrintS(" _z0 [<offset>]: Change the default daylight time setting.");
+  PrintS(" _z0 [<offset>]: Change the default Daylight time setting.");
   PrintS(" _zl <long> <lat>: Change the default longitude & latitude.");
+  PrintS(" _zv <elev>: Change the default elevation above sea level.");
+  PrintS(" _zj <name> <place>: Change the default name and place strings.");
   PrintS(" _zt <time>: Set only the time of current chart.");
   PrintS(" _zd <date>: Set only the day of current chart.");
   PrintS(" _zm <month>: Set only the month of current chart.");
@@ -318,9 +327,9 @@ void DisplaySwitches(void)
   PrintS(" _qm <month> <year>: Compute chart for first of month.");
   PrintS(" _qy <year>: Compute chart for first day of year.");
   PrintS(" _qa <month> <date> <year> <time> <zone> <long> <lat>:");
-  PrintS("     Compute chart automatically given specified data.");
+  PrintS("  Compute chart automatically given specified data.");
   PrintS(" _qb <month> <date> <year> <time> <daylight> <zone> <long> <lat>:");
-  PrintS("     Like _qa but takes additional parameter for daylight offset.");
+  PrintS("  Like _qa but takes additional parameter for Daylight offset.");
   PrintS(" _qj <day>: Compute chart for time of specified Julian day.");
   PrintS(" _i <file>: Compute chart based on info in file.");
   PrintS(" _i[2,3,4] <file>: Load chart info into chart slots 2, 3, or 4.");
@@ -351,12 +360,15 @@ void DisplaySwitches(void)
 #ifdef PLACALC
   PrintS(" _bp: Use less accurate Placalc files instead of Swiss Ephemeris.");
 #endif
+#ifdef MATRIX
   PrintS(" _bm: Use inaccurate Matrix formulas when ephemeris unavailable.");
+#endif
   PrintS(" _c <value>: Select a different default system of houses.");
-  PrintS("     (0 = Placidus, 1 = Koch, 2 = Equal, 3 = Campanus,");
-  PrintS("     4 = Meridian, 5 = Regiomontanus, 6 = Porphyry, 7 = Morinus,");
-  PrintS("     8 = Topocentric, 9 = Alcabitius, 10 = Equal (MC),");
-  PrintS("     11 = Neo-Porphyry, 12 = Whole, 13 = Vedic, 14 = None.)");
+  PrintS("  (0 = Placidus, 1 = Koch, 2 = Equal, 3 = Campanus, 4 = Meridian,");
+  PrintS("  5 = Regiomontanus, 6 = Porphyry, 7 = Morinus, 8 = Topocentric,");
+  PrintS(
+    "  9 = Alcabitius, 10 = Krusinski, 11 = Equal MC, 12 = Pullen S-Ratio,");
+  PrintS("  13 = Pullen S-Delta, 14 = Whole, 15 = Vedic, 16 = None.)");
   PrintS(" _s [..]: Compute a sidereal instead of the normal tropical chart.");
   PrintS(" _sr: Compute right ascension locations relative to equator.");
   PrintS(
@@ -405,9 +417,6 @@ void DisplaySwitches(void)
   PrintS("\nSwitches to access graphics options:");
   PrintS(" _k: Display text charts using Ansi characters and color.");
   PrintS(" _k0: Like _k but only use special characters, not Ansi color.");
-#ifdef MSG
-  PrintS(" _V: <25,43,50>: Start up with text mode set to number of rows.");
-#endif
 
   /* If graphics features are compiled in, call an additional procedure to */
   /* display the command switches offered dealing with the graphics stuff. */
@@ -432,9 +441,13 @@ void DisplaySwitchesRare(void)
     szAppName, szVersionCore);
   PrintS(sz);
   PrintS(" _Y: Display this help list.");
+  PrintS(" _YT: Compute true positions in space instead of apparent in sky.");
+  PrintS(
+    " _YV: Compute topocentric positions instead of from center of body.");
   PrintS(" _Yn: Compute location of true instead of mean node.");
   PrintS(" _Yd: Display dates in D/M/Y instead of M/D/Y format.");
   PrintS(" _Yt: Display times in 24 hour instead of am/pm format.");
+  PrintS(" _Yv: Display distance in metric instead of imperial units.");
   PrintS(" _Yr: Round positions to nearest unit instead of crop fraction.");
   PrintS(" _YC: Automatically ignore insignificant house cusp aspects.");
   PrintS(" _Y8: Clip text charts at the rightmost (e.g. 80th) column.");
@@ -448,9 +461,14 @@ void DisplaySwitchesRare(void)
   PrintS(" _YP <-1,0,1>: Set how Arabic parts are computed for night charts.");
 #endif
   PrintS(" _Yb <days>: Set number of days to span for biorhythm chart.");
+#ifdef SWISS
+  PrintS(" _Ye <obj> <index>: Change orbit of Uranian to seorbel.txt object.");
+#endif
+#ifdef MATRIX
   PrintS(" _YE <obj> <semi-major axis> <eccentricity (3)> <inclination (3)>");
-  PrintS("     <perihelion (3)> <ascending node (3)> <time offset (3)>:");
-  PrintS("     Change orbit of object to be the given elements.");
+  PrintS("  <perihelion (3)> <ascending node (3)> <time offset (3)>:");
+  PrintS("  Change orbit of object to be the given elements.");
+#endif
   PrintS(
     " _YR <obj1> <obj2> <flag1>..<flag2>: Set restrictions for object range.");
   PrintS(
@@ -477,11 +495,11 @@ void DisplaySwitchesRare(void)
     " _YjT <obj1> <obj2> <inf1>..<inf2>: Set transit influences for range.");
   PrintS(
     " _Yj0 <inf1> <inf2> <inf3> <inf4>: Set influences given to planets");
-  PrintS("     in ruling sign, exalted sign, ruling house, exalted house.");
+  PrintS("  in ruling sign, exalted sign, ruling house, exalted house.");
   PrintS(
     " _Yj7 <inf1> <inf2> <inf3> <inf4> <inf5> <inf6>: Set influences for in");
   PrintS(
-    "     esoteric, hierarchical, Ray ruling sign, plus same for ruling house.");
+    "  esoteric, hierarchical, Ray ruling sign, plus same for ruling house.");
   PrintS(" _YJ <obj> <sign> <cosign>: Set sign planet rules and co-rules.");
   PrintS(" _YJ0 <obj> <sign>: Set zodiac sign given planet exalts in.");
   PrintS(" _YJ7 <obj> <sign> <cosign>: Set signs planet esoterically rules.");
@@ -503,15 +521,12 @@ void DisplaySwitchesRare(void)
   PrintS(" _Yk0 <1..7> <1..7> <col1>..<col2>: Customize 'rainbow' colors.");
   PrintS(" _Yk <0..8> <0..8> <col1>..<col2>: Customize 'general' colors.");
   PrintS(" _YXG <0-2><0-2><0-3><0-2>: Select among different graphic glyphs");
-  PrintS("     for Capricorn, Uranus, Pluto, and Lilith.");
+  PrintS("  for Capricorn, Uranus, Pluto, and Lilith.");
   PrintS(" _YXg <cells>: Set number of cells for graphic aspect grid.");
   PrintS(" _YX7 <inf>: Set influence width for graphic esoteric ephemeris.");
   PrintS(" _YXf <val>: Set usage of actual system fonts in graphic file.");
   PrintS(" _YXp <-1,0,1>: Set paper orientation for PostScript files.");
   PrintS(" _YXp0 <hor> <ver>: Set paper size for PostScript files.");
-#ifdef PCG
-  PrintS(" _YX <hi-res> <lo-res>: Set modes to use for PC screen graphics.");
-#endif
   PrintS(" _0[o,i,q,X]: Disallow file output, input, exiting, and graphics.");
   PrintS(" _;: Ignore rest of command line and treat it as a comment.");
 }
@@ -528,7 +543,6 @@ void PrintObjects(void)
   char sz[cchSzDef];
   CI ci;
   int i, j, k;
-  real Off;
 
   if (!us.fCusp)
     for (i = cuspLo; i <= cuspHi; i++)    /* Set up restrictions properly: */
@@ -547,57 +561,57 @@ void PrintObjects(void)
 
     j = ruler1[i]; k = ruler2[i];
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(j)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[j]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz(" ");
     if (k) {
-      sprintf(sz, "%c%c%c", chSig3(k)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[k]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz("  ");
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(Mod12(j+6))); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[Mod12(j+6)]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz(" ");
     if (k) {
-      sprintf(sz, "%c%c%c", chSig3(Mod12(k+6))); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[Mod12(k+6)]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintTab(' ', 4);
 
     j = exalt[i];
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(j)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[j]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz("   ");
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(Mod12(j+6))); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[Mod12(j+6)]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz("  ");
 
     j = rgObjEso1[i]; k = rgObjEso2[i];
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(j)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[j]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz(" ");
     if (k) {
-      sprintf(sz, "%c%c%c", chSig3(k)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[k]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz("  ");
     j = rgObjHie1[i]; k = rgObjHie2[i];
     if (j) {
-      sprintf(sz, "%c%c%c", chSig3(j)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[j]); PrintSz(sz);
     } else
       PrintSz("   ");
     PrintSz(" ");
     if (k) {
-      sprintf(sz, "%c%c%c", chSig3(k)); PrintSz(sz);
+      sprintf(sz, "%.3s", szSignName[k]); PrintSz(sz);
     } else
       PrintSz("   ");
 
@@ -612,9 +626,8 @@ void PrintObjects(void)
 
   if (us.nStar) {
     ci = ciCore;
-    Off = ProcessInput(fTrue);
+    CastChart(fTrue);
     ciCore = ci;
-    ComputeStars(us.fSidereal ? 0.0 : -Off);
     for (i = starLo; i <= starHi; i++) if (!ignore[i]) {
       j = oNorm+starname[i-oNorm];
       AnsiColor(kObjA[j]);
@@ -624,7 +637,7 @@ void PrintObjects(void)
       PrintTab(' ', 3);
       PrintAltitude(planetalt[j]);
       AnsiColor(kObjA[j]);
-	  sprintf(sz, " %5.2f\n", rStarBright[j - oNorm]); PrintSz(sz);
+      sprintf(sz, " %5.2f\n", rStarBright[j-oNorm]); PrintSz(sz);
     }
   }
   AnsiColor(kDefault);
@@ -749,7 +762,7 @@ void PrintSigns(void)
 /* to its genitive or posessive form. Some standard rules are used but a */
 /* special instructions string is passed for special cases.              */
 
-char *GetSzGenitive(char *szGen, char *szInst)
+CONST char *GetSzGenitive(char *szGen, CONST char *szInst)
 {
   char *pch, ch1, ch2;
   int cch;
@@ -791,12 +804,13 @@ char *GetSzGenitive(char *szGen, char *szInst)
 
 void GetSzConstel(char *szGen, int i)
 {
-  char sz1[cchSzDef], sz2[cchSzDef], *pchSpace, *szInst;
+  char sz1[cchSzDef], sz2[cchSzDef], *pchSpace;
+  CONST char *szInst;
 
   sprintf(szGen, "%s", szCnstlName[i]);
   for (pchSpace = szGen; *pchSpace && *pchSpace != ' '; pchSpace++)
     ;
-  szInst = (char *)szCnstlGenitive[i];
+  szInst = szCnstlGenitive[i];
   if (*pchSpace == chNull) {
     GetSzGenitive(szGen, szInst);
     return;
@@ -1067,11 +1081,11 @@ LNextPart:
       } else {
         if (ch == ' ' || ch == 'H' || ch == 'R' || ch == 'D') {
           AnsiColor(kSignA(ruler1[k]));
-          sprintf(sz, "%c%c%c", chObj3(k));
+          sprintf(sz, "%.3s", szObjName[k]);
         } else if (FBetween(ch, '0', '3')) {
           k = (ch-'0') * 100 + k;
           AnsiColor(kSignA(k/30+1));
-          sprintf(sz, "%2d%c%c%c", k%30, chSig3(k/30+1));
+          sprintf(sz, "%2d%.3s", k%30, szSignName[k/30+1]);
         } else {
           AnsiColor(kSignA(k));
           sprintf(sz, "%3d", k);
@@ -1137,11 +1151,11 @@ void DisplayKeysX(void)
   PrintS(" Press 'j' to toggle not clearing screen between chart updates.");
   PrintS(" Press 'v' to display current chart positions on text screen.");
   PrintS(" Press 'R', 'C', 'u', 'U' to toggle restriction status of minor");
-  PrintS("       objects, minor house cusps, uranian planets, and stars.");
+  PrintS("    objects, minor house cusps, uranian planets, and stars.");
   PrintS(" Press 'c' to toggle relationship comparison chart mode.");
   PrintS(" Press 's', 'h', 'f', 'g', 'z', 'y' to toggle status of sidereal");
-  PrintS("       zodiac, heliocentric charts, domal charts, decan charts,");
-  PrintS("       vedic format wheel charts, and navamsa charts.");
+  PrintS("    zodiac, heliocentric charts, domal charts, decan charts,");
+  PrintS("    vedic format wheel charts, and navamsa charts.");
   PrintS(" Press 'O' and 'o' to recall/store a previous chart from memory.");
 #ifdef X11
   PrintS(" Press 'B' to dump current window contents to root background.");
@@ -1150,53 +1164,40 @@ void DisplayKeysX(void)
 #endif
   PrintS(" Press 'Q' to resize chart display to a square.");
   PrintS(" Press '<' and '>' to decrease/increase the scale size of the");
-  PrintS("       glyphs and the size of world map.");
+  PrintS("    glyphs and the size of world map.");
   PrintS(" Press '[' and ']' to decrease/increase tilt in globe display.");
   PrintS(" Press '+' and '-' to add/subtract a day from current chart.");
 #ifdef TIME
   PrintS(" Press 'n' to set chart information to current time now.");
 #endif
   PrintS(" Press 'N' to toggle animation status on or off. Charts will");
-  PrintS("       be updated to current status and globe will rotate.");
+  PrintS("    be updated to current status and globe will rotate.");
   PrintS(" Press '!'-'(' to begin updating current chart by adding times.");
-  PrintS("       !: seconds, @: minutes, #: hours, $: days, %: months,");
-  PrintS("       ^: years, &: years*10, *: years*100, (: years*1000.");
+  PrintS("    !: seconds, @: minutes, #: hours, $: days, %: months,");
+  PrintS("    ^: years, &: years*10, *: years*100, (: years*1000.");
   PrintS(" Press 'r' to reverse direction of time-lapse or animation.");
   PrintS(" Press '1'-'9' to set rate of animation to 'n' degrees, etc.");
-#ifdef PCG
-  PrintS(" Press '1'-'9' to determine section of chart to show if clipped.");
-#endif
   PrintS(
     " Press 'V','A','Z','S','M','K','J','L','E','W','G','P' to switch to");
   PrintS(
-    "       normal (_v), grid (_g), local (_Z), space (_S), sector (_l),");
-  PrintS("       calendar (_K), dispositor (_j), astro-graph (_L), ephemeris");
-  PrintS("       (_E), world map (_XW), globe (_XG), and polar (_XP) modes.");
+    "    normal (_v), grid (_g), local (_Z), space (_S), sector (_l),");
+  PrintS("    calendar (_K), dispositor (_j), astro-graph (_L), ephemeris");
+  PrintS("    (_E), world map (_XW), globe (_XG), and polar (_XP) modes.");
   PrintS(" Press 'Y' to switch to biorhythm relation chart mode.");
   PrintS(" Press '0' to toggle between _Z,_Z0 & _XW,_XW0 & _E,_Ey modes.");
 #ifdef CONSTEL
   PrintS(" Press 'F' to toggle between world and constellation map modes.");
 #endif
-#ifdef PCG
-  PrintS(" Press 'F1'..'F12' [plus Shift,Ctrl,Alt] to run macros 1..48.");
-#endif
   PrintS(" Press 'space' to force redraw of current graphics display.");
   PrintS(" Press 'del' to clear the graphics screen and not redraw.");
-#ifdef PCG
-  PrintS(" Press 'tab' to toggle between graphics resolutions.");
-#endif
   PrintS(" Press 'enter' to input a command line of general switches.");
   PrintS(" Press 'q' to terminate graphics and the program.");
 #ifdef MOUSE
-  PrintL();
 #ifdef X11
+  PrintL();
   PrintS(" Left   mouse button: Draw line strokes on chart in window.");
   PrintS(" Middle mouse button: Print coordinates of pointer on world map.");
   PrintS(" Right  mouse button: Terminate the window and program.");
-#endif
-#ifdef PCG
-  PrintS(" Left  mouse button: Draw line strokes on chart in screen.");
-  PrintS(" Right mouse button: Set coordinates to pointer on world map.");
 #endif
 #endif /* MOUSE */
 }
@@ -1213,7 +1214,7 @@ void DisplaySwitchesX(void)
   PrintS(" _Xb: Create bitmap file instead of putting graphics on screen.");
 #endif
   PrintS(" _Xb[n,c,v,a,b]: Set bitmap file output mode to X11 normal,");
-  PrintS("     compacted, very compact, Ascii (bmtoa), or Windows bmp.");
+  PrintS("  compacted, very compact, Ascii (bmtoa), or Windows bmp.");
 #ifdef PS
   PrintS(" _Xp: Create PostScript stroke graphic instead of bitmap file.");
   PrintS(" _Xp0: Like _Xp but create complete instead of encapsulated file.");
@@ -1233,6 +1234,7 @@ void DisplaySwitchesX(void)
   PrintS(" _Xw <hor> [<ver>]: Change the size of chart graphic.");
 #endif
   PrintS(" _Xs <100,200,300,400>: Change the size of map or characters by %.");
+  PrintS(" _XS <100,200,300,400>: Change size of graphics chart text by %.");
   PrintS(" _Xi: Create chart graphic in slightly modified form.");
   PrintS(" _Xt: Inhibit display of chart info at bottom of graphic.");
   PrintS(" _Xu: Inhibit display of a border around graphic.");
@@ -1282,7 +1284,7 @@ void DisplaySwitchesW(void)
 /* routines, such as those displaying the -H switch list, the list of signs, */
 /* objects, default interpretations, and so on not requiring a date or time. */
 
-bool FPrintTables(void)
+flag FPrintTables(void)
 {
 #ifdef WIN
   if (us.fGraphics)

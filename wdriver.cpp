@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: wdriver.cpp
+** Astrolog (Version 6.10) File: wdriver.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -62,7 +62,7 @@
 /* main program, however here each switch has been prefixed with an 'W'.    */
 
 int NProcessSwitchesW(int argc, char **argv, int pos,
-  bool fOr, bool fAnd, bool fNot)
+  flag fOr, flag fAnd, flag fNot)
 {
   int darg = 0, i;
   char sz[cchSzDef], ch1;
@@ -143,21 +143,27 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
 
 void ResizeWindowToChart()
 {
-  RECT rcOld, rcNew;
-  int xScr, yScr;
   HDC hdc;
+  RECT rcOld, rcCli, rcNew;
+  POINT pt;
+  int xScr, yScr;
 
   if (!us.fGraphics || gs.xWin == 0 || gs.yWin == 0)
     return;
-  GetWindowRect(wi.hwnd, &rcOld);
   hdc = GetDC(wi.hwnd);
   xScr = GetDeviceCaps(hdc, HORZRES);
   yScr = GetDeviceCaps(hdc, VERTRES);
   ReleaseDC(wi.hwnd, hdc);
+  GetWindowRect(wi.hwnd, &rcOld);
+  GetClientRect(wi.hwnd, &rcCli);
+  pt.x = pt.y = 0;
+  ClientToScreen(wi.hwnd, &pt);
   rcNew.left = rcOld.left + gi.xOffset;
-  rcNew.top  = rcOld.top + gi.yOffset;
-  rcNew.right = rcNew.left + gs.xWin + (gi.nMode == 0 ? SIDESIZE : 0) + 24;
-  rcNew.bottom = rcNew.top + gs.yWin + 62;
+  rcNew.top  = rcOld.top  + gi.yOffset;
+  rcNew.right = rcNew.left + gs.xWin + (gi.nMode == 0 ? SIDESIZE : 0) +
+    (rcOld.right - rcOld.left - rcCli.right);
+  rcNew.bottom = rcNew.top + gs.yWin +
+    (rcOld.bottom - rcOld.top - rcCli.bottom);
   if (rcNew.right > xScr)
     OffsetRect(&rcNew, xScr - rcNew.right, 0);
   if (rcNew.bottom > yScr)
@@ -173,12 +179,11 @@ void ResizeWindowToChart()
 
 /* Launch an external application and have it open the specified file. */
 
-void BootExternal(char *szApp, char *szFile)
+void BootExternal(CONST char *szApp, CONST char *szFile)
 {
   char szCmd[cchSzDef], sz[cchSzDef];
 
-  sprintf(sz, "%s", szFile);
-  if (FileOpen(sz, 3) != NULL) {
+  if (FileOpen(szFile, 2, sz) != NULL) {
     if (szApp != NULL) {
       sprintf(szCmd, "%s %s", szApp, sz);
       WinExec(szCmd, SW_SHOW);
@@ -263,7 +268,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   wi.hmenu = LoadMenu(wi.hinst, MAKEINTRESOURCE(menu));
   wi.hwndMain = CreateWindow(
     szAppName,
-    "Astrolog 6.00",
+    szAppNameCore " " szVersionCore,
     WS_CAPTION |
     WS_SYSMENU |
     WS_MINIMIZEBOX |
@@ -396,6 +401,7 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         FRedraw();
       break;
 
+#ifdef MOUSE
     /* The mouse has been left clicked or dragged over the window. */
 
     case WM_LBUTTONDOWN:
@@ -476,7 +482,7 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         else if (Lon > rDegHalf)
           Lon = rDegHalf;
         Lat = DegToDec(rDegQuad-(real)(y-gi.yOffset)/
-          (real)gs.yWin*181.0);
+          (real)gs.yWin*rDegHalf);
         if (Lat < -rDegQuad)
           Lat = -rDegQuad;
         else if (Lat > rDegQuad)
@@ -486,6 +492,7 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         ProcessState();
       }
       break;
+#endif
 
     /* A timer message is received at a defined regular interval. */
 
@@ -674,7 +681,7 @@ int NWmCommand(WORD wCmd)
   DLGPROC dlgproc;
   int i;
   long l;
-  bool fGraphics, fT;
+  flag fGraphics, fT;
 
   wi.wCmd = wCmd;
   fGraphics = us.fGraphics;
@@ -964,6 +971,8 @@ int NWmCommand(WORD wCmd)
   case cmdHouse12:
   case cmdHouse13:
   case cmdHouse14:
+  case cmdHouse15:
+  case cmdHouse16:
     WiCheckMenu(cmdHouse00 + us.nHouseSystem, fFalse);
     us.nHouseSystem = (int)(wCmd - cmdHouse00);
     WiCheckMenu(wCmd, fTrue);
@@ -1515,6 +1524,10 @@ LScale:
       if (szMacro[i]) {
         FProcessCommandLine(szMacro[i]);
         wi.fCast = wi.fMenuAll = fTrue;
+      } else if (i == 0/*F1*/ || i == 39/*Alt+F4*/) {
+        /* F1 shows help if macro not already defined for it. */
+        if (i == 0)
+          BootExternal(NULL, "astrolog.htm");
       } else {
         sprintf(sz, "Macro number %d is not defined.", i+1);
         PrintWarning(sz);
@@ -1603,7 +1616,7 @@ void API RedoMenu()
 /* This important routine is the bottleneck to redraw the window and call */
 /* into the program to draw or do action with a particular chart type.    */
 
-bool API FRedraw(void)
+flag API FRedraw(void)
 {
   /* Local variables used in drawing on the screen. */
   PAINTSTRUCT ps;
@@ -1644,6 +1657,7 @@ bool API FRedraw(void)
       gs.xWin = wi.xClient; gs.yWin = wi.yClient;
     }
     gi.nScale = gs.nScale/100;
+    gi.nScaleText = gs.nScaleText/100;
     gi.kiCur = -1;
   } else {
     /* Set up a text chart. */
@@ -1774,7 +1788,7 @@ bool API FRedraw(void)
 /* Create a Windows shortcut file, a link pointing to another file. Called */
 /* from FCreateProgramGroup() and FCreateDesktopIcon() to setup program.   */
 
-bool FCreateShortcut(CONST char *szDir, CONST char *szName,
+flag FCreateShortcut(CONST char *szDir, CONST char *szName,
   CONST char *szFile, CONST char *szDesc, int nIcon)
 {
   IShellLinkA *pisl = NULL;
@@ -1782,7 +1796,7 @@ bool FCreateShortcut(CONST char *szDir, CONST char *szName,
   char sz[cchSzMax], *pch;
   WCHAR wsz[cchSzMax];
   HRESULT hr;
-  bool fRet = fFalse;
+  flag fRet = fFalse;
 
   /* Define the link data */
   hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
@@ -1850,11 +1864,11 @@ void DeleteShortcut(CONST char *szDir, CONST char *szFile)
 
 /* Add an icon pointing to the Astrolog executable on the Windows desktop. */
 
-bool FCreateDesktopIcon()
+flag FCreateDesktopIcon()
 {
   char szDir[cchSzMax], szName[cchSzMax];
   LPITEMIDLIST pidl;
-  bool fRet;
+  flag fRet;
 
   SHGetSpecialFolderLocation(wi.hwnd, CSIDL_DESKTOPDIRECTORY, &pidl);
   SHGetPathFromIDList(pidl, szDir);
@@ -1869,7 +1883,7 @@ bool FCreateDesktopIcon()
 
 /* Create a Windows program group folder containing icons for Astrolog. */
 
-bool FCreateProgramGroup(bool fAll)
+flag FCreateProgramGroup(flag fAll)
 {
   char szDir[cchSzMax], szName[cchSzMax], *pch;
   LPITEMIDLIST pidl;
@@ -1885,6 +1899,9 @@ bool FCreateProgramGroup(bool fAll)
     if (GetLastError() != ERROR_ALREADY_EXISTS)
       goto LError;
   }
+
+  /* Delete old previous version shortcuts from folder */
+  DeleteShortcut(szDir, "Astrolog 6.00");
 
   /* Add main shortcuts in folder */
   sprintf(szName, "%s %s", szAppName, szVersionCore);
@@ -1908,7 +1925,7 @@ LError:
 
 /* Add info about Astrolog specific file extensions to the Windows registry. */
 
-bool FRegisterExtensions()
+flag FRegisterExtensions()
 {
   HKEY hkey;
   char szExe[cchSzMax], szIco[cchSzMax], *pch;
@@ -1970,7 +1987,7 @@ LError:
 
 /* Remove Astrolog specific data from the Windows registry. */
 
-bool FUnregisterExtensions()
+flag FUnregisterExtensions()
 {
   /* Delete .as extension pointing to Astrolog File Type */
   if (SHDeleteKey(HKEY_CLASSES_ROOT, ".as") != ERROR_SUCCESS)

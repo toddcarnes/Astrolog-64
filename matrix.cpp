@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: matrix.cpp
+** Astrolog (Version 6.10) File: matrix.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,13 +44,12 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
 
 
-#ifdef MATRIX
 /*
 ******************************************************************************
 ** Assorted Calculations.
@@ -62,16 +61,19 @@
 
 long MdyToJulian(int mon, int day, int yea)
 {
-#ifndef EPHEM
-  long im, j;
+#ifdef MATRIX
+  if (!us.fEphemFiles) {
+    long im, j;
 
-  im = 12*((long)yea+4800)+(long)mon-3;
-  j = (2*(im%12) + 7 + 365*im)/12;
-  j += (long)day + im/48 - 32083;
-  if (j > 2299171)                   /* Take care of dates in */
-    j += im/4800 - im/1200 + 38;     /* Gregorian calendar.   */
-  return j;
-#else
+    im = 12*((long)yea+4800)+(long)mon-3;
+    j = (2*(im%12) + 7 + 365*im)/12;
+    j += (long)day + im/48 - 32083;
+    if (j > 2299171)                   /* Take care of dates in */
+      j += im/4800 - im/1200 + 38;     /* Gregorian calendar.   */
+    return j;
+  }
+#endif
+#ifdef EPHEM
   int fGreg = fTrue;
   double jd;
 
@@ -79,24 +81,22 @@ long MdyToJulian(int mon, int day, int yea)
     (mon < monJ2G || (mon == monJ2G && day < 15))))
     fGreg = fFalse;
   jd =
-#ifdef SWISS
-#ifdef PLACALC
+#ifdef EPHEM2
     !us.fPlacalcPla ?
-#endif
 #endif
 #ifdef SWISS
     SwissJulDay(mon, day, yea, 12.0, fGreg) + rRound
 #endif
-#ifdef SWISS
-#ifdef PLACALC
+#ifdef EPHEM2
     :
-#endif
 #endif
 #ifdef PLACALC
     julday(mon, day, yea, 12.0, fGreg) + rRound
 #endif
     ;
   return (long)RFloor(jd);
+#else
+  return 0;         /* Shouldn't ever be reached. */
 #endif /* EPHEM */
 }
 
@@ -115,35 +115,34 @@ real MdytszToJulian(int mon, int day, int yea, real tim, real dst, real zon)
 
 void JulianToMdy(real JD, int *mon, int *day, int *yea)
 {
-#ifndef EPHEM
-  long L, N, IT, JT, K, IK;
+#ifdef MATRIX
+  if (!us.fEphemFiles) {
+    long L, N, IT, JT, K, IK;
 
-  L  = (long)RFloor(JD+rRound)+68569L;
-  N  = Dvd(4L*L, 146097L);
-  L  -= Dvd(146097L*N + 3L, 4L);
-  IT = Dvd(4000L*(L+1L), 1461001L);
-  L  -= Dvd(1461L*IT, 4L) - 31L;
-  JT = Dvd(80L*L, 2447L);
-  K  = L-Dvd(2447L*JT, 80L);
-  L  = Dvd(JT, 11L);
-  JT += 2L - 12L*L;
-  IK = 100L*(N-49L) + IT + L;
-  *mon = (int)JT; *day = (int)K; *yea = (int)IK;
-#else
+    L  = (long)RFloor(JD+rRound)+68569L;
+    N  = Dvd(4L*L, 146097L);
+    L  -= Dvd(146097L*N + 3L, 4L);
+    IT = Dvd(4000L*(L+1L), 1461001L);
+    L  -= Dvd(1461L*IT, 4L) - 31L;
+    JT = Dvd(80L*L, 2447L);
+    K  = L-Dvd(2447L*JT, 80L);
+    L  = Dvd(JT, 11L);
+    JT += 2L - 12L*L;
+    IK = 100L*(N-49L) + IT + L;
+    *mon = (int)JT; *day = (int)K; *yea = (int)IK;
+  }
+#endif
+#ifdef EPHEM
   double tim;
 
-#ifdef SWISS
-#ifdef PLACALC
+#ifdef EPHEM2
   if (!us.fPlacalcPla)
-#endif
 #endif
 #ifdef SWISS
     SwissRevJul(JD, JD >= 2299171.0 /* Oct 15, 1582 */, mon, day, yea, &tim);
 #endif
-#ifdef SWISS
-#ifdef PLACALC
+#ifdef EPHEM2
   else
-#endif
 #endif
 #ifdef PLACALC
     revjul(JD, JD >= 2299171.0 /* Oct 15, 1582 */, mon, day, yea, &tim);
@@ -152,20 +151,18 @@ void JulianToMdy(real JD, int *mon, int *day, int *yea)
 }
 
 
-/* This is a subprocedure of CastChart(). Once we have the chart parameters, */
-/* calculate a few important things related to the date, i.e. the Greenwich  */
-/* time, the Julian day and fractional part of the day, the offset to the    */
-/* sidereal, and a couple of other things.                                   */
+/* This is a subprocedure of CastChart(). Once we have the chart parameters */
+/* calculate a few important things related to the date, i.e. the Greenwich */
+/* time, the Julian day and fractional part of the day, the offset to the   */
+/* sidereal, and a couple of other things.                                  */
 
-real ProcessInput(bool fDate)
+real ProcessInput(flag fDate)
 {
-  real Off, Ln;
-
   TT = RSgn(TT)*RFloor(RAbs(TT))+RFract(RAbs(TT))*100.0/60.0 +
     (DecToDeg(ZZ) - DecToDeg(SS));
   OO = DecToDeg(OO);
-  AA = Min(AA, 89.9999);        /* Make sure the chart isn't being cast */
-  AA = Max(AA, -89.9999);       /* on the precise north or south pole.  */
+  AA = Min(AA, rDegQuad-rSmall);    /* Make sure the chart isn't being cast */
+  AA = Max(AA, -(rDegQuad-rSmall)); /* on the precise North or South Pole.  */
   AA = RFromD(DecToDeg(AA));
 
   /* if parameter 'fDate' isn't set, then we can assume that the true time */
@@ -173,50 +170,56 @@ real ProcessInput(bool fDate)
 
   if (fDate) {
     is.JD = (real)MdyToJulian(MM, DD, YY);
-    if (!us.fProgress || us.fSolarArc)
-      is.T = (is.JD + TT/24.0 - 2415020.5) / 36525.0;
-    else {
+    is.T = (is.JD + TT/24.0);
+    if (us.fProgress && !us.fSolarArc) {
       /* Determine actual time that a progressed chart is to be cast for. */
-
-      is.T = ((is.JD + TT/24.0 + (is.JDp - (is.JD + TT/24.0)) / us.rProgDay) -
-        2415020.5) / 36525.0;
+      is.T += ((is.JDp - is.T) / us.rProgDay);
     }
+    is.T = (is.T - 2415020.5) / 36525.0;
   }
 
-  /* Compute angle that the ecliptic is inclined to the Celestial Equator */
-  is.OB = RFromD(23.452294-0.0130125*is.T);
+#ifdef MATRIX
+  if (!(us.fEphemFiles && !us.fPlacalcPla)) {
+    real Ln, Off;
 
-  Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0);  /* Mean lunar node */
-  Off = (259205536.0*is.T+2013816.0)/3600.0;             /* Mean Sun        */
-  Off = 17.23*RSin(RFromD(Ln))+1.27*RSin(RFromD(Off))-(5025.64+1.11*is.T)*is.T;
-  Off = (Off-84038.27)/3600.0;
-  is.rSid = (us.fSidereal ? Off : 0.0) + us.rZodiacOffset;
-  return Off;
+    /* Compute angle that the ecliptic is inclined to the Celestial Equator */
+    is.OB = RFromD(23.452294-0.0130125*is.T);
+
+    Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0);  /* Mean lunar node */
+    Off = (259205536.0*is.T+2013816.0)/3600.0;             /* Mean Sun        */
+    Off = 17.23*RSin(RFromD(Ln))+1.27*RSin(RFromD(Off))-(5025.64+1.11*is.T)*is.T;
+    Off = (Off-84038.27)/3600.0;
+    is.rSid = (us.fSidereal ? Off : 0.0) + us.rZodiacOffset;
+    return Off;
+  }
+#endif
+  return 0.0;
 }
 
 
 /* Convert polar to rectangular coordinates. */
 
-void PolToRec(real A, real R, real *X, real *Y)
+void PolToRec(real a, real r, real *x, real *y)
 {
-  if (A == 0.0)
-    A = rSmall;
-  *X = R*RCos(A);
-  *Y = R*RSin(A);
+  if (a == 0.0)
+    a = rSmall;
+  *x = r*RCos(a);
+  *y = r*RSin(a);
 }
 
 
 /* Convert rectangular to polar coordinates. */
 
-void RecToPol(real X, real Y, real *A, real *R)
+void RecToPol(real x, real y, real *a, real *r)
 {
-  if (Y == 0.0)
-    Y = rSmall;
-  *R = RSqr(X*X + Y*Y);
-  *A = Angle(X, Y);
+  if (y == 0.0)
+    y = rSmall;
+  *r = RSqr(x*x + y*y);
+  *a = Angle(x, y);
 }
 
 
+#ifdef MATRIX
 /* Convert rectangular to spherical coordinates. */
 
 real RecToSph(real B, real L, real O)
@@ -239,6 +242,7 @@ real RecToSph(real B, real L, real O)
   G = A;
   return G;  /* We only ever care about and return one of the coordinates. */
 }
+#endif
 
 
 /* Do a coordinate transformation: Given a longitude and latitude value,    */
@@ -268,29 +272,25 @@ void CoorXform(real *azi, real *alt, real tilt)
 }
 
 
+#ifdef MATRIX
 /* This is another subprocedure of CastChart(). Calculate a few variables */
 /* corresponding to the chart parameters that are used later on. The      */
-/* astrological vertex (object number twenty) is also calculated here.    */
+/* astrological vertex (object number 20) is also calculated here.        */
 
 void ComputeVariables(real *vtx)
 {
-  real R, R2, B, L, O, G, X, Y, A;
+  real B, L, G, tim = TT;
 
-  is.RA = RFromD(Mod((6.6460656+2400.0513*is.T+2.58E-5*is.T*is.T+TT)*15.0-OO));
-  R2 = is.RA; O = -is.OB; B = AA; A = R2; R = 1.0;
-  PolToRec(A, R, &X, &Y);
-  X *= RCos(O);
-  RecToPol(X, Y, &A, &R);
-  is.MC = Mod(is.rSid + DFromR(A));           /* Midheaven */
-#if FALSE
-  L = R2;
-  G = RecToSph(B, L, O);
-  is.Asc = Mod(is.rSid + Mod(G+rPiHalf));     /* Ascendant */
-#endif
-  L= R2+rPi; B = rPiHalf-RAbs(B);
+  if (us.fProgress && !us.fSolarArc) {
+    tim = JulianDayFromTime(is.T) + 0.5;
+    tim = RFract(tim)*24.0;
+  }
+  is.RA = RFromD(Mod((6.6460656 + 2400.0513*is.T + 2.58E-5*is.T*is.T +
+    tim)*15.0 - OO));
+  L = is.RA + rPi; B = rPiHalf - RAbs(AA);
   if (AA < 0.0)
     B = -B;
-  G = RecToSph(B, L, O);
+  G = RecToSph(B, L, -is.OB);
   *vtx = Mod(is.rSid + DFromR(G+rPiHalf));    /* Vertex */
 }
 
@@ -338,7 +338,7 @@ real CuspEastPoint(void)
 
 /* These are various different algorithms for calculating the house cusps: */
 
-real CuspPlacidus(real deg, real FF, bool fNeg)
+real CuspPlacidus(real deg, real FF, flag fNeg)
 {
   real LO, R1, XS, X;
   int i;
@@ -561,8 +561,8 @@ void ErrorCorrect(int ind, real *x, real *y, real *z)
   real U, V, W, A, S0, T0[4], *pr;
   int IK, IJ, irError;
 
-  irError = rErrorCount[ind-oJup];
-  pr = (lpreal)&rErrorData[rErrorOffset[ind-oJup]];
+  irError = cErrorCount[ind-oJup];
+  pr = (real *)&rErrorData[iErrorOffset[ind-oJup]];
   for (IK = 1; IK <= 3; IK++) {
     if (ind == oJup && IK == 3) {
       T0[3] = 0.0;
@@ -579,27 +579,6 @@ void ErrorCorrect(int ind, real *x, real *y, real *z)
     T0[IK] = DFromR(S0+A);
   }
   *x += T0[2]; *y += T0[1]; *z += T0[3];
-}
-
-
-/* Another subprocedure of the ComputePlanets() routine. Convert the final */
-/* rectangular coordinates of a planet to zodiac position and declination. */
-
-void ProcessPlanet(int ind, real aber)
-{
-  real ang, rad;
-
-  RecToPol(spacex[ind], spacey[ind], &ang, &rad);
-  planet[ind] = Mod(DFromR(ang) /*+ NU*/ - aber + is.rSid);
-  RecToPol(rad, spacez[ind], &ang, &rad);
-  if (us.objCenter == oSun && ind == oSun)
-    ang = 0.0;
-  ang = DFromR(ang);
-  while (ang > rDegQuad)    /* Ensure declination is from -90..+90 degrees. */
-    ang -= rDegHalf;
-  while (ang < -rDegQuad)
-    ang += rDegHalf;
-  planetalt[ind] = ang;
 }
 
 
@@ -664,7 +643,6 @@ LNextPlanet:
         ret[i] = RFromD(1.0);         /* if -v0 is in effect.  */
     return;
   }
-#endif /* MATRIX */
 
   /* A second loop is needed for geocentric charts or central bodies other */
   /* than the Sun. For example, we can't find the position of Mercury in   */
@@ -687,7 +665,7 @@ LNextPlanet:
     XS = spacex[i]; YS = spacey[i]; ZS = spacez[i];
     ret[i] = (XS*(helioy[i]-helioy[ind])-YS*(heliox[i]-heliox[ind]))/
       (XS*XS+YS*YS);
-    if (ind == oEar)
+    if (ind == oEar && !us.fTruePos)
       aber = 0.0057756*RSqr(XS*XS+YS*YS+ZS*ZS)*DFromR(ret[i]); /* Aberration */
     ProcessPlanet(i, aber);
     if (us.fVelocity)                         /* Use relative velocity */
@@ -697,7 +675,6 @@ LNextPlanet:
 }
 
 
-#ifdef MATRIX
 /*
 ******************************************************************************
 ** Lunar Position Calculations

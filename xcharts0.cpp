@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xcharts0.cpp
+** Astrolog (Version 6.10) File: xcharts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -63,7 +63,7 @@
 /* in the same column or in the same row just to the right. This is used  */
 /* by the sidebar drawing routine to print a list of text on the chart.   */
 
-int DrawPrint(char *sz, int m, int n)
+int DrawPrint(CONST char *sz, int m, int n)
 {
   static int x0, x, y;
 
@@ -74,17 +74,17 @@ int DrawPrint(char *sz, int m, int n)
   if (y >= gs.yWin-1)  /* Don't draw if we've scrolled off the chart bottom. */
     return y;
   DrawColor(m);
-  DrawSz(sz, x, y, dtLeft | dtBottom);
+  DrawSz(sz, x, y, dtLeft | dtBottom | dtScale2);
 
   /* If the second parameter is TRUE, we stay on the same line, otherwise */
   /* when FALSE we go to the next line at the original column setting.    */
 
   if (n)
-    x += CchSz(sz)*xFont*gi.nScaleT;
+    x += CchSz(sz) * xFont * gi.nScaleText * gi.nScaleT;
   else {
     x = x0;
     n = y;
-    y += yFont*gi.nScaleT;
+    y += yFont * gi.nScaleText * gi.nScaleT;
   }
   return y;
 }
@@ -124,7 +124,7 @@ void DrawInfo()
   /* no effect whatsoever on graphics) we'll decorate the chart a little. */
 
   if (us.fInterpret) {
-    if (us.nScreenWidth & 1) {
+    if (FOdd(us.nScreenWidth)) {
 
       /* If screenwidth value is odd, draw a moire pattern in each corner. */
 
@@ -134,7 +134,7 @@ void DrawInfo()
         for (i = 0; i <= 1; i++)
           for (s = 0; s <= 1; s++)
             for (a = 1; a < (s ? l : k)*2; a++) {
-              DrawColor(a & 1 ? gi.kiGray : gi.kiOff);
+              DrawColor(FOdd(a) ? gi.kiGray : gi.kiOff);
               DrawLine(i ? gs.xWin-1-l : l, y ? gs.yWin-1-k : k,
                 s ? (i ? gs.xWin-1-a : a) : i*(gs.xWin-1),
                 s ? y*(gs.yWin-1) : (y ? gs.yWin-1-a : a));
@@ -167,7 +167,7 @@ void DrawInfo()
   if (gs.fBorder)
     DrawLine(gs.xWin-1, 0, gs.xWin-1, gs.yWin-1);
   gs.xWin += xSideT;
-  DrawPrint(NULL, gs.xWin-xSideT+xFontT-gi.nScaleT, yFont*7/5*gi.nScaleT);
+  DrawPrint(NULL, gs.xWin-xSideT+xFontT-gi.nScaleT, yFontT*7/5);
 
   /* Print chart header and setting information. */
 
@@ -180,7 +180,7 @@ void DrawInfo()
   else if (us.nRel == rcComposite)
     sprintf(sz, "Composite chart.");
   else {
-    sprintf(sz, "%c%c%c %s", chDay3(DayOfWeek(Mon, Day, Yea)),
+    sprintf(sz, "%.3s %s", szDay[DayOfWeek(Mon, Day, Yea)],
       SzDate(Mon, Day, Yea, fTrue));
     DrawPrint(sz, gi.kiLite, fFalse);
     DrawPrint(SzTim(Tim), gi.kiLite, fTrue);
@@ -191,13 +191,13 @@ void DrawInfo()
     DrawPrint(ciMain.loc, gi.kiLite, fFalse);
   if (Mon != -1)
     DrawPrint(SzLocation(Lon, Lat), gi.kiLite, fFalse);
-  sprintf(sz, "%s houses.", szSystem[us.nHouseSystem]);
+  sprintf(sz, "%s houses", szSystem[us.nHouseSystem]);
   DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "%s, %s.", us.fSidereal ? "Sidereal" : "Tropical",
+  sprintf(sz, "%s, %s", us.fSidereal ? "Sidereal" : "Tropical",
     us.objCenter == oSun ? "Heliocentric" :
     (us.objCenter == oEar ? "Geocentric" : szObjName[us.objCenter]));
   DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "Julian Day = %11.4f", JulianDayFromTime(is.T));
+  sprintf(sz, "Julian Day: %13.5f", JulianDayFromTime(is.T));
   DrawPrint(sz, gi.kiLite, fFalse);
 
   /* Print house cusp positions. */
@@ -209,9 +209,9 @@ void DrawInfo()
     if (!is.fSeconds && (gs.nScale == 100 ||
       !gs.fFont || !gi.fFile || gs.fBitmap) && y < gs.yWin-1) {
       s = gi.nScale;
-      gi.nScale = gi.nScaleT;
-      DrawSign(SFromZ(chouse[i]), gs.xWin-12*gi.nScaleT,
-        y-(yFont/2-1)*gi.nScaleT);
+      gi.nScale = gi.nScaleText * gi.nScaleT;
+      DrawSign(SFromZ(chouse[i]),
+        gs.xWin-12*gi.nScale, y-(yFont/2-1)*gi.nScale);
       gi.nScale = s;
     }
     DrawZodiac(chouse[i], fFalse);
@@ -227,8 +227,8 @@ void DrawInfo()
     if (!is.fSeconds && i < starLo && gi.nMode != gSector && (gs.nScale ==
       100 || !gs.fFont || !gi.fFile || gs.fBitmap) && y < gs.yWin-1) {
       s = gi.nScale;
-      gi.nScale = gi.nScaleT;
-      DrawObject(i, gs.xWin-12*gi.nScaleT, y-(yFont/2-1)*gi.nScaleT);
+      gi.nScale = gi.nScaleText * gi.nScaleT;
+      DrawObject(i, gs.xWin-12*gi.nScale, y-(yFont/2-1)*gi.nScale);
       gi.nScale = s;
     }
     sprintf(sz, "%c ", ret[i] < 0.0 ? chRet : ' ');
@@ -260,8 +260,11 @@ void DrawInfo()
     DrawPrint(sz, kObjB[s], fTrue);
     DrawZodiac(planet[s], fTrue);
     DrawPrint("  ", gi.kiOn, fTrue);
-    if (gi.nMode != gSector || !is.fSeconds)
+    if (gi.nMode != gSector || !is.fSeconds) {
+      is.fSeconds = fFalse;
       DrawPrint(SzAltitude(planetalt[s]), gi.kiLite, fTrue);
+      is.fSeconds = us.fSeconds;
+    }
     if (gi.nMode == gSector) {
       r = GFromO(cp1.obj[s]); s = (int)r + 1;
       if (!is.fSeconds)
@@ -305,7 +308,7 @@ void DrawInfo()
 /* locations and at the given radius values.                                */
 
 void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
-  real unity, real asc, real r1, real r2, real r3, real r4, real r5)
+  real unity, real r1, real r2, real r3, real r4, real r5)
 {
   int i;
   real px, py, temp;
@@ -364,6 +367,8 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
     DrawSign(i, cx+POINT1(unitx, r5, PX(temp)),
       cy+POINT1(unity, r5, PY(temp)));
     temp = Midpoint(xhouse[i], xhouse[Mod12(i+1)]);
+    if (MinDistance(xhouse[i] - rDegQuad, temp) > rDegQuad)
+      temp = Mod(temp + rDegHalf);
     DrawHouse(i, cx+POINT1(unitx, r2, PX(temp)),
       cy+POINT1(unity, r2, PY(temp)));
   }
@@ -409,7 +414,7 @@ void DrawSymbolRing(real *symbol, real *xplanet, real *dir, int cx, int cy,
 /* for the next body of land/water, return its name (and color), its     */
 /* longitude and latitude, and a vector description of its outline.      */
 
-bool FReadWorldData(char **nam, char **loc, char **lin)
+flag FReadWorldData(char **nam, char **loc, char **lin)
 {
   static char **psz = (char **)szWorldData;
   int i;
@@ -435,7 +440,7 @@ bool FReadWorldData(char **nam, char **loc, char **lin)
 /* onto the view plane, and return where our coordinates got projected to,  */
 /* as well as whether our location is hidden on the back side of the globe. */
 
-bool FGlobeCalc(real x1, real y1, int *u, int *v, int cx, int cy,
+flag FGlobeCalc(real x1, real y1, int *u, int *v, int cx, int cy,
   int rx, int ry, int deg)
 {
   real j, siny1;
@@ -522,17 +527,17 @@ void DrawLeyLines(int deg)
 /* specified rotational and tilt values, and may draw on the chart each    */
 /* planet at its zenith position on Earth or location in constellations.   */
 
-void DrawMap(bool fSky, bool fGlobe, int deg)
+void DrawMap(flag fSky, flag fGlobe, int deg)
 {
   char *nam, *loc, *lin, chCmd;
   int X[objMax], Y[objMax], M[objMax], N[objMax],
     cx = gs.xWin/2, cy = gs.yWin/2, rx, ry, lon, lat, unit = 12*gi.nScale,
     x, y, xold, yold, m, n, u, v, i, j, k, l, nScl = gi.nScale;
-  bool fNext = fTrue, fCan;
+  flag fNext = fTrue, fCan;
   real planet1[objMax], planet2[objMax], x1, y1, rT;
 #ifdef CONSTEL
   CONST char *pch;
-  bool fBlank;
+  flag fBlank;
   int isz = 0, nC, xT, yT, xDelta, yDelta, xLo, xHi, yLo, yHi;
 #endif
 
@@ -548,7 +553,7 @@ void DrawMap(bool fSky, bool fGlobe, int deg)
       for (xT = 5; xT <= nDegMax; xT += 5) {
         DrawColor(xT % 15 == 0 && yT % 10 == 0 ? gi.kiOn : gi.kiGray);
         x = xT+deg;
-        if (x > nDegMax)
+        if (x >= nDegMax)
           x -= nDegMax;
         DrawPoint(x*nScl, yT*nScl);
       }
@@ -858,7 +863,7 @@ void DrawChartX()
 {
   char sz[cchSzDef];
   int i;
-  bool fT;
+  flag fT;
 
   gi.nScale = gs.nScale/100;
 
@@ -942,12 +947,12 @@ void DrawChartX()
       fT = us.fAnsiChar;
       us.fAnsiChar = (!gs.fFont || (!gs.fMeta && !gs.fPS)) << 1;
       i = DayOfWeek(Mon, Day, Yea);
-      sprintf(sz, "%c%c%c %s %s (%cT %s GMT) %s", chDay3(i),
+      sprintf(sz, "%.3s %s %s (%cT %s GMT) %s", szDay[i],
         SzDate(Mon, Day, Yea, 2), SzTim(Tim), ChDst(Dst),
         SzZone(Zon), SzLocation(Lon, Lat));
       us.fAnsiChar = fT;
     }
-    DrawSz(sz, gs.xWin/2, gs.yWin-3*gi.nScaleT, dtBottom | dtErase);
+    DrawSz(sz, gs.xWin/2, gs.yWin-3*gi.nScaleT, dtBottom | dtErase | dtScale2);
   }
 
   /* Draw a border around the chart if the mode is set and appropriate. */

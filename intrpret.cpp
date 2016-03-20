@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: intrpret.cpp
+** Astrolog (Version 6.10) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -507,13 +507,13 @@ void SortRank(real *value, int *rank, int size)
   for (i = 0; i <= size; i++)
     rank[i] = -1;
   for (h = 0, i = 0; h <= size; h++) {
-    if (size == oNorm && FIgnore(h))
+    if (size > cSign && FIgnore(h))
       continue;
     i++;
     k = 0;
     r = -1.0;
     for (j = 0; j <= size; j++) {
-      if (size == oNorm && FIgnore(j))
+      if (size > cSign && FIgnore(j))
         continue;
       if (value[j] > r && rank[j] < 0) {
         k = j;
@@ -532,28 +532,28 @@ void SortRank(real *value, int *rank, int size)
 /* from the ChartInfluence routine for the -j chart, and the ChartEsoteric */
 /* routine for the -7 chart which also makes use of planet influences.     */
 
-void ComputeInfluence(real power1[oNorm+1], real power2[oNorm+1])
+void ComputeInfluence(real power1[objMax], real power2[objMax])
 {
   int i, j, k, l;
   real x;
   char *c;
 
-  for (i = 0; i <= oNorm; i++)
+  for (i = 0; i <= cObj; i++)
     power1[i] = power2[i] = 0.0;
 
   /* First, for each object, find its power based on its placement alone. */
 
-  for (i = 0; i <= oNorm; i++) if (!FIgnore(i)) {
+  for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     j = SFromZ(planet[i]);
-    power1[i] += rObjInf[i];               /* Influence of planet itself. */
+    power1[i] += RObjInf(i);               /* Influence of planet itself. */
     power1[i] += rHouseInf[inhouse[i]];    /* Influence of house it's in. */
     x = 0.0;
     c = Dignify(i, j);
-    if (c[1] == 'R') x += rObjInf[oNorm+1]; /* Planets in signs they rule */
-    if (c[2] == 'X') x += rObjInf[oNorm+2]; /* or exalted have influence. */
-    if (c[3] == 'S') x += rObjInf[oNorm+3];
-    if (c[4] == 'H') x += rObjInf[oNorm+4];
-    if (c[5] == 'Y') x += rObjInf[oNorm+5];
+    if (c[1] == 'R') x += rObjInf[oNorm1+1]; /* Planets in signs they rule */
+    if (c[2] == 'X') x += rObjInf[oNorm1+2]; /* or exalted have influence. */
+    if (c[3] == 'S') x += rObjInf[oNorm1+3];
+    if (c[4] == 'H') x += rObjInf[oNorm1+4];
+    if (c[5] == 'Y') x += rObjInf[oNorm1+5];
     c = Dignify(i, inhouse[i]);
     if (c[1] == 'R') x += rHouseInf[cSign+1]; /* Planets in houses aligned  */
     if (c[2] == 'X') x += rHouseInf[cSign+2]; /* with sign ruled or exalted */
@@ -562,9 +562,9 @@ void ComputeInfluence(real power1[oNorm+1], real power2[oNorm+1])
     if (c[5] == 'Y') x += rHouseInf[cSign+5];
     power1[i] += x;
     if (i != rules[j])                       /* The planet ruling the sign */
-      power1[rules[j]] += rObjInf[i]/2.0;    /* and the house that the     */
+      power1[rules[j]] += RObjInf(i)/2.0;    /* and the house that the     */
     if (i != (j = rules[inhouse[i]]))        /* current planet is in, gets */
-      power1[j] += rObjInf[i]/2.0;           /* extra influence.           */
+      power1[j] += RObjInf(i)/2.0;           /* extra influence.           */
   }
   for (i = 1; i <= cSign; i++) {         /* Various planets get influence */
     j = SFromZ(chouse[i]);               /* if house cusps fall in signs  */
@@ -575,8 +575,8 @@ void ComputeInfluence(real power1[oNorm+1], real power2[oNorm+1])
 
   if (!FCreateGrid(fFalse))
     return;
-  for (j = 0; j <= oNorm; j++) if (!FIgnore(j))
-    for (i = 0; i <= oNorm; i++) if (!FIgnore(i) && i != j) {
+  for (j = 0; j <= cObj; j++) if (!FIgnore(j))
+    for (i = 0; i <= cObj; i++) if (!FIgnore(i) && i != j) {
       k = grid->n[Min(i, j)][Max(i, j)];
       if (k) {
         l = grid->v[Min(i, j)][Max(i, j)];
@@ -593,9 +593,9 @@ void ComputeInfluence(real power1[oNorm+1], real power2[oNorm+1])
 
 void ChartInfluence(void)
 {
-  real power[oNorm+1], power1[oNorm+1], power2[oNorm+1],
+  real power[objMax], power1[objMax], power2[objMax],
     total, total1, total2;
-  int rank[oNorm+1], rank1[oNorm+1], rank2[oNorm+1], i, j;
+  int rank[objMax], rank1[objMax], rank2[objMax], i, j;
   char sz[cchSzDef];
 
   ComputeInfluence(power1, power2);
@@ -603,17 +603,17 @@ void ChartInfluence(void)
   /* Calculate total power of each planet. */
 
   total = total1 = total2 = 0.0;
-  for (i = 0; i <= oNorm; i++) if (!FIgnore(i)) {
+  for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     power[i] = power1[i]+power2[i]; total1 += power1[i]; total2 += power2[i];
   }
   total = total1+total2;
 
   /* Finally, determine ranks of the arrays, then print everything out. */
 
-  SortRank(power1, rank1, oNorm); SortRank(power2, rank2, oNorm);
-  SortRank(power, rank, oNorm);
+  SortRank(power1, rank1, cObj); SortRank(power2, rank2, cObj);
+  SortRank(power, rank, cObj);
   PrintSz("  Planet:    Position      Aspects    Total Rank  Percent\n");
-  for (i = 0; i <= oNorm; i++) if (!FIgnore(i)) {
+  for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     AnsiColor(kObjA[i]);
     sprintf(sz, "%8.8s: ", szObjName[i]); PrintSz(sz);
     sprintf(sz, "%6.1f (%2d) +%6.1f (%2d) =%7.1f (%2d) /%6.1f%%\n",
@@ -635,7 +635,7 @@ void ChartInfluence(void)
 
   /* For each sign, determine its power based on the power of the object. */
 
-  for (i = 0; i <= oNorm; i++) if (!FIgnore(i)) {
+  for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     power1[SFromZ(planet[i])] += power[i] / 2.0;
     power1[inhouse[i]]        += power[i] / 4.0;
     power1[ruler1[i]]         += power[i] / 3.0;
@@ -649,8 +649,9 @@ void ChartInfluence(void)
   total1 = 0.0;
   for (i = 1; i <= cSign; i++)
     total1 += power1[i];
-  for (i = 1; i <= cSign; i++) if (total1 > 0.0)
-    power1[i] *= total/total1;
+  if (total1 > 0.0)
+    for (i = 1; i <= cSign; i++)
+      power1[i] *= total/total1;
   total1 = total;
 
   /* Again, determine ranks in the array, and print everything out. */

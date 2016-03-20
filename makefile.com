@@ -1,7 +1,7 @@
-$ ! Astrolog (Version 6.00) File: makefile.com (VMS version)
+$ ! Astrolog (Version 6.10) File: makefile.com (VMS version)
 $ !
 $ ! IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-$ ! not enumerated elsewhere in this program are Copyright (C) 1991-2015 by
+$ ! not enumerated elsewhere in this program are Copyright (C) 1991-2016 by
 $ ! Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 $ ! Permission is granted to freely use, modify, and distribute these
 $ ! routines provided these credits and notices remain unmodified with any
@@ -34,6 +34,7 @@ $ CC XDEVICE
 $ CC XGENERAL
 $ CC XSCREEN
 $ CC SWEDATE
+$ CC SWEHOUSE
 $ CC SWEJPL
 $ CC SWEMMOON
 $ CC SWEMPLAN
@@ -63,6 +64,7 @@ $ link/exe=astrolog.exe -
 	XGENERAL.obj, -
 	XSCREEN.obj, -
 	SWEDATE.obj, -
+	SWEHOUSE.obj, -
 	SWEJPL.obj, -
 	SWEMMOON.obj, -
 	SWEMPLAN.obj, -

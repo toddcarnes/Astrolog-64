@@ -244,7 +244,7 @@ int32 FAR PASCAL_CONV swe_calc(double tjd, int ipl, int32 iflag,
       force_flag = 1;
       fgets(s, AS_MAXCH, fp);
       if ((sp = strchr(s, '\n')) != NULL)
-	*sp = '\0';
+        *sp = '\0';
       iflag_forced = atol(s);
       fclose(fp);
     }
@@ -326,8 +326,8 @@ int32 FAR PASCAL_CONV swe_calc(double tjd, int ipl, int32 iflag,
     sd->ipl = ipl;
     switch(ipl) {
       case SE_MOON:
-	dt = MOON_SPEED_INTV;
-	break;
+        dt = MOON_SPEED_INTV;
+        break;
       case SE_OSCU_APOG:
       case SE_TRUE_NODE:
 	/* this is the optimum dt with Moshier ephemeris, but not with
@@ -336,11 +336,11 @@ int32 FAR PASCAL_CONV swe_calc(double tjd, int ipl, int32 iflag,
 	 * we use Moshier optimum.
 	 * For precise speed, use JPL and FAST speed computation,
 	 */
-	dt = NODE_CALC_INTV_MOSH;
-	break;
+        dt = NODE_CALC_INTV_MOSH;
+        break;
       default:
-	dt = PLAN_SPEED_INTV;
-	break;
+        dt = PLAN_SPEED_INTV;
+        break;
     } 
     if ((sd->iflgsave = swecalc(tjd-dt, ipl, iflag, x0, serr)) == ERR)
       goto return_error; 
@@ -6008,7 +6008,7 @@ int32 FAR PASCAL_CONV swe_fixstar_mag(char *star, double *mag, char *serr)
     if (serr != NULL) {
       strcpy(serr, "data of star incomplete");
       if (strlen(serr) + strlen(cpos[0]) + strlen(cpos[1]) + 2 < AS_MAXCH) {
-	sprintf(serr, "data of star '%s,%s' incomplete", cpos[0], cpos[1]);
+        sprintf(serr, "data of star '%s,%s' incomplete", cpos[0], cpos[1]);
       }
     }
     retc = ERR;

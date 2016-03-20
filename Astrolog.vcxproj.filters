@@ -27,6 +27,9 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="swehouse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="swejpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -109,6 +112,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="swedate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="swehouse.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="swejpl.cpp">

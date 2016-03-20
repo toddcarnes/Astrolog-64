@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: io.cpp
+** Astrolog (Version 6.10) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -61,68 +61,82 @@
 /* the program which open files to read call this routine. We look in       */
 /* several various locations and directories for the file before giving up. */
 
-FILE *FileOpen(char *szFile, int nFileMode)
+FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
 {
   FILE *file;
-  char sz[cchSzDef], szMode[3];
+  char szFileT[cchSzDef], sz[cchSzDef], szMode[3];
 #ifdef ENVIRON
   char *env;
 #endif
+  int i;
 
   /* Some file types we want to open as binary instead of Ascii. */
   sprintf(szMode, "r%s", nFileMode == 2 ? "b" : "");
 
-  /* First look for the file in the current directory. */
-  sprintf(sz, "%s", szFile);
-  file = fopen(sz, szMode);
-  if (file != NULL)
-    goto LDone;
+  for (i = 0; i <= 1; i++) {
+    if (i <= 0)
+      sprintf(szFileT, "%s", szFile);
+    else {
+      if (nFileMode > 1)
+        break;
+      sprintf(szFileT, "%s.as", szFile);
+    }
+
+    /* First look for the file in the current directory. */
+    sprintf(sz, "%s", szFileT);
+    file = fopen(sz, szMode);
+    if (file != NULL)
+      goto LDone;
 
 #ifdef ENVIRON
-  /* Next look for the file in the directory indicated by the version */
-  /* specific system environment variable.                            */
-  sprintf(sz, "%s%s", ENVIRONVER, szVersionCore);
-  env = getenv(sz);
-  if (env && *env) {
-    sprintf(sz, "%s%c%s", env, chDirSep, szFile);
-    file = fopen(sz, szMode);
-    if (file != NULL)
-      goto LDone;
-  }
+    /* Next look for the file in the directory indicated by the version */
+    /* specific system environment variable.                            */
+    sprintf(sz, "%s%s", ENVIRONVER, szVersionCore);
+    env = getenv(sz);
+    if (env && *env) {
+      sprintf(sz, "%s%c%s", env, chDirSep, szFileT);
+      file = fopen(sz, szMode);
+      if (file != NULL)
+        goto LDone;
+    }
 
-  /* Next look in the directory in the general environment variable. */
-  env = getenv(ENVIRONALL);
-  if (env && *env) {
-    sprintf(sz, "%s%c%s", env, chDirSep, szFile);
-    file = fopen(sz, szMode);
-    if (file != NULL)
-      goto LDone;
-  }
+    /* Next look in the directory in the general environment variable. */
+    env = getenv(ENVIRONALL);
+    if (env && *env) {
+      sprintf(sz, "%s%c%s", env, chDirSep, szFileT);
+      file = fopen(sz, szMode);
+      if (file != NULL)
+        goto LDone;
+    }
 
-  /* Next look in the directory in the version prefix environment variable. */
-  env = getenv(ENVIRONVER);
-  if (env && *env) {
-    sprintf(sz, "%s%c%s", env, chDirSep, szFile);
-    file = fopen(sz, szMode);
-    if (file != NULL)
-      goto LDone;
-  }
+    /* Next look in directory in the version prefix environment variable. */
+    env = getenv(ENVIRONVER);
+    if (env && *env) {
+      sprintf(sz, "%s%c%s", env, chDirSep, szFileT);
+      file = fopen(sz, szMode);
+      if (file != NULL)
+        goto LDone;
+    }
 #endif
 
-  /* Finally look in one of several directories specified at compile time. */
-  sprintf(sz, "%s%c%s", nFileMode == 0 ? DEFAULT_DIR :
-    (nFileMode == 1 ? CHART_DIR : EPHE_DIR), chDirSep, szFile);
-  file = fopen(sz, szMode);
-  if (file == NULL && (nFileMode & 1)) {
-    /* If the file was never found, print an error (unless we were looking */
-    /* for a certain file type, e.g. the optional astrolog.as file).       */
-    sprintf(sz, "File '%s' not found.", szFile);
+    /* Finally look in one of several compile time specified directories. */
+    sprintf(sz, "%s%c%s", nFileMode == 0 ? DEFAULT_DIR :
+      (nFileMode == 1 ? CHART_DIR : EPHE_DIR), chDirSep, szFileT);
+    file = fopen(sz, szMode);
+    if (file != NULL)
+      goto LDone;
+  }
+
+  if (file == NULL && FOdd(nFileMode)) {
+    /* If file was never found, print an error (unless we were looking */
+    /* for a certain file type, e.g. the optional astrolog.as file).   */
+    sprintf(sz, "File '%s' not found.", szFileT);
     PrintError(sz);
   }
 
 LDone:
-  if (file != NULL && nFileMode == 3) {
-    sprintf(szFile, "%s", sz);
+  if (file != NULL && szPath != NULL) {
+    sprintf(szPath, "%s", sz);
     fclose(file);
   }
   return file;
@@ -133,13 +147,13 @@ LDone:
 /* info files, position files, and config files. Given a file name or a    */
 /* file handle, run through each line as a series of command switches.     */
 
-bool FProcessSwitchFile(char *szFile, FILE *file)
+flag FProcessSwitchFile(CONST char *szFile, FILE *file)
 {
   char szLine[cchSzMax], *argv[MAXSWITCHES], ch;
   int argc, i;
 
   if (file == NULL)
-    file = FileOpen(szFile, 0);
+    file = FileOpen(szFile, 0, NULL);
   if (file == NULL)
     return fFalse;
 
@@ -159,7 +173,7 @@ bool FProcessSwitchFile(char *szFile, FILE *file)
     if (feof(file))
       break;
     for (szLine[0] = ch, i = 1; i < cchSzMax && !feof(file) &&
-      (_char)(szLine[i] = getc(file)) >= ' '; i++)
+      (uchar)(szLine[i] = getc(file)) >= ' '; i++)
       ;
     szLine[i] = chNull;
     argc = NParseCommandLine(szLine, argv);
@@ -174,7 +188,7 @@ bool FProcessSwitchFile(char *szFile, FILE *file)
 /* as indicated by the -o switch. This is only executed at the end of */
 /* program execution if the -o switch is in effect.                   */
 
-bool FOutputData(void)
+flag FOutputData(void)
 {
   char sz[cchSzDef];
   FILE *file;
@@ -205,7 +219,7 @@ bool FOutputData(void)
       fprintf(file, "@0103  ; %s chart info.\n", szAppName);
       i = us.fAnsiChar;
       us.fAnsiChar = fFalse;
-      fprintf(file, "%cqb %c%c%c %d %d %s %s %s %s\n", chSwitch, chMon3(Mon),
+      fprintf(file, "%cqb %.3s %d %d %s %s %s %s\n", chSwitch, szMonth[Mon],
         Day, Yea, SzTim(Tim), Dst == 0.0 ? "ST" : (Dst == 1.0 ? "DT" :
         SzZone(Dst)), SzZone(Zon), SzLocation(Lon, Lat));
       fprintf(file, "%czi \"%s\" \"%s\"\n", chSwitch, ciMain.nam, ciMain.loc);
@@ -219,7 +233,7 @@ bool FOutputData(void)
     if (us.fWriteOld) {
       for (i = 1; i <= oNorm; i++) {
         j = (int)planet[i];
-        fprintf(file, "%c%c%c: %2d %2d %10.7f\n", chObj3(i),
+        fprintf(file, "%.3s: %2d %2d %10.7f\n", szObjName[i],
           j%30, j/30+1, RFract(planet[i])*60.0);              /* Position */
         rT = planetalt[i];
         fprintf(file, "[%c]: %3d %12.8f\n",                   /* Altitude */
@@ -254,8 +268,8 @@ bool FOutputData(void)
         rT = FBetween(i, cuspLo-1+4, cuspLo-1+9) ?
           chouse[i-(cuspLo-1)] : planet[i];
         j = (int)rT;
-        fprintf(file, "%3d %c%c%c%13.9f,%4d%13.9f,",
-          j%30, chSig3(j/30+1), RFract(rT)*60.0,
+        fprintf(file, "%3d %.3s%13.9f,%4d%13.9f,",
+          j%30, szSignName[j/30+1], RFract(rT)*60.0,
           (int)planetalt[i], RFract(RAbs(planetalt[i]))*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :
           RSqr(spacex[i]*spacex[i]+spacey[i]*spacey[i]+spacez[i]*spacez[i]));
@@ -286,7 +300,7 @@ bool FOutputData(void)
 /* indicates, based on a given parsing mode. In most cases this is mainly  */
 /* looking up a string in the appropriate array and returning the index.   */
 
-int NParseSz(char *szEntry, int pm)
+int NParseSz(CONST char *szEntry, int pm)
 {
   char szLocal[cchSzMax], ch0, ch1, ch2, ch3;
   CONST char *sz, *pch;
@@ -322,9 +336,10 @@ int NParseSz(char *szEntry, int pm)
       }
       /* Allow "Node" to match North Node for compatibility with version */
       /* 5.40 and before, for when the object was called just "Node".    */
-      if (ch0 == 'N' && ch1 == 'o' && ch2 == 'd' &&
-        (ch3 == chNull || ch3 == ':' || ch3 == 'e'))
-        return oNod;
+      /* Allow "Star" to match first star for -YAm and -YAd switches.    */
+      i = SzLookup(rgObjName, szEntry);
+      if (i >= 0)
+        return i;
       break;
     /* Parse aspects, e.g. "Conjunct" or "Con" -> 1 for the Conjunction. */
     case pmAspect:
@@ -341,6 +356,9 @@ int NParseSz(char *szEntry, int pm)
           ch2 == szSystem[i][2])
           return i;
       }
+      i = SzLookup(rgSystem, szEntry);
+      if (i >= 0)
+        return i;
       break;
     /* Parse zodiac signs, e.g. "Scorpio" or "Sco" -> 8 for Scorpio. */
     case pmSign:
@@ -387,11 +405,11 @@ int NParseSz(char *szEntry, int pm)
 /* Given a string, return a floating point number corresponding to what the  */
 /* string indicates, based on a given parsing mode, like above for integers. */
 
-real RParseSz(char *szEntry, int pm)
+real RParseSz(CONST char *szEntry, int pm)
 {
   char szLocal[cchSzMax], *sz, *pch, ch;
   int cch, i;
-  bool f = fFalse, fPeriod;
+  flag f = fFalse, fPeriod;
   real r;
 
   /* First strip off any leading or trailing spaces. */
@@ -496,9 +514,15 @@ real RParseSz(char *szEntry, int pm)
         r = r >= 12.0 ? r : r+12.0;
     }
   } else if (pm == pmZon) {
+    /* Check for "E" suffix for East of GMT. */
     i = Max(cch-1, 0);
     if (sz[i] == 'E')
       neg(r);
+  } else if (pm == pmElv) {
+    /* Check for "feet" or "ft" suffix for feet instead of meters. */
+    i = Max(cch-1, 0);
+    if (sz[i] == 'F' || sz[i] == 'T')
+      r *= rFtToM;
   }
   return r;
 }
@@ -508,7 +532,7 @@ real RParseSz(char *szEntry, int pm)
 /* Stop and wait for the user to enter a line of text given a prompt to */
 /* display and a string buffer to fill with it.                         */
 
-void InputString(char *szPrompt, char *sz)
+void InputString(CONST char *szPrompt, char *sz)
 {
   FILE *file;
   int cch;
@@ -532,7 +556,7 @@ void InputString(char *szPrompt, char *sz)
 /* Prompt the user for a floating point value, parsing as appropriate, and */
 /* make sure it conforms to the specified bounds before returning it.      */
 
-int NInputRange(char *szPrompt, int low, int high, int pm)
+int NInputRange(CONST char *szPrompt, int low, int high, int pm)
 {
   char szLine[cchSzDef];
   int n;
@@ -550,7 +574,7 @@ int NInputRange(char *szPrompt, int low, int high, int pm)
 
 /* This is identical to above except it takes/returns floating point values. */
 
-real RInputRange(char *szPrompt, real low, real high, int pm)
+real RInputRange(CONST char *szPrompt, real low, real high, int pm)
 {
   char szLine[cchSzDef];
   real r;
@@ -576,7 +600,7 @@ real RInputRange(char *szPrompt, real low, real high, int pm)
 /* program considers these cases "virtual" files. Furthermore, when reading  */
 /* from a real file, we have to check if it was written in the -o0 format.   */
 
-bool FInputData(char *szFile)
+flag FInputData(CONST char *szFile)
 {
   FILE *file;
   char sz[cchSzDef], ch;
@@ -608,7 +632,7 @@ bool FInputData(char *szFile)
     is.fHaveInfo = fTrue;
     SS = us.dstDef; ZZ = us.zonDef; OO = us.lonDef; AA = us.latDef;
     GetTimeNow(&MM, &DD, &YY, &TT, ZZ-SS);
-    ciCore.nam = ciCore.loc = "";
+    ciCore.nam = us.namDef; ciCore.loc = us.locDef;
     return fTrue;
   }
 #endif
@@ -636,8 +660,8 @@ bool FInputData(char *szFile)
       1, 12, pmMon);
     DD = NInputRange("Enter day   for chart (e.g. '1' '31') ",
       1, DayInMonth(MM, 0), pmDay);
-    YY = NInputRange("Enter year  for chart (e.g. '2015')   ",
-      -20000, 20000, pmYea);
+    YY = NInputRange("Enter year  for chart (e.g. '2016')   ",
+      -32000, 32000, pmYea);
     if (FBetween(YY, 0, 99)) {
       sprintf(sz,
         "Assuming first century A.D. is really meant instead of %d.",
@@ -675,7 +699,7 @@ bool FInputData(char *szFile)
   /* Now that the special cases are taken care of, we can assume we are */
   /* to read from a real file.                                          */
 
-  file = FileOpen(szFile, 1);
+  file = FileOpen(szFile, 1, NULL);
   if (file == NULL)
     return fFalse;
   is.fHaveInfo = fTrue;
@@ -700,6 +724,7 @@ bool FInputData(char *szFile)
       PrintWarning("Values in old style chart info file are out of range.");
       return fFalse;
     }
+    ciCore.nam = ciCore.loc = "";
 
   /* Read the actual chart positions from a file produced with the -o0. */
 

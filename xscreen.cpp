@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xscreen.cpp
+** Astrolog (Version 6.10) File: xscreen.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -124,7 +124,7 @@ void InitColorsX()
     kMainB[i]    = gs.fColor ? kMainA[i]    : gi.kiOn;
   for (i = 0; i <= 7; i++)
     kRainbowB[i] = gs.fColor ? kRainbowA[i] : gi.kiOn;
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < cElem; i++)
     kElemB[i]    = gs.fColor ? kElemA[i]    : gi.kiOn;
   for (i = 0; i <= cAspect; i++)
     kAspB[i]     = gs.fColor ? kAspA[i]     : gi.kiOn;
@@ -161,11 +161,6 @@ void BeginX()
   hint.min_width = BITMAPX1; hint.min_height = BITMAPY1;
   hint.max_width = BITMAPX;  hint.max_height = BITMAPY;
   hint.flags = PPosition | PSize | PMaxSize | PMinSize;
-#if FALSE
-  wmhint = XGetWMHints(gi.disp, gi.wind);
-  wmhint->input = True;
-  XSetWMHints(gi.disp, gi.wind, wmhint);
-#endif
   gi.depth = DefaultDepth(gi.disp, gi.screen);
   if (gi.depth < 5) {
     gi.fMono = fTrue;      /* Is this a monochrome monitor? */
@@ -217,102 +212,6 @@ void BeginX()
   InitColorsX();
 #endif /* WIN */
 
-#ifdef MSG
-  if (!FValidResmode(gi.nRes))    /* Initialize graphics mode to hi-res. */
-    gi.nRes = gs.nResHi;
-  _setvideomode(gi.nRes == -1 ? _VRES16COLOR : gi.nRes);
-  if (_grstatus()) {
-    PrintError("Can't enter graphics mode.");
-    Terminate(tcFatal);
-  }
-  _getvideoconfig((struct videoconfig far *) &gi.cfg);
-  if (gi.cfg.numcolors < 16) {
-    gi.fMono  = fTrue;
-    gs.fColor = fFalse;
-  }
-  _remapallpalette((long *) rgb);
-  _setactivepage(0);
-  _setvisualpage(0);
-  InitColorsX();
-#ifdef MOUSE
-  MouseInit(xPcScreen, yPcScreen);
-#endif
-  /* Make sure we reset textrows upon restart. */
-  gs.nTextRows = abs(gs.nTextRows);
-#endif /* MSG */
-
-#ifdef BGI
-  int i;
-  static struct palettetype pal;
-
-  if (!FValidResmode(gi.nRes))    /* Initialize graphics mode to hi-res. */
-    gi.nRes = gs.nResHi;
-  if (!gi.fLoaded) {
-    registerfarbgidriver(ATT_driver_far);      /* attf.obj     */
-    registerfarbgidriver(CGA_driver_far);      /* cgaf.obj     */
-    registerfarbgidriver(EGAVGA_driver_far);   /* egavgaf.obj  */
-    registerfarbgidriver(Herc_driver_far);     /* hercf.obj    */
-    registerfarbgidriver(IBM8514_driver_far);  /* ibm8514f.obj */
-    registerfarbgidriver(PC3270_driver_far);   /* pc3270f.obj  */
-    gi.nDriver = DETECT;
-    initgraph(&gi.nDriver, &gi.nGraph, "");
-    gi.fLoaded = fTrue;
-  }
-  if (gi.nRes <= 0) {
-    switch (gi.nDriver) {
-    case CGA:      gi.nGraph = CGAHI;      break;
-    case MCGA:     gi.nGraph = MCGAHI;     break;
-    case EGA:      gi.nGraph = EGAHI;      break;
-    case EGA64:    gi.nGraph = EGA64HI;    break;
-    case EGAMONO:  gi.nGraph = EGAMONOHI;  break;
-    case HERCMONO: gi.nGraph = HERCMONOHI; break;
-    case ATT400:   gi.nGraph = ATT400HI;   break;
-    case VGA:      gi.nGraph = VGAHI;      break;
-    case PC3270:   gi.nGraph = PC3270HI;   break;
-    case IBM8514:  gi.nGraph = IBM8514HI;  break;
-    default:       gi.nGraph = 0;
-    }
-  } else {
-    switch (gi.nDriver) {
-    case CGA:      gi.nGraph = CGAHI;      break;
-    case MCGA:     gi.nGraph = MCGAHI;     break;
-    case EGA:      gi.nGraph = EGAHI;      break;
-    case EGA64:    gi.nGraph = EGA64HI;    break;
-    case EGAMONO:  gi.nGraph = EGAMONOHI;  break;
-    case HERCMONO: gi.nGraph = HERCMONOHI; break;
-    case ATT400:   gi.nGraph = ATT400HI;   break;
-    case VGA:      gi.nGraph = VGAMED;     break;
-    case PC3270:   gi.nGraph = PC3270HI;   break;
-    case IBM8514:  gi.nGraph = IBM8514LO;  break;
-    default:       gi.nGraph = 0;
-    }
-  }
-  setgraphmode(gi.nGraph);
-  if (graphresult()) {
-    PrintError("Can't enter graphics mode.");
-    Terminate(tcFatal);
-  }
-  gi.nPages = 1 + (gi.nDriver == HERCMONO ||
-    (gi.nDriver == VGA && gi.nGraph != VGAHI) || gi.nDriver == EGA);
-  if (getmaxcolor()+1 < 16) {
-    gi.fMono  = fTrue;
-    gs.fColor = fFalse;
-  }
-  getpalette(&pal);
-  for (i = 0; i < pal.size; i++)
-    pal.colors[i] = (char)rgb[i];
-  setallpalette(&pal);
-  setactivepage(0);
-  setvisualpage(0);
-  gi.nPageCur = 0;
-  InitColorsX();
-#ifdef MOUSE
-  MouseInit(xPcScreen, yPcScreen);
-#endif
-  /* Make sure we reset textrows upon restart. */
-  gs.nTextRows = abs(gs.nTextRows);
-#endif /* BGI */
-
 #ifdef MACG
   MaxApplZone();
   InitGraf(&thePort);
@@ -329,8 +228,8 @@ void BeginX()
   gi.rcBounds.top = 20 + GetMBarHeight();
   gi.rcBounds.right = gi.rcBounds.left + gs.xWin;
   gi.rcBounds.bottom = gi.rcBounds.top + gs.yWin;
-  gi.wpAst = NewCWindow(0L, &gi.rcBounds, "\pAstrolog 6.00", true,
-    noGrowDocProc, (WindowPtr)-1L, true, 0);
+  gi.wpAst = NewCWindow(0L, &gi.rcBounds, "\p" szAppNameCore " "
+    szVersionCore, true, noGrowDocProc, (WindowPtr)-1L, true, 0);
   SetPort(gi.wpAst);
   InitColorsX();
 #endif /* MACG */
@@ -471,15 +370,6 @@ void CommandLineX()
   int argc, fT, fPause = fFalse;
 
   ciCore = ciMain;
-#ifdef MSG
-  _setvideomode(_DEFAULTMODE);
-  _settextrows(gs.nTextRows);
-#endif
-#ifdef BGI
-  restorecrtmode();
-  if (gs.nTextRows > 25)
-    textmode(C4350);
-#endif
   fT = us.fLoop; us.fLoop = fTrue;
   argc = NPromptSwitches(szCommandLine, rgsz);
   is.cchRow = 0;
@@ -496,19 +386,6 @@ void CommandLineX()
     }
   }
 
-#ifdef PCG
-  /* Pause for the user if there was either an error processing the    */
-  /* switches, or one of the informational text tables was brought up. */
-
-  if (fPause) {
-    AnsiColor(kDefault);
-    is.cchRow = 0;
-    PrintSz("Press any key to return to graphics.\n");
-    while (!kbhit())
-      ;
-    getch();
-  }
-#endif
   is.fSzInteract = fFalse;
   us.fLoop = fT;
   ciMain = ciCore;
@@ -528,12 +405,6 @@ void SquareX(int *x, int *y, int force)
     *x = *y;
   else
     *y = *x;
-#ifdef PCG
-  if (FEgaRes(gi.nRes))         /* Scale horizontal size if we're in a PC */
-    *x = VgaFromEga(*x);        /* graphics mode without "square" pixels. */
-  else if (FCgaRes(gi.nRes))
-    *x = VgaFromCga(*x);
-#endif
   if (fSidebar)      /* Take into account chart's sidebar, if any. */
     *x += xSideT;
 }
@@ -552,12 +423,6 @@ void InteractX()
   KeySym keysym;
   int fResize = fFalse, fRedraw = fTrue;
 #endif
-#ifdef PCG
-#ifdef MOUSE
-  int eventx, eventy, eventbtn;
-#endif
-  int fResize = fTrue, fRedraw = fFalse;
-#endif /* PCG */
 #ifdef MACG
   EventRecord erCur;
   WindowPtr wpCur;
@@ -566,12 +431,13 @@ void InteractX()
   int fBreak = fFalse, fPause = fFalse, fCast = fFalse, xcorner = 7,
     mousex = -1, mousey = -1, buttonx = -1, buttony = -1, dir = 1,
     length, key, i;
-  bool fT;
+  flag fT;
   KI coldrw = gi.kiLite;
 
   neg(gs.nAnim);
   while (!fBreak) {
     gi.nScale = gs.nScale/100;
+    gi.nScaleText = gs.nScaleText/100;
 
     /* Some chart windows, like the world maps and aspect grids, should */
     /* always be a certian size, so correct if a resize was attempted.  */
@@ -618,19 +484,8 @@ void InteractX()
 
     /* If in animation mode, ensure we are in the flicker free resolution. */
 
-    if (gs.nAnim < 0) {
+    if (gs.nAnim < 0)
       neg(gs.nAnim);
-#ifdef PCG
-      if (gi.nRes == gs.nResHi && !gs.fJetTrail) {
-        gi.nRes = gs.nResLo;
-        BeginX();
-        gs.xWin = xPcScreen;
-        gs.yWin = yPcScreen;
-        SquareX(&gs.xWin, &gs.yWin, fFalse);
-        fResize = fTrue;
-      }
-#endif
-    }
 
     /* Physically resize window if we've changed the size parameters. */
 
@@ -640,28 +495,6 @@ void InteractX()
       XResizeWindow(gi.disp, gi.wind, gs.xWin, gs.yWin);
       XFreePixmap(gi.disp, gi.pmap);
       gi.pmap = XCreatePixmap(gi.disp, gi.wind, gs.xWin, gs.yWin, gi.depth);
-#endif
-#ifdef PCG
-      if (xPcScreen > gs.xWin)
-        gi.xOffset = (xPcScreen - gs.xWin) / 2;
-      else {
-        if (xcorner % 3 == 1)
-          gi.xOffset = 0;
-        else if (xcorner % 3 == 0)
-          gi.xOffset = -gs.xWin + xPcScreen;
-        else
-          gi.xOffset = -(gs.xWin - xPcScreen) / 2;
-      }
-      if (yPcScreen > gs.yWin)
-        gi.yOffset = (yPcScreen - gs.yWin) / 2;
-      else {
-        if (xcorner > 6)
-          gi.yOffset = 0;
-        else if (xcorner < 4)
-          gi.yOffset = -gs.yWin + yPcScreen;
-        else
-          gi.yOffset = -(gs.yWin - yPcScreen) / 2;
-      }
 #endif
 #ifdef MACG
       SizeWindow(gi.wpAst, gs.xWin, gs.yWin, fTrue);
@@ -698,20 +531,6 @@ void InteractX()
 #ifdef X11
       XFillRectangle(gi.disp, gi.pmap, gi.pmgc, 0, 0, gs.xWin, gs.yWin);
 #endif
-#ifdef PCG
-#ifdef MOUSE
-      MouseShow(fFalse);
-#endif
-#ifdef MSG
-      if (gi.cfg.numvideopages > 1)
-        _setactivepage(_getactivepage() == gs.fJetTrail);
-#else
-      if (gi.nPages > 1) {
-        gi.nPageCur = (gi.nPageCur == gs.fJetTrail);
-        setactivepage(gi.nPageCur);
-      }
-#endif
-#endif /* PCG */
 #ifdef MACG
       SetPort(gi.wpAst);
       InvalRect(&gi.wpAst->portRect);
@@ -728,19 +547,6 @@ void InteractX()
       XCopyArea(gi.disp, gi.pmap, gi.wind, gi.gc,
         0, 0, gs.xWin, gs.yWin, 0, 0);
 #endif
-#ifdef PCG
-#ifdef MSG
-      if (gi.cfg.numvideopages > 1)
-        _setvisualpage(_getactivepage());
-#else
-      if (gi.nPages > 1)
-        setvisualpage(gi.nPageCur);
-#endif
-#ifdef MOUSE
-      if (!gs.nAnim || fPause)
-        MouseShow(fTrue);
-#endif
-#endif /* PCG */
 #ifdef MACG
       EndUpdate(gi.wpAst);
 #endif
@@ -818,55 +624,6 @@ void InteractX()
           key = xkey[0];
 #endif /* X11 */
 
-#ifdef PCG
-#ifdef MOUSE
-      if ((!gs.nAnim || fPause) && MouseStatus(&eventx, &eventy, &eventbtn)) {
-
-        /* If the left button is down, draw on the screen. */
-        if (eventbtn == mfLeft && mousex >= 0) {
-          MouseShow(fFalse);
-          DrawColor(coldrw);
-          PcMoveTo(mousex, mousey);
-          buttonx = eventx; buttony = eventy;
-          PcLineTo(buttonx, buttony);
-
-        /* If the right button is down, change the default location. */
-        } else if (eventbtn == mfRight) {
-          if (fMap && gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
-            Lon = DegToDec(rDegHalf-(real)(eventx-gi.xOffset)/
-              (real)gs.xWin*rDegMax);
-            if (Lon < -rDegHalf)
-              Lon = -rDegHalf;
-            else if (Lon > rDegHalf)
-              Lon = rDegHalf;
-            Lat = DegToDec(rDegQuad-(real)(eventy-gi.yOffset)/
-              (real)gs.yWin*181.0);
-            if (Lat < -rDegQuad)
-              Lat = -rDegQuad;
-            else if (Lat > rDegQuad)
-              Lat = rDegQuad;
-            fCast = fTrue;
-
-          /* Right button means draw lines if not in a world map mode. */
-          } else if (buttonx >= 0) {
-            MouseShow(fFalse);
-            DrawColor(coldrw);
-            PcMoveTo(buttonx, buttony);
-            PcLineTo(eventx, eventy);
-          }
-
-        /* Middle button (which most PC's don't have) means exit program. */
-        } else if (eventbtn == mfMiddle)
-          fBreak = fTrue;
-
-        mousex = eventx; mousey = eventy;
-        MouseShow(fTrue);
-      } else
-#endif /* MOUSE */
-        if (kbhit()) {
-          key = getch();
-#endif /* PCG */
-
 #ifdef MACG
       HiliteMenu(0);
       SystemTask();
@@ -906,11 +663,6 @@ void InteractX()
 
 LSwitch:
           switch (key) {
-#ifdef PCG
-          case chNull:
-            key = NFromAltN(getch());
-            goto LSwitch;
-#endif
           case ' ':
             fRedraw = fTrue;
             break;
@@ -928,9 +680,6 @@ LSwitch:
           case 'm':
             if (!gi.fMono) {
               inv(gs.fColor);
-#ifdef MSG
-              _getvideoconfig((struct videoconfig far *) &gi.cfg);
-#endif
               InitColorsX();
               fRedraw = fTrue;
             }
@@ -939,12 +688,6 @@ LSwitch:
 #ifdef X11
             XSetWindowBackgroundPixmap(gi.disp, gi.root, gi.pmap);
             XClearWindow(gi.disp, gi.root);
-#endif
-#ifdef PCG
-            gs.xWin = xPcScreen;
-            gs.yWin = yPcScreen;
-            SquareX(&gs.xWin, &gs.yWin, fFalse);
-            fResize = fTrue;
 #endif
             break;
           case 't':
@@ -1122,16 +865,6 @@ LSwitch:
             fRedraw = fTrue;
             break;
           case 'v': case 'H': case '?':
-#ifdef MSG
-            _setvideomode(_DEFAULTMODE);
-            if (key != 'v')
-              _settextrows(50);
-#endif
-#ifdef BGI
-            restorecrtmode();
-            if (key != 'v')
-              textmode(C4350);
-#endif
             length = us.nScrollRow;
             us.nScrollRow = 0;
             if (key == 'v')
@@ -1139,41 +872,12 @@ LSwitch:
             else
               DisplayKeysX();
             us.nScrollRow = length;
-#ifdef PCG
-            while (!kbhit())
-              ;
-            key = getch();
-            if (key == 'q' || key == chEscape || key == chBreak) {
-              fBreak = fTrue;
-              break;
-            }
-            BeginX();
-            fResize = fTrue;
-#endif
             break;
           case chReturn:
             CommandLineX();
             fResize = fCast = fTrue;
             break;
-#ifdef PCG
-          case chTab:
-            if (gi.nRes == gs.nResHi)
-              gi.nRes = gs.nResLo;
-            else
-              gi.nRes = gs.nResHi;
-            BeginX();
-            gs.xWin = xPcScreen;
-            gs.yWin = yPcScreen;
-            SquareX(&gs.xWin, &gs.yWin, fFalse);
-            fResize = fTrue;
-            break;
-#endif
           case chDelete:
-#ifdef PCG
-#ifdef MOUSE
-            MouseShow(fFalse);
-#endif
-#endif /* PCG */
             fT = gs.fJetTrail;
             gs.fJetTrail = fFalse;
             DrawClearScreen();
@@ -1196,53 +900,14 @@ LSwitch:
           case 'v'-'`': coldrw = kMagenta; break;
           case 'j'-'`': coldrw = kCyan;    break;
           case 'a'-'`': coldrw = kWhite;   break;
-#ifdef PCG
-          case 't'-'`':
-            MouseShow(fFalse);
-            if (buttonx >= 0)
-#ifdef MSG
-              _rectangle(_GBORDER, buttonx, buttony, mousex, mousey);
-#else
-              DrawEdge(Min(buttonx, mousex) - gi.xOffset,
-                Min(buttony, mousey) - gi.yOffset,
-                Max(mousex, buttonx) - gi.xOffset,
-                Max(mousey, buttony) - gi.yOffset);
-#endif
-            MouseShow(fTrue);
-            break;
-          case 'x'-'`':
-            MouseShow(fFalse);
-            if (buttonx >= 0)
-#ifdef MSG
-              _ellipse(_GBORDER, buttonx, buttony, mousex, mousey);
-#else
-              DrawEllipse(Min(buttonx, mousex) - gi.xOffset,
-                Min(buttony, mousey) - gi.yOffset,
-                Max(mousex, buttonx) - gi.xOffset,
-                Max(mousey, buttony) - gi.yOffset);
-#endif
-            MouseShow(fTrue);
-            break;
-#endif /* PCG */
 #endif /* MOUSE */
           case 'q': case chEscape: case chBreak:
             fBreak = fTrue;
             break;
           default:
             if (key > '0' && key <= '9') {
-#ifdef PCG
-              if (gs.nAnim && !fPause)
-#endif
-                /* Process numbers 1..9 signifying animation rate. */
-                dir = (dir > 0 ? 1 : -1)*(key-'0');
-#ifdef PCG
-              else {
-                /* If we aren't in animation mode, then 1..9 refers to the */
-                /* clipping "quadrant" to use if chart size > screen size. */
-                xcorner = key-'0';
-                fResize = fTrue;
-              }
-#endif
+              /* Process numbers 1..9 signifying animation rate. */
+              dir = (dir > 0 ? 1 : -1)*(key-'0');
               break;
             } else if (FBetween(key, 201, 248)) {
               is.fSzInteract = fTrue;
@@ -1280,12 +945,6 @@ void EndX()
   XDestroyWindow(gi.disp, gi.wind);
   XCloseDisplay(gi.disp);
 #endif
-#ifdef MSG
-  _setvideomode(_DEFAULTMODE);
-#endif
-#ifdef BGI
-  restorecrtmode();
-#endif
 #ifdef MACG
   DisposeWindow(gi.wpAst);
 #endif
@@ -1305,7 +964,7 @@ void EndX()
 /* main program, however here each switch has been prefixed with an 'X'.     */
 
 int NProcessSwitchesX(int argc, char **argv, int pos,
-  bool fOr, bool fAnd, bool fNot)
+  flag fOr, flag fAnd, flag fNot)
 {
   int darg = 0, i, j;
   real rT;
@@ -1421,6 +1080,22 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       return tcError;
     }
     gs.nScale = i;
+    darg++;
+    break;
+
+  case 'S':
+    if (argc <= 1) {
+      ErrorArgc("XS");
+      return tcError;
+    }
+    i = atoi(argv[1]);
+    if (i < 100)
+      i *= 100;
+    if (!FValidScale(i)) {
+      ErrorValN("XS", i);
+      return tcError;
+    }
+    gs.nScaleText = i;
     darg++;
     break;
 
@@ -1584,26 +1259,14 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos)
   ch1 = argv[0][pos+1];
 #endif
   switch (argv[0][pos]) {
+
+  /* No longer implemented, but still skip 2 parameters and do nothing for */
+  /* compatibility with old astrolog.as files.                             */
   case chNull:
     if (argc <= 2) {
       ErrorArgc("YX");
       return tcError;
     }
-#ifdef PCG
-    i = atoi(argv[1]);
-    if (!FValidResmode(i)) {
-      ErrorValN("YX", i);
-      return tcError;
-    }
-    gs.nResHi = i;
-    i = atoi(argv[2]);
-    if (!FValidResmode(i)) {
-      ErrorValN("YX", i);
-      return tcError;
-    }
-    gs.nResLo = i;
-    gs.fBitmap = gs.fPS = gs.fMeta = fFalse;
-#endif
     darg += 2;
     break;
 
@@ -1693,7 +1356,7 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos)
 /* and it sets up for and goes and generates the appropriate graphics chart. */
 /* We return fTrue if successfull, fFalse if some non-fatal error occurred.  */
 
-bool FActionX()
+flag FActionX()
 {
   gi.fFile = (gs.fBitmap || gs.fPS || gs.fMeta);
 #ifdef PS
@@ -1766,8 +1429,7 @@ bool FActionX()
       gi.yBand = gs.yWin;
       if (!FEnsureGrid())
         return fFalse;
-      while ((gi.bm = PAllocate((long)gi.cbBmpRow * gi.yBand, fTrue, NULL)) ==
-        NULL) {
+      while ((gi.bm = PAllocate(gi.cbBmpRow * gi.yBand, NULL)) == NULL) {
         PrintWarning("The bitmap must be generated in multiple stages.");
         gi.yBand = (gi.yBand + 1) / 2;
         if (gi.yBand < 1 || gs.chBmpMode != 'B')
@@ -1790,7 +1452,7 @@ bool FActionX()
       if (!FEnsureGrid())
         return fFalse;
       for (gi.cbMeta = MAXMETA; gi.cbMeta > 0 &&
-        (gi.bm = PAllocate(gi.cbMeta, fTrue, NULL)) == NULL;
+        (gi.bm = PAllocate(gi.cbMeta, NULL)) == NULL;
         gi.cbMeta -= MAXMETA/8)
         PrintWarning("Attempting to get maximum memory for metafile.");
       if (gi.cbMeta == 0)
@@ -1804,17 +1466,6 @@ bool FActionX()
   }
 #ifdef ISG
   else {
-#ifdef PCG
-    BeginX();
-    if (gs.xWin == 0 || gs.yWin == 0) {
-      if (gs.xWin == 0)
-        gs.xWin = xPcScreen;
-      if (gs.yWin == 0)
-        gs.yWin = yPcScreen;
-      SquareX(&gs.xWin, &gs.yWin, fFalse);
-    } else if (fSidebar)
-      gs.xWin += SIDESIZE;
-#else
     if (gs.xWin == 0 || gs.yWin == 0) {
       if (gs.xWin == 0)
         gs.xWin = DEFAULTX;
@@ -1824,7 +1475,6 @@ bool FActionX()
     } else if (fSidebar)
       gs.xWin += SIDESIZE;
     BeginX();
-#endif
   }
 #endif /* ISG */
 
@@ -1838,7 +1488,7 @@ bool FActionX()
       EndFileX();
     }
     if (!gs.fPS)
-      DeallocateHuge(gi.bm);
+      DeallocateP(gi.bm);
   }
 #ifdef ISG
   else {

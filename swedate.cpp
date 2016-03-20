@@ -88,6 +88,7 @@
 
 # include "swephexp.h"
 # include "sweph.h"
+# include "swephlib.h"
 
 static AS_BOOL init_leapseconds_done = FALSE;
 
@@ -595,21 +596,30 @@ void FAR PASCAL_CONV swe_jdut1_to_utc(double tjd_ut, int32 gregflag, int32 *iyea
 
 
 #ifdef ASTROLOG
+int rgObjSwiss[cUran] = {SE_VULCAN - SE_FICT_OFFSET_1,
+  SE_CUPIDO - SE_FICT_OFFSET_1,   SE_HADES - SE_FICT_OFFSET_1,
+  SE_ZEUS - SE_FICT_OFFSET_1,     SE_KRONOS - SE_FICT_OFFSET_1,
+  SE_APOLLON - SE_FICT_OFFSET_1,  SE_ADMETOS - SE_FICT_OFFSET_1,
+  SE_VULKANUS - SE_FICT_OFFSET_1, SE_POSEIDON - SE_FICT_OFFSET_1};
+
 /* Given an object index and a Julian Day time, get ecliptic longitude and */
 /* latitude of the object and its velocity and distance from the Earth or  */
 /* Sun. This basically just calls the Swiss Ephemeris calculation function */
-/* to actually do it, but as this is the one routine called from Astrolog, */
-/* this is the one routine which has knowledge of and uses both Astrolog   */
-/* and Swiss Ephemeris definitions, and does things such as translation to */
-/* Swiss Ephemeris indices and formats.                                    */
+/* to actually do it. Because this is the one of the only routines called  */
+/* from Astrolog, this routine has knowledge of and uses both Astrolog and */
+/* Swiss Ephemeris definitions, and does things such as translation to     */
+/* indices and formats of Swiss Ephemeris.                                 */
 
-bool FSwissPlanet(int ind, double jd, int helio,
+flag FSwissPlanet(int ind, real jd, flag fHelio,
   real *obj, real *objalt, real *dir, real *space)
 {
-  int iobj, flag;
+  int iobj, iflag;
   double jde, xx[6];
-  char serr[AS_MAXCH], sz[cchSzDef], *env;
-  static bool fPath = fFalse;
+  char serr[AS_MAXCH];
+#ifdef ENVIRON
+  char sz[cchSzDef], *env;
+#endif
+  static flag fPath = fFalse;
 
   if (!fPath) {
     /* First look for the file in the current directory. */
@@ -625,7 +635,7 @@ bool FSwissPlanet(int ind, double jd, int helio,
     env = getenv(ENVIRONALL);
     if (env && *env)
       sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, env);
-    /* Next look in the directory in the version prefix environment variable. */
+    /* Next look in directory in the version prefix environment variable. */
     env = getenv(ENVIRONVER);
     if (env && *env)
       sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, env);
@@ -636,7 +646,10 @@ bool FSwissPlanet(int ind, double jd, int helio,
     fPath = fTrue;
   }
 
-  if (ind <= oPlu)
+  /* Convert Astrolog object index to Swiss Ephemeris index. */
+  if (ind == oSun && fHelio)
+    iobj = SE_EARTH;
+  else if (ind <= oPlu)
     iobj = ind-1;
   else if (ind == oChi)
     iobj = SE_CHIRON;
@@ -646,18 +659,24 @@ bool FSwissPlanet(int ind, double jd, int helio,
     iobj = us.fTrueNode ? SE_TRUE_NODE : SE_MEAN_NODE;
   else if (ind == oLil)
     iobj = SE_MEAN_APOG;
-  else if (ind == oVul)
-    iobj = SE_VULCAN;
-  else if (FBetween(ind, uranLo+1, uranHi))
-    iobj = ind - (uranLo+1) + SE_CUPIDO;
+  else if (FBetween(ind, uranLo, uranHi))
+    iobj = SE_FICT_OFFSET_1 + rgObjSwiss[ind - uranLo];
   else
     return fFalse;
 
-  if (ind == oSun && helio)
-    iobj = SE_EARTH;
-  flag = helio ? SEFLG_SPEED | SEFLG_HELCTR : SEFLG_SPEED;
+  /* Convert Astrolog calculation settings to Swiss Ephemeris flags. */
+  iflag = SEFLG_SPEED;
+  if (fHelio && ind != oNod && ind != oLil)
+    iflag |= SEFLG_HELCTR;
+  if (us.fTruePos)
+    iflag |= SEFLG_TRUEPOS;
+  if (us.fTopoPos && !fHelio) {
+    swe_set_topo(-OO, DFromR(AA), us.elvDef);
+    iflag |= SEFLG_TOPOCTR;
+  }
+
   jde = jd + swe_deltat(jd);
-  if (swe_calc(jde, iobj, flag, xx, serr) < 0) {
+  if (swe_calc(jde, iobj, iflag, xx, serr) < 0) {
     if (!is.fNoEphFile) {
       is.fNoEphFile = fTrue;
       PrintWarning(serr);
@@ -671,12 +690,82 @@ bool FSwissPlanet(int ind, double jd, int helio,
   return fTrue;
 }
 
-double SwissJulDay(int month, int day, int year, double hour, int gregflag)
+
+/* Compute house cusps and related variables like the Ascendant. Given a  */
+/* Julian Day time, location, and house system, call Swiss Ephemeris to   */
+/* compute them. This is similar to FSwissPlanet() in that it knows about */
+/* and translates between Astrolog and Swiss Ephemeris defintions.        */
+
+flag FSwissHouse(real jd, real lon, real lat, int housesystem,
+  real *asc, real *mc, real *ra, real *vtx, real *ep, real *ob, real *off)
+{
+  double cusp[cSign+1], ascmc[10];
+  int i;
+  char ch;
+
+  /* Translate Astrolog house index to Swiss Ephemeris house character. */
+  switch (housesystem) {
+  case hsPlacidus:      ch = 'P'; break;
+  case hsKoch:          ch = 'K'; break;
+  case hsEqual:         ch = 'E'; break;
+  case hsCampanus:      ch = 'C'; break;
+  case hsMeridian:      ch = 'X'; break;
+  case hsRegiomontanus: ch = 'R'; break;
+  case hsPorphyry:      ch = 'P'; break;
+  case hsMorinus:       ch = 'M'; break;
+  case hsTopocentric:   ch = 'T'; break;
+  case hsAlcabitius:    ch = 'B'; break;
+  case hsKrusinski:     ch = 'U'; break;
+  case hsWhole:         ch = 'W'; break;
+  case hsVedic:         ch = 'V'; break;
+  default:              ch = 'A'; break;
+  }
+
+  jd = JulianDayFromTime(jd);
+  lon = -lon;
+
+  /* The following is largely copied from swe_houses(). */
+  double armc, eps, nutlo[2];
+  double tjde = jd + swe_deltat(jd);
+  eps = swi_epsiln(tjde, 0) * RADTODEG;
+  swi_nutation(tjde, 0, nutlo);
+  for (i = 0; i < 2; i++)
+    nutlo[i] *= RADTODEG;
+  if (!us.fGeodetic)
+    armc = swe_degnorm(swe_sidtime0(jd, eps + nutlo[1], nutlo[0]) * 15 + lon);
+  else
+    armc = lon;
+  swe_houses_armc(armc, lat, eps + nutlo[1], ch, cusp, ascmc);
+
+  /* Fill out return parameters for cusp array, Ascendant, etc. */
+  *off = -swe_get_ayanamsa(tjde);
+  is.rSid = us.rZodiacOffset + (us.fSidereal ? *off : 0.0);
+
+  *asc = Mod(ascmc[SE_ASC] + is.rSid);
+  *mc  = Mod(ascmc[SE_MC]  + is.rSid);
+  *ra  = RFromD(Mod(ascmc[SE_ARMC] + is.rSid));
+  *vtx = Mod(ascmc[SE_VERTEX] + is.rSid);
+  *ep  = Mod(ascmc[SE_EQUASC] + is.rSid);
+  *ob  = RFromD(eps);
+  for (i = 1; i <= cSign; i++)
+    chouse[i] = Mod(cusp[i] + is.rSid);
+
+  /* Have Astrolog compute the houses if Swiss Ephemeris didn't do so. */
+  if (ch == 'A')
+    ComputeHouses(housesystem);
+  return fTrue;
+}
+
+
+/* Wrappers around Swiss ephemeris Julian Day conversion routines. */
+
+double SwissJulDay(int month, int day, int year, real hour, int gregflag)
 {
   return swe_julday(year, month, day, hour, gregflag);
 }
 
-void SwissRevJul(double jd, int gregflag, int *jmon, int *jday, int *jyear, double *jut)
+void SwissRevJul(real jd, int gregflag,
+  int *jmon, int *jday, int *jyear, double *jut)
 {
   swe_revjul(jd, gregflag, jyear, jmon, jday, jut);
 }

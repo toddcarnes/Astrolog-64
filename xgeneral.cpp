@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xgeneral.cpp
+** Astrolog (Version 6.10) File: xgeneral.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -98,14 +98,6 @@ void DrawColor(KI col)
         DeleteObject(hpenT);
     }
   }
-#endif
-#ifdef MSG
-  else
-    _setcolor(col);
-#endif
-#ifdef BGI
-  else
-    setcolor(col);
 #endif
 #ifdef MACG
   else {
@@ -175,14 +167,6 @@ void DrawPoint(int x, int y)
       LineTo(wi.hdc, x, y);
     }
   }
-#endif
-#ifdef MSG
-  else
-    _setpixel(gi.xOffset + x, gi.yOffset + y);
-#endif
-#ifdef BGI
-  else
-    putpixel(gi.xOffset + x, gi.yOffset + y, gi.kiCur);
 #endif
 #ifdef MACG
   else {
@@ -279,17 +263,6 @@ void DrawBlock(int x1, int y1, int x2, int y2)
     DeleteObject(wi.hbrush);
   }
 #endif
-#ifdef MSG
-  else
-    _rectangle(_GFILLINTERIOR,
-      gi.xOffset + x1, gi.yOffset + y1, gi.xOffset + x2, gi.yOffset + y2);
-#endif
-#ifdef BGI
-  else {
-    setfillstyle(SOLID_FILL, gi.kiCur);
-    bar(gi.xOffset + x1, gi.yOffset + y1, gi.xOffset + x2, gi.yOffset + y2);
-  }
-#endif
 #ifdef MACG
   else {
     SetRect(&rc, x1, y1, x2+1, y2+1);
@@ -360,16 +333,18 @@ void DrawClearScreen()
   if (gs.fJetTrail)
     return;
 
-#ifdef MSG
-  if (!gi.fFile)
-    _clearscreen(_GCLEARSCREEN);
-#endif
-#ifdef BGI
-  if (!gi.fFile)
-    clearviewport();
-#endif
   DrawColor(gi.kiOff);
-  DrawBlock(0, 0, gs.xWin - 1, gs.yWin - 1);    /* Clear bitmap screen. */
+#ifdef WIN
+  /* For Windows charts clear entire window, not just the chart area. */
+  if (!gi.fFile) {
+    wi.hbrush = CreateSolidBrush((COLORREF)rgbbmp[gi.kiCur]);
+    SelectObject(wi.hdc, wi.hbrush);
+    PatBlt(wi.hdc, -gi.xOffset, -gi.yOffset, wi.xClient, wi.yClient, PATCOPY);
+    SelectObject(wi.hdc, GetStockObject(NULL_BRUSH));
+    DeleteObject(wi.hbrush);
+  } else
+#endif
+    DrawBlock(0, 0, gs.xWin - 1, gs.yWin - 1);    /* Clear bitmap screen. */
 }
 
 
@@ -396,12 +371,6 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
       MoveTo(wi.hdc, x1, y1);
       LineTo(wi.hdc, x2, y2);
       SetPixel(wi.hdc, x2, y2, (COLORREF)rgbbmp[gi.kiCur]);
-#endif
-#ifdef PCG
-      /* For non-dashed lines, let's have the graphics library do it for us. */
-
-      PcMoveTo(gi.xOffset + x1, gi.yOffset + y1);
-      PcLineTo(gi.xOffset + x2, gi.yOffset + y2);
 #endif
 #ifdef MACG
       MoveTo(x1, y1);
@@ -468,8 +437,8 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
 
   xadd = x2 - x1 >= 0 ? 1 : 3;
   yadd = y2 - y1 >= 0 ? 2 : 4;
-  xabs = abs(x2 - x1);
-  yabs = abs(y2 - y1);
+  xabs = NAbs(x2 - x1);
+  yabs = NAbs(y2 - y1);
 
   /* Technically what we're doing here is drawing a line which is more    */
   /* horizontal then vertical. We always increment x by 1, and increment  */
@@ -635,16 +604,6 @@ void DrawEllipse(int x1, int y1, int x2, int y2)
   else
     Ellipse(wi.hdc, x1, y1, x2+1, y2+1);
 #endif
-#ifdef MSG
-  else
-    _ellipse(_GBORDER, gi.xOffset + x1, gi.yOffset + y1,
-      gi.xOffset + x2, gi.yOffset + y2);
-#endif
-#ifdef BGI
-  else
-    ellipse(gi.xOffset + (x1+x2)/2, gi.yOffset + (y1+y2)/2,
-      0, 360, (x2-x1)/2, (y2-y1)/2);
-#endif
 #ifdef MACG
   else {
     SetRect(&rc, x1, y1, x2, y2);
@@ -663,7 +622,9 @@ void DrawSz(CONST char *sz, int x, int y, int dt)
   int s = gi.nScale, c = gi.kiCur, cch, i;
 
   cch = CchSz(sz);
-  if (!(dt & dtScale))
+  if (dt & dtScale2)
+    gi.nScale = gi.nScaleText * gi.nScaleT;
+  else if (!(dt & dtScale))
     gi.nScale = gi.nScaleT;
   x += gi.nScale;
   if (!(dt & dtLeft))
@@ -698,7 +659,7 @@ void DrawSz(CONST char *sz, int x, int y, int dt)
     } else
 #endif
     {
-      i = (_char)*sz-' ';
+      i = (uchar)*sz-' ';
       if (i < 256-32)
         DrawTurtle(szDrawCh[i], x, y);
     }
@@ -735,7 +696,7 @@ void DrawSign(int i, int x, int y)
 #endif
   if (i == sCap && gs.nGlyphs/1000 > 1)
     i = cSign+1;
-  if ((gi.nScale & 1) || !szDrawSign2[i][0])
+  if (FOdd(gi.nScale) || !szDrawSign2[i][0])
     DrawTurtle(szDrawSign[i], x, y);
   else {
     gi.nScale >>= 1;
@@ -768,7 +729,7 @@ void DrawHouse(int i, int x, int y)
     return;
   }
 #endif
-  if ((gi.nScale & 1) || !szDrawHouse2[i][0])
+  if (FOdd(gi.nScale) || !szDrawHouse2[i][0])
     DrawTurtle(szDrawHouse[i], x, y);
   else {
     gi.nScale >>= 1;
@@ -783,7 +744,9 @@ void DrawHouse(int i, int x, int y)
 void DrawObject(int obj, int x, int y)
 {
   char szGlyph[4];
+#ifdef STROKE
   int ich;
+#endif
 
   if (!gs.fLabel)    /* If we are inhibiting labels, then do nothing. */
     return;
@@ -821,7 +784,7 @@ void DrawObject(int obj, int x, int y)
       if (gs.nGlyphs%10 > 1)
         obj = oNorm + 3;
     }
-    if ((gi.nScale & 1) || !szDrawObject2[obj][0])
+    if (FOdd(gi.nScale) || !szDrawObject2[obj][0])
       DrawTurtle(szDrawObject[obj], x, y);
     else {
       gi.nScale >>= 1;
@@ -833,7 +796,7 @@ void DrawObject(int obj, int x, int y)
   /* glyphs, so for these draw their three letter abbreviation.        */
 
   } else {
-    sprintf(szGlyph, "%c%c%c", chObj3(obj));
+    sprintf(szGlyph, "%.3s", szObjName[obj]);
 #ifdef CONSTEL
     /* If doing constellations, give a couple stars more correct */
     /* astronomical names.                                       */
@@ -876,7 +839,7 @@ void DrawAspect(int asp, int x, int y)
 #endif
   if (us.fParallel && asp <= aOpp)
     asp += cAspect;
-  if ((gi.nScale & 1) || !szDrawAspect2[asp][0])
+  if (FOdd(gi.nScale) || !szDrawAspect2[asp][0])
     DrawTurtle(szDrawAspect[asp], x, y);
   else {
     gi.nScale >>= 1;
@@ -915,7 +878,7 @@ int NFromPch(CONST char **str)
 void DrawTurtle(CONST char *sz, int x0, int y0)
 {
   int i, x, y, deltax, deltay;
-  bool fBlank, fNoupdate;
+  flag fBlank, fNoupdate;
   char chCmd;
 
   gi.xTurtle = x0; gi.yTurtle = y0;

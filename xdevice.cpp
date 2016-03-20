@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xdevice.cpp
+** Astrolog (Version 6.10) File: xdevice.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -61,10 +61,10 @@
 /* can be read in by the Unix X commands bitmap and xsetroot. The 'mode' */
 /* parameter defines how much white space is put in the file.            */
 
-void WriteXBitmap(FILE *file, char *name, char mode)
+void WriteXBitmap(FILE *file, CONST char *name, char mode)
 {
   int x, y, i, temp = 0;
-  _int value;
+  uint value;
 
   fprintf(file, "#define %s_width %d\n" , name, gs.xWin);
   fprintf(file, "#define %s_height %d\n", name, gs.yWin);
@@ -355,7 +355,7 @@ void PsStroke(int n)
 /* Set the type of line end to be used by PostScript commands. If linecap */
 /* is true, then the line ends are rounded, otherwise they are squared.   */
 
-void PsLineCap(bool fLineCap)
+void PsLineCap(flag fLineCap)
 {
   if (fLineCap != gi.fLineCap) {
     PsStrokeForce();
@@ -487,7 +487,7 @@ void MetaWord(word w)
 {
   char sz[cchSzDef];
 
-  if ((hpbyte)gi.pwMetaCur - gi.bm >= gi.cbMeta) {
+  if ((lpbyte)gi.pwMetaCur - gi.bm >= gi.cbMeta) {
     sprintf(sz, "Metafile would be more than %ld bytes.", gi.cbMeta);
     PrintError(sz);
     Terminate(tcFatal);
@@ -568,7 +568,7 @@ void MetaInit()
   MetaLong(14L);                          /* Bytes in string */
   MetaLong(LFromBB('A', 's', 't', 'r'));  /* "Astr" */
   MetaLong(LFromBB('o', 'l', 'o', 'g'));  /* "olog" */
-  MetaLong(LFromBB(' ', '6', '.', '0'));  /* " 6.0" */
+  MetaLong(LFromBB(' ', '6', '.', '1'));  /* " 6.1" */
   MetaWord(WFromBB('0', 0));              /* "0"    */
   MetaSaveDc();
   MetaWindowOrg(0, 0);
@@ -632,94 +632,12 @@ void WriteMeta(FILE *file)
   MetaRestoreDc();
   MetaRecord(3, 0);    /* End record */
   *(long *)(gi.bm + 22 + 6) =
-    ((long)((hpbyte)gi.pwMetaCur - gi.bm) - 22) / 2;
+    ((long)((lpbyte)gi.pwMetaCur - gi.bm) - 22) / 2;
   for (w = (word *)gi.bm; w < gi.pwMetaCur; w++) {
     PutWord(*w);
   }
 }
 #endif /* META */
-
-
-#ifdef MOUSE
-#ifdef PC
-#ifndef WIN
-/*
-******************************************************************************
-** Mouse Routines.
-******************************************************************************
-*/
-
-static union REGS dosreg;
-
-
-/* Setup and initialize the PC graphics mouse, returning the number of    */
-/* buttons available, or zero for no mouse at all. Passed in is the pixel */
-/* size of the screen the mouse pointer is to be contained within.        */
-
-int MouseInit(int x, int y)
-{
-  int dx, cBtn;
-
-  if (!gs.fMouse)
-    return 0;
-  dosreg.x.ax = 0;
-  int86(0x33, &dosreg, &dosreg);
-  if (!(gs.fMouse = dosreg.x.ax))
-    return 0;
-  cBtn = dosreg.x.bx;
-  dx = x - 1;
-  dosreg.x.ax = 7;
-  dosreg.x.cx = 0;
-  dosreg.x.dx = dx;
-  int86(0x33, &dosreg, &dosreg);
-  dx = y - 1;
-  dosreg.x.ax = 8;
-  dosreg.x.cx = 0;
-  dosreg.x.dx = dx;
-  int86(0x33, &dosreg, &dosreg);
-  return cBtn;
-}
-
-
-/* Turn on or hide the PC graphics mouse pointer. */
-
-void MouseShow(bool fShow)
-{
-  int ax;
-
-  if (!gs.fMouse)
-    return;
-  ax = fShow ? 1 : 2;
-  dosreg.x.ax = ax;
-  int86(0x33, &dosreg, &dosreg);
-}
-
-
-/* Fill out the current status of the mouse: its horizontal and vertical  */
-/* position, and button press status. We return false if the mouse hasn't */
-/* changed any from the last call (assuming that the previous values are  */
-/* stored in the input parameters) or if the mouse isn't active at all.   */
-
-bool MouseStatus(int *x, int *y, int *btn)
-{
-  int bx, cx, dx, fChange;
-
-  if (!gs.fMouse)
-    return fFalse;
-  dosreg.x.ax = 3;
-  int86(0x33, &dosreg, &dosreg);
-  bx = dosreg.x.bx;
-  cx = dosreg.x.cx;
-  dx = dosreg.x.dx;
-  fChange = (cx != *x || dx != *y || bx != *btn);
-  *x = cx;
-  *y = dx;
-  *btn = bx;
-  return fChange;
-}
-#endif /* WIN */
-#endif /* PC */
-#endif /* MOUSE */
 #endif /* GRAPH */
 
 /* xdevice.cpp */

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: data.cpp
+** Astrolog (Version 6.10) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -66,13 +66,19 @@ US us = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Chart suboptions */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
 
   /* Table chart types */
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Main flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+#ifdef EPHEM
+  1,
+#else
+  0,
+#endif
+  0, 0, 0,
 
   /* Main subflags */
 #ifdef SWITCHES
@@ -80,15 +86,22 @@ US us = {
 #else
   fTrue,
 #endif
-  0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0,
+#ifdef EPHEM
+  0,
+#else
+  1,
+#endif
+  0, 0, 0, 0,
 
   /* Rare flags */
+  0, 0,
 #ifdef TRUENODE
   fTrue,
 #else
   fFalse,
 #endif
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
@@ -98,7 +111,7 @@ US us = {
   DEFAULT_ASPECTS,
   oEar,
   0,
-  1,
+  1.0,
   0,
   0,
   0,
@@ -108,6 +121,9 @@ US us = {
   DEFAULT_ZONE,
   DEFAULT_LONG,
   DEFAULT_LAT,
+  0.0,
+  "",
+  "",
 
   /* Value subsettings */
 
@@ -124,7 +140,7 @@ CI ciTwin = {9, 11, 1991, 0.01, 0.0, 0.0, 122.19984, 47.36584, "", ""};
 CI ciThre = {-1, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, "", ""};
 CI ciFour = {-1, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, "", ""};
 CI ciTran = {12, 31, 2015, 23.59, 0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciSave = {12, 21, 2015, 20.4795, 0.0, 8.0, 122.19984, 47.36584, "", ""};
+CI ciSave = {3, 19, 2016, 20.302, 0.0, 8.0, 122.19984, 47.36584, "", ""};
 CP cp0, cp1, cp2;
 
 
@@ -177,9 +193,8 @@ byte pluszone[cSector+1] = {0,
 CONST char *szAppName = szAppNameCore;
 
 CONST char *szSignName[cSign+1] = {"",
-  "Aries", "Taurus", "Gemini", "Cancer", "Leo",
-  "Virgo", "Libra", "Scorpio",
-  "Sagittarius", "Capricorn", "Aquarius", "Pisces"};
+  "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"};
 
 CONST char *szSignAbbrev[cSign+1] = {"",
   "Ar", "Ta", "Ge", "Cn", "Le", "Vi", "Li", "Sc", "Sg", "Cp", "Aq", "Pi"};
@@ -215,11 +230,19 @@ CONST char *szObjName[objMax] = {
   "Arcturus", "Rigel Kent.", "Antares", "Shaula", "Sargas",
   "Kaus Austr.", "Vega", "Altair", "Peacock", "Deneb",
   "Alnair", "Fomalhaut", "Andromeda"};
+CONST StrLook rgObjName[] = {{"Node", oNod}, {"Nod:", oNod},
+  {"Star", starLo}, {"Orion", oOri}, {"M31", oAnd}, {"", -1}};
 
 CONST char *szSystem[cSystem] = {
-  "Placidus", "Koch", "Equal", "Campanus", "Meridian",
+  "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
   "Regiomontanus", "Porphyry", "Morinus", "Topocentric", "Alcabitius",
-  "Equal (MC)", "Neo-Porphyry", "Whole", "Vedic", "Null"};
+  "Krusinski", "Equal (MC)", "Pullen (S-Ratio)", "Pullen (S-Delta)", "Whole",
+  "Vedic", "Null"};
+CONST StrLook rgSystem[] = {{"E-Asc", hsEqual}, {"E-MC", hsEqualMC},
+  {"P-SR", hsSinewaveRatio}, {"P-SD", hsSinewaveDelta},
+  {"Ratio", hsSinewaveRatio}, {"Delta", hsSinewaveDelta},
+  {"S-Ratio", hsSinewaveRatio}, {"S-Delta", hsSinewaveDelta},
+  {"", -1}};
 
 CONST char *szAspectName[cAspect+1] = {"",
   "Conjunct", "Opposite", "Square", "Trine", "Sextile",
@@ -242,10 +265,14 @@ CONST char *szAspectGlyph[cAspect+1] = {"",
   "'-' over '+'", "Number '7'", "Number '9'", "'9' under Roman 'II'",
   "'7' under Roman 'II'", "'7' under Roman 'III'", "'9' under Roman 'IV'"};
 
-CONST char *szAspectConfig[cAspConfig+1] = {"",
-  "Stellium", "Grand Trine", "T-Square", "Yod", "Grand Cross", "Cradle"};
+CONST char *szAspectConfig[cAspConfig] = {
+  "Stellium-3", "Grand Trine", "T-Square", "Yod", "Grand Cross", "Cradle",
+  "Stellium-4"};
 
-CONST char *szElem[4] = {"Fire", "Earth", "Air", "Water"};
+CONST int rgAspConfig[cAspConfig] = {
+  aCon, aTri, aOpp, aInc, aSqu, aSex, aSSq};
+
+CONST char *szElem[cElem] = {"Fire", "Earth", "Air", "Water"};
 
 CONST char *szMode[3] = {"Cardinal", "Fixed", "Mutuable"};
 
@@ -378,29 +405,32 @@ int kMainA[9] = {kBlack, kWhite, kLtGray, kDkGray,
   kMaroon, kDkGreen, kDkCyan, kDkBlue, kMagenta};
 int kRainbowA[8] = {kWhite,
   kRed, kOrange, kYellow, kGreen, kCyan, kBlue, kPurple};
-int kElemA[4] = {kRed, kYellow, kGreen, kBlue};
+int kElemA[cElem] = {kRed, kYellow, kGreen, kBlue};
 int kAspA[cAspect+1] = {kWhite,
   kYellow, kBlue, kRed, kGreen, kCyan,
   kMagenta, kMagenta, kOrange, kOrange, kDkCyan, kDkCyan,
   kDkCyan, kMaroon, kPurple, kPurple, kMaroon, kMaroon, kPurple};
 int kObjU[oNorm+1] = {kYellow,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+  kElement, kElement, kElement, kElement, kElement,
+    kElement, kElement, kElement, kElement, kElement,
   kMagenta, kMagenta, kMagenta, kMagenta, kMagenta,
   kDkCyan, kDkCyan, kDkCyan, kDkCyan, kDkCyan, kDkCyan,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+  kElement, kElement, kElement, kElement, kElement, kElement,
+    kElement, kElement, kElement, kElement, kElement, kElement,
   kPurple,
-  kPurple, kPurple, kPurple, kPurple, kPurple, kPurple, kPurple, kPurple};
+    kPurple, kPurple, kPurple, kPurple, kPurple, kPurple, kPurple, kPurple};
 
 /* Influence information used by ChartInfluence() follows. The influence of */
 /* a planet in its ruling or exalting sign or house is tacked onto the last */
 /* two positions of the object and house influence array, respectively.     */
 
   /* The inherent strength of each planet - */
-real rObjInf[oNorm+6] = {0,
+real rObjInf[oNorm1+6] = {30,
   30, 25, 10, 10, 10, 10, 10, 10, 10, 10,
   5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
   20, 10, 10, 10, 10, 10, 10, 10, 10, 15, 10, 10,
   3, 3, 3, 3, 3, 3, 3, 3,
+  2,
   20, 10, 10, 10, 10};
 
   /* The inherent strength of each house - */
@@ -414,11 +444,12 @@ real rAspInf[cAspect+1] = {0.0,
   0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
 
   /* The inherent strength of each planet when transiting - */
-real rTransitInf[oNorm+3] = {0,
+real rTransitInf[oNorm1] = {10,
   10, 4, 8, 9, 20, 30, 35, 40, 45, 50,
   30, 15, 15, 15, 15, 30,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  50, 50, 50, 50, 50, 50, 50, 50};
+  50, 50, 50, 50, 50, 50, 50, 50,
+  80};
 
   /* Informational astronomical data for planets - */
 CONST real rObjDist[oVes+1] = {149.59787, 0.0, 0.3844,

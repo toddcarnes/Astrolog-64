@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xcharts2.cpp
+** Astrolog (Version 6.10) File: xcharts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -57,18 +57,19 @@
 ******************************************************************************
 */
 
-/* Return whether the specified object should be displayed in the current */
-/* graphics chart type. For example, don't include the Moon in the solar  */
-/* system charts when Placalc is off, don't include house cusps in        */
-/* astro-graph charts, and so on, in addition to checking restrictions.   */
+/* Return whether the specified object should be displayed in the current  */
+/* graphics chart type. For example, don't include the Moon in the solar   */
+/* system charts when ephemeris files are off, don't include house cusps   */
+/* in astro-graph charts, and so on, in addition to checking restrictions. */
 
-bool FProper(int i)
+flag FProper(int i)
 {
-  bool f;
+  flag f;
 
   f = !ignore[i];
-  if (gi.nMode == gOrbit)                             /* Solar system chart */
-    f &= FObject(i) && (i != oMoo || us.fEphemFiles);
+  if (gi.nMode == gOrbit)
+    f &= FThing(i) &&
+      (us.fEphemFiles || (i != oMoo && i != oNod && i != oSou));
   else if (gi.nMode == gHorizon || gi.nMode == gSector ||
     fMap || gi.nMode == gGlobe || gi.nMode == gPolar)
     f &= FThing(i);
@@ -258,7 +259,7 @@ void XChartWheelRelation()
   /* Go draw the outer sign and house rings. We are drawing only the */
   /* houses of one of the two charts in the relationship, however.   */
 
-  DrawWheel(xsign, xhouse1, cx, cy, unitx, unity, gi.rAsc,
+  DrawWheel(xsign, xhouse1, cx, cy, unitx, unity,
     0.70, 0.74, 0.78, 0.82, 0.885);
 
   /* Draw the outer ring of planets (based on the planets in the chart     */
@@ -389,7 +390,7 @@ void XChartWheelThreeFour()
   /* Go draw the outer sign and house rings. We are drawing the houses */
   /* of only the outermost ring of the wheel, however.                 */
 
-  DrawWheel(xsign, xhouse1, cx, cy, unitx, unity, gi.rAsc,
+  DrawWheel(xsign, xhouse1, cx, cy, unitx, unity,
     0.745, 0.78, 0.815, 0.84, 0.895);
 
   /* Draw the outer ring of planets (i.e. the one the house cusps reflect). */
@@ -568,7 +569,7 @@ void XChartGridRelation()
               k = SFromZ(y == 0 ? cp2.obj[i] : cp1.obj[j]);
               l = (int)((y == 0 ? cp2.obj[i] : cp1.obj[j])-ZFromS(k));
               c = kSignB(k);
-              sprintf(sz, "%c%c%c %02d", chSig3(k), l);
+              sprintf(sz, "%.3s %02d", szSignName[k], l);
 
               /* For extreme upper left corner, print some little arrows */
               /* pointing out chart1's planets and chart2's planets.     */
@@ -611,9 +612,9 @@ void XChartGridRelation()
 void XChartEphemeris()
 {
   real symbol[cObj*2+2], objSav[objMax];
-  char sz[4];
+  char sz[cchSzDef];
   int yea, unit = 6*gi.nScale, daytot, d = 1, day, mon, monsiz,
-    x1, y1, x2, y2, xs, ys, m, n, u, v = 0, i, j;
+    x1, y1, x2, y2, xs, ys, m, n, u, v = 0, i, j, dx;
 
   yea = us.nEphemYears;    /* Is this -Ey -X or just -E -X? */
   if (yea) {
@@ -627,13 +628,28 @@ void XChartEphemeris()
 
   /* Display glyphs of the zodiac along the bottom axis. */
 
-  for (i = 1; i <= cSign+1; i++) {
-    m = x1 + NMultDiv(xs, i-1, 12);
-    j = i > cSign ? 1 : i;
-    DrawColor(kSignB(j));
-    DrawSign(j, m, y2 + unit);
-    DrawColor(gi.kiGray);
-    DrawDash(m, y1, m, y2, 2);
+  if (!us.fParallel)
+    for (i = 1; i <= cSign+1; i++) {
+      m = x1 + NMultDiv(xs, i-1, 12);
+      j = i > cSign ? 1 : i;
+      DrawColor(kSignB(j));
+      DrawSign(j, m, y2 + unit);
+      DrawColor(gi.kiGray);
+      DrawDash(m, y1, m, y2, 2);
+    }
+  else {
+    dx = gs.nRayWidth / 10; dx = Min(dx, 90); dx = Max(dx, 1);
+    for (i = -90; i <= 90; i += (dx > 30 ? 10 : (dx > 6 ? 5 : 1))) {
+      if (i < -dx || i > dx)
+        continue;
+      m = x1 + NMultDiv(xs, i+dx, dx << 1);
+      j = i > cSign ? 1 : i;
+      DrawColor(i ? gi.kiLite : gi.kiOn);
+      sprintf(sz, "%s%d", i > 0 ? "+" : "", i);
+      DrawSz(sz, m, y2+2, dtTop);
+      DrawColor(gi.kiGray);
+      DrawDash(m, y1, m, y2, 2);
+    }
   }
 
   /* Loop and display planet movements for one day segment. */
@@ -655,6 +671,12 @@ void XChartEphemeris()
       MM = Mon; DD = d;
     }
     CastChart(fTrue);
+    if (us.fParallel)
+      for (i = 0; i <= cObj; i++) {
+        planet[i] = (planetalt[i] * 90.0 / (real)dx) + 180.0;
+        planet[i] = Min(planet[i], rDegMax);
+        planet[i] = Max(planet[i], 0.0);
+      }
 
     /* Draw planet glyphs along top of chart. */
 
@@ -689,14 +711,14 @@ void XChartEphemeris()
         m = x1 + (int)((real)xs * objSav[i] / rDegMax);
         u = x1 + (int)((real)xs * planet[i] / rDegMax);
         DrawColor(kObjB[i]);
-        DrawWrap(m, n, u, v, ret[i] > 0.0 ? -x1 : x1, x2);
+        DrawWrap(m, n, u, v, !us.fParallel && ret[i] > 0.0 ? -x1 : x1, x2);
       }
 
     /* Label months or days in the month along the left and right edges. */
 
     if (d <= daytot && (!yea || day == 1)) {
       if (yea) {
-        sprintf(sz, "%c%c%c", chMon3(mon));
+        sprintf(sz, "%.3s", szMonth[mon]);
         i = (mon == Mon);
       } else {
         sprintf(sz, "%2d", d);
@@ -744,7 +766,8 @@ void XChartEphemeris()
 
 void XChartBiorhythm()
 {
-  char sz[6], *c;
+  char sz[cchSzDef];
+  CONST char *c;
   real jd, r, a;
   int x1, x2, xs, cx, y1, y2, ys, cy, i, j, k, x, y, x0, y0;
 

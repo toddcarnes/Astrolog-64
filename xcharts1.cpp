@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xcharts1.cpp
+** Astrolog (Version 6.10) File: xcharts1.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -98,7 +98,7 @@ void XChartWheel()
 
   /* Go draw the outer sign and house rings. */
 
-  DrawWheel(xsign, xhouse, cx, cy, unitx, unity, gi.rAsc,
+  DrawWheel(xsign, xhouse, cx, cy, unitx, unity,
     0.65, 0.70, 0.75, 0.80, 0.875);
 
   for (i = 0; i <= cObj; i++)    /* Figure out where to put planet glyphs. */
@@ -142,8 +142,8 @@ void XChartWheel()
 void XChartAstroGraph()
 {
   real planet1[objMax], planet2[objMax],
-    end1[cObj*2+1], end2[cObj*2+1],
-    symbol1[cObj*2+1], symbol2[cObj*2+1],
+    end1[cObj*2+2], end2[cObj*2+2],
+    symbol1[cObj*2+2], symbol2[cObj*2+2],
     lon = DecToDeg(Lon), longm, x, y, z, ad, oa, am, od, dm, lat;
   int unit = gi.nScale, fStroke, lat1 = -60, lat2 = 75, y1, y2, xold1, xold2,
     i, j, k, l;
@@ -151,13 +151,13 @@ void XChartAstroGraph()
   /* Erase top and bottom parts of map. We don't draw the astro-graph lines */
   /* above certain latitudes, and this gives us room for glyph labels, too. */
 
-  y1 = (91-lat1)*gi.nScale;
-  y2 = (91-lat2)*gi.nScale;
+  y1 = (90-lat1)*gi.nScale;
+  y2 = (90-lat2)*gi.nScale;
   DrawColor(gi.kiOff);
   DrawBlock(0, 1, gs.xWin-1, y2-1);
   DrawBlock(0, y1+1, gs.xWin-1, gs.yWin-2);
   DrawColor(gi.kiLite);
-  i = gs.yWin/2 + gi.nScale;
+  i = gs.yWin/2;
   DrawDash(0, i, gs.xWin-2, i, 4);    /* Draw equator. */
   DrawColor(gi.kiOn);
   DrawLine(1, y2, gs.xWin-2, y2);
@@ -169,7 +169,7 @@ void XChartAstroGraph()
 
   DrawColor(gi.kiLite);
   for (i = lat1; i <= lat2; i += 5) {
-    j = (91-i)*gi.nScale;
+    j = (90-i)*gi.nScale;
     k = (2+(i%10 == 0)+2*(i%30 == 0))*gi.nScaleT;
     DrawLine(1, j, k, j);
     DrawLine(gs.xWin-2, j, gs.xWin-1-k, j);
@@ -182,11 +182,10 @@ void XChartAstroGraph()
   }
   if (us.fLatitudeCross) {
     DrawColor(kRainbowB[7]);
-    i = (int)((91.0-Lat)*(real)gi.nScale);
+    i = (int)((rDegQuad-DecToDeg(Lat))*(real)gi.nScale);
     DrawLine(0, i, gs.xWin-1, i);
   }
 
-#ifdef MATRIX
   /* Calculate zenith locations of each planet. */
 
   for (i = 0; i <= cObj; i++) if (!ignore[i] || i == oMC) {
@@ -213,7 +212,7 @@ void XChartAstroGraph()
     DrawLine(j, y1+unit*4, j, y2-unit*1);
     end2[i*2] = (real)j;
     y = DFromR(planet2[i]);
-    k = (int)((91.0-y)*(real)gi.nScale);
+    k = (int)((rDegQuad-y)*(real)gi.nScale);
     if (FBetween((int)y, lat1, lat2)) {
       DrawColor(gi.kiLite);
       DrawBlock(j-gi.nScaleT, k-gi.nScaleT, j+gi.nScaleT, k+gi.nScaleT);
@@ -253,7 +252,7 @@ void XChartAstroGraph()
 
       /* First compute and draw the current segment of Ascendant line. */
 
-      j = (int)((91.0-lat)*(real)gi.nScale);
+      j = (int)((rDegQuad-lat)*(real)gi.nScale);
       ad = RTan(planet2[i])*RTan(RFromD(lat));
       if (ad*ad > 1.0)
         ad = rLarge;
@@ -326,7 +325,6 @@ void XChartAstroGraph()
         xold2 = k;
       }
     }
-#endif /* MATRIX */
 
     /* Draw segments pointing to top of Ascendant and Descendant lines. */
 
@@ -340,8 +338,8 @@ void XChartAstroGraph()
   }
 
   DrawColor(kMainB[8]);
-  i = (int)((181.0-Lon)*(real)gi.nScale);
-  j = (int)((91.0-Lat)*(real)gi.nScale);
+  i = (int)((rDegHalf-DecToDeg(Lon))*(real)gi.nScale);
+  j = (int)((rDegQuad-DecToDeg(Lat))*(real)gi.nScale);
   if (us.fLatitudeCross)
     DrawSpot(i, j);
   else
@@ -376,7 +374,7 @@ void XChartAstroGraph()
         DrawDash((int)end2[i], y1+unit*4, (int)symbol2[i], y1+unit*8,
           (ret[i] < 0.0 ? 1 : 0) - gs.fColor);
         DrawObject(j, gi.xTurtle, y1+unit*14);
-        k = i & 1 ? oAsc : oMC;
+        k = FOdd(i) ? oAsc : oMC;
         l = kObjB[k]; kObjB[k] = kObjB[j];
         DrawObject(k, (int)symbol2[i], y1+unit*24-gi.nScaleT);
         kObjB[k] = l;
@@ -468,7 +466,7 @@ void XChartGrid()
 
           else {
             c = kSignB(grid->n[i][j]);
-            sprintf(sz, "%c%c%c %02d", chSig3(grid->n[i][j]), k);
+            sprintf(sz, "%.3s %02d", szSignName[grid->n[i][j]], k);
           }
           DrawColor(c);
           DrawSz(sz, x*unit-unit/2, y*unit-3*gi.nScaleT, dtBottom);
@@ -695,25 +693,22 @@ void XChartOrbit()
 {
   int x[objMax], y[objMax], m[objMax], n[objMax],
     cx = gs.xWin / 2, cy = gs.yWin / 2, unit, x1, y1, x2, y2, i, j, k, l;
-  real sx, sy, sz = 30.0, xp, yp, a;
+  real sx, sy, sz, xp, yp, a;
 
   unit = Max(gs.fText*12, 6*gi.nScale);
   x1 = unit; y1 = unit; x2 = gs.xWin-1-unit; y2 = gs.yWin-1-unit;
   unit = 12*gi.nScale;
 
-  /* Determine the scale of the chart. For a scale size of 400+, make the */
-  /* graphic 1 AU in radius (just out to Earth's orbit). For 300, make    */
-  /* the chart 6 AU in radius (enough for inner planets out to asteroid   */
-  /* belt). For a scale of 200, make window 30 AU in radius (enough for   */
-  /* planets out to Neptune). For scale of 100, make it 90 AU in radius   */
-  /* (enough for all planets including the orbits of the uranians.)       */
+  /* Determine the scale of the chart. For a scale size of 400, make the */
+  /* graphic 1 AU in radius (just out to Earth's orbit). For 300, make   */
+  /* the chart 6 AU in radius (enough for inner planets out to asteroid  */
+  /* belt). For a scale of 200, make window 30 AU in radius (enough for  */
+  /* planets out to Neptune). For scale of 100, make it 90 AU in radius  */
+  /* (enough for all planets including the orbits of the uranians.)      */
 
-  if (gi.nScale/gi.nScaleT < 2)
-    sz = 90.0;
-  else if (gi.nScale/gi.nScaleT == 3)
-    sz = 6.0;
-  else if (gi.nScale/gi.nScaleT > 3)
-    sz = 1.0;
+  i = gi.nScale/gi.nScaleT;
+  sz = i <= 1 ? 90.0 : (i == 2 ? 30.0 : (i == 3 ? 6.0 :
+    (gi.nScaleText <= 1 ? 1.0 : 0.006)));
   sx = (real)(cx-x1)/sz; sy = (real)(cy-y1)/sz;
   for (i = 0; i <= oNorm; i++) if (FProper(i)) {
     xp = spacex[i]; yp = spacey[i];
@@ -740,7 +735,8 @@ void XChartOrbit()
 
   /* Draw the 12 sign boundaries from the center body to edges of screen. */
 
-  a = Mod(DFromR(Angle(spacex[oJup], spacey[oJup]))-planet[oJup]);
+  i = us.objCenter != oSun ? oSun : oEar;
+  a = Mod(DFromR(Angle(spacex[i], spacey[i]))-planet[i]);
   DrawColor(gi.kiGray);
   for (i = 0; i < cSign; i++) {
     k = cx+2*(int)((real)cx*RCosD((real)i*30.0+a));
@@ -1076,11 +1072,11 @@ void XChartEsoteric()
     day = 1; mon = 1; monsiz = 31;
   } else
     daytot = DayInMonth(Mon, Yea);
-  x1 = (yea ? 30 : 24)*gi.nScaleT; y1 = 12;
+  x1 = (yea ? 30 : 24) * gi.nScaleText * gi.nScaleT; y1 = 12 * gi.nScaleText;
   x2 = gs.xWin - x1; y2 = gs.yWin - y1;
   xs = x2 - x1; ys = y2 - y1;
 
-  /* Label Rays along the bottom axis. */
+  /* Label Rays along the top axis. */
 
   for (i = 1; i <= cRay+1; i++) {
     m = x1 + NMultDiv(xs, i-1, cRay+1);
@@ -1091,7 +1087,8 @@ void XChartEsoteric()
     else
       sprintf(sz, "Average");
     DrawColor(i <= cRay ? kRayB[i] : gi.kiOn);
-    DrawSz(sz, x1 + xs*(i-1)/8, y1-3, dtLeft | dtBottom);
+    DrawSz(sz, x1 + xs*(i-1)/8, y1 - 3*gi.nScaleText,
+      dtLeft | dtBottom | dtScale2);
   }
 
   /* Loop and display Ray influences for one day segment. */
@@ -1150,17 +1147,16 @@ void XChartEsoteric()
 
     if (d <= daytot && (!yea || day == 1)) {
       if (yea) {
-        sprintf(sz, "%c%c%c", chMon3(mon));
-        i = (mon == Mon);
+        sprintf(sz, "%.3s", szMonth[mon]);
+        i = (gs.fLabel && mon == Mon);
       } else {
         sprintf(sz, "%2d", d);
-        i = (d == Day);
+        i = (gs.fLabel && d == Day);
       }
       DrawColor(i ? gi.kiOn : gi.kiLite);
-      DrawSz(sz,     xFont   *gi.nScaleT, v + (yFont-2)*gi.nScaleT,
-        dtLeft | dtBottom);
-      DrawSz(sz, x2+(xFont-1)*gi.nScaleT, v + (yFont-2)*gi.nScaleT,
-        dtLeft | dtBottom);
+      i = v + gi.nScaleT;
+      DrawSz(sz,      xFontT,              i, dtLeft | dtTop | dtScale2);
+      DrawSz(sz, x2 + xFontT - gi.nScaleT, i, dtLeft | dtTop | dtScale2);
     }
 
     /* Now increment the day counter. For a month we always go up by one. */
@@ -1226,7 +1222,7 @@ void DrawCalendar(int mon, int X1, int Y1, int X2, int Y2)
 
     if (x < cWeek) {
       if (xunit / (xFont*gi.nScale) < 9)
-        sprintf(sz, "%c%c%c", chDay3(x));
+        sprintf(sz, "%.3s", szDay[x]);
       else
         sprintf(sz, "%s", szDay[x]);
       DrawColor(kRainbowB[3]);

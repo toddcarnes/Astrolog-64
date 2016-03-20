@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: charts3.cpp
+** Astrolog (Version 6.10) File: charts3.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -63,7 +63,7 @@
 /* equation check to see if anything exciting happens during the interval.   */
 /* (This is probably the single most complicated procedure in the program.)  */
 
-void ChartInDaySearch(bool fProg)
+void ChartInDaySearch(flag fProg)
 {
   char sz[cchSzDef];
   int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY],
@@ -136,7 +136,7 @@ void ChartInDaySearch(bool fProg)
 
         /* Does the current planet change into the next or previous sign? */
 
-        if (s1 != s2 && !us.fIgnoreSign) {
+        if (s1 != s2 && !us.fIgnoreSign && occurcount < MAXINDAY) {
           source[occurcount] = i;
           aspect[occurcount] = aSig;
           dest[occurcount] = s2+1;
@@ -149,7 +149,8 @@ void ChartInDaySearch(bool fProg)
 
         /* Does the current planet go retrograde or direct? */
 
-        if ((cp1.dir[i] < 0.0) != (cp2.dir[i] < 0.0) && !us.fIgnoreDir) {
+        if ((cp1.dir[i] < 0.0) != (cp2.dir[i] < 0.0) && !us.fIgnoreDir &&
+          occurcount < MAXINDAY) {
           source[occurcount] = i;
           aspect[occurcount] = aDir;
           dest[occurcount] = cp2.dir[i] < 0.0;
@@ -194,7 +195,7 @@ void ChartInDaySearch(bool fProg)
             if (RAbs(f2) > rDegHalf)
               f2 -= RSgn(f2)*rDegMax;
             if (MinDistance(Midpoint(d1, d2), Midpoint(e1, e2)) < rDegQuad &&
-              RSgn(f1) != RSgn(f2)) {
+              RSgn(f1) != RSgn(f2) && occurcount < MAXINDAY) {
               source[occurcount] = i;
               aspect[occurcount] = k;
               dest[occurcount] = j;
@@ -259,7 +260,7 @@ void ChartInDaySearch(bool fProg)
         DegToDec(time[i] / 60.0), Dst, Zon, Lon, Lat);
       k = DayOfWeek(fYear || fProg ? l : Mon, j, yea0);
       AnsiColor(kRainbowA[k + 1]);
-      sprintf(sz, "(%c%c%c) ", chDay3(k)); PrintSz(sz);
+      sprintf(sz, "(%.3s) ", szDay[k]); PrintSz(sz);
       AnsiColor(kDefault);
       sprintf(sz, "%s %s ",
         SzDate(fYear || fProg ? l : Mon, j, yea0, fFalse),
@@ -290,7 +291,7 @@ void ChartInDaySearch(bool fProg)
 /* charts for the start and end of each month, or within a month, and do an */
 /* equation check for aspects to the other base chart during the interval.  */
 
-void ChartTransitSearch(bool fProg)
+void ChartTransitSearch(flag fProg)
 {
   real planet3[objMax], house3[cSign+1], ret3[objMax], time[MAXINDAY];
   char sz[cchSzDef];
@@ -455,13 +456,13 @@ void ChartTransitSearch(bool fProg)
       /* Now loop through list and display all the transits. */
 
       for (i = 0; i < occurcount; i++) {
-        s1 = (_int)time[i]/24/60;
-        s3 = (_int)time[i]-s1*24*60;
+        s1 = (uint)time[i]/24/60;
+        s3 = (uint)time[i]-s1*24*60;
         s2 = s3/60;
         s3 = s3-s2*60;
         s4 = us.fSeconds ? (int)(time[i]*60.0)-(((s1*24+s2)*60+s3)*60) : -1;
         SetCI(ciSave, MonT, s1+1, YeaT, DegToDec((real)
-          ((_int)time[i]-s1*24*60) / 60.0), DstT, ZonT, LonT, LatT);
+          ((uint)time[i]-s1*24*60) / 60.0), DstT, ZonT, LonT, LatT);
         sprintf(sz, "%s %s ",
           SzDate(MonT, s1+1, YeaT, fFalse), SzTime(s2, s3, s4)); PrintSz(sz);
         PrintAspect(source[i], sign[i], isret[i], aspect[i],
@@ -599,7 +600,7 @@ void ChartInDayHorizon(void)
     ciSave.tim = DegToDec(time[i] / 60.0);
     j = DayOfWeek(Mon, Day, Yea);
     AnsiColor(kRainbowA[j + 1]);
-    sprintf(sz, "(%c%c%c) ", chDay3(j)); PrintSz(sz);
+    sprintf(sz, "(%.3s) ", szDay[j]); PrintSz(sz);
     AnsiColor(kDefault);
     s1 = (int)time[i]/60;
     s2 = (int)time[i]-s1*60;
@@ -609,8 +610,8 @@ void ChartInDayHorizon(void)
     AnsiColor(kObjA[source[i]]);
     sprintf(sz, "%7.7s ", szObjName[source[i]]); PrintSz(sz);
     AnsiColor(kSignA(sign[i]));
-    sprintf(sz, "%c%c%c%c%c ",
-      fRet[i] > 0 ? '(' : (fRet[i] < 0 ? '[' : '<'), chSig3(sign[i]),
+    sprintf(sz, "%c%.3s%c ",
+      fRet[i] > 0 ? '(' : (fRet[i] < 0 ? '[' : '<'), szSignName[sign[i]],
       fRet[i] > 0 ? ')' : (fRet[i] < 0 ? ']' : '>')); PrintSz(sz);
     AnsiColor(kElemA[type[i]-1]);
     if (type[i] == 1)
@@ -623,7 +624,7 @@ void ChartInDayHorizon(void)
       PrintSz("nadirs ");
     AnsiColor(kDefault);
     PrintSz(" at ");
-    if (type[i] & 1) {
+    if (FOdd(type[i])) {
       j = (int)(azialt[i]*60.0)%60;
       sprintf(sz, "%3d%c%02d'", (int)azialt[i], chDeg1, j); PrintSz(sz);
       if (is.fSeconds) {
@@ -684,8 +685,8 @@ void ChartEphemeris(void)
     PrintSz(us.fEuroDate ? "Dy/Mo/Yr" : "Mo/Dy/Yr");
     for (j = 0; j <= cObj; j++) {
       if (!FIgnore(j)) {
-        sprintf(sz, "  %s%c%c%c%c", is.fSeconds ? "  " : "", chObj3(j),
-          szObjName[j][3] != 0 ? szObjName[j][3] : ' '); PrintSz(sz);
+        sprintf(sz, "  %s%-4.4s", is.fSeconds ? "  " : "", szObjName[j]);
+        PrintSz(sz);
         PrintTab(' ', us.fParallel ? 2 + is.fSeconds : 1 + 3*is.fSeconds);
       }
     }

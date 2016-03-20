@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: charts2.cpp
+** Astrolog (Version 6.10) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -76,7 +76,7 @@ void ChartGridRelation(void)
   for (temp = 0, i = 0; i <= cObj; i++) if (!ignore[i]) {
     PrintCh(chV);
     AnsiColor(kObjA[i]);
-    sprintf(sz, "%c%c%c", chObj3(i)); PrintSz(sz);
+    sprintf(sz, "%.3s", szObjName[i]); PrintSz(sz);
     AnsiColor(kDefault);
     temp++;
   }
@@ -92,7 +92,7 @@ void ChartGridRelation(void)
     PrintCh(chV);
     temp = SFromZ(cp2.obj[i]);
     AnsiColor(kSignA(temp));
-    sprintf(sz, "%c%c%c", chSig3(temp)); PrintSz(sz);
+    sprintf(sz, "%.3s", szSignName[temp]); PrintSz(sz);
     AnsiColor(kDefault);
   }
   if (us.fSeconds) {
@@ -112,14 +112,14 @@ void ChartGridRelation(void)
         PrintTab(chH, 3);
       else if (k == 2) {
         AnsiColor(kObjA[j]);
-        sprintf(sz, "%c%c%c", chObj3(j)); PrintSz(sz);
+        sprintf(sz, "%.3s", szObjName[j]); PrintSz(sz);
       } else {
         temp = SFromZ(cp1.obj[j]);
         AnsiColor(kSignA(temp));
         if (k == 3)
           sprintf(sz, "%2d%c", (int)cp1.obj[j] - (temp-1)*30, chDeg0);
         else if (k == 4)
-          sprintf(sz, "%c%c%c", chSig3(temp));
+          sprintf(sz, "%.3s", szSignName[temp]);
         else
           sprintf(sz, "%02d'", (int)(cp1.obj[j]*60.0) % 60);
         PrintSz(sz);
@@ -138,13 +138,13 @@ void ChartGridRelation(void)
           PrintTab(chH, 3);
         else if (k == 2) {
           if (us.fGridConfig)
-            sprintf(sz, "%c%c%c", chSig3(temp));
+            sprintf(sz, "%.3s", szSignName[temp]);
           else
             sprintf(sz, "%s", temp ? SzAspectAbbrev(temp) : "   ");
           PrintSz(sz);
         } else if (k == 3) {
           if (us.fGridConfig) {
-            sprintf(sz, "%2d%c", grid->v[i][j]/60, chDeg0); PrintSz(sz);
+            sprintf(sz, "%2d%c", grid->v[i][j]/3600, chDeg0); PrintSz(sz);
           } else
             if (grid->n[i][j]) {
               if (grid->v[i][j] < 6000*60)
@@ -194,8 +194,8 @@ void ChartAspectRelation(void)
     for (i = 0; i <= cObj; i++) if (!FIgnore(i))
       for (j = 0; j <= cObj; j++) if (!FIgnore(j))
         if (k = grid->n[i][j]) {
-          ip = i <= oNorm ? rObjInf[i] : 2.5;
-          jp = j <= oNorm ? rObjInf[j] : 2.5;
+          ip = RObjInf(i);
+          jp = RObjInf(j);
           p = (int)(rAspInf[k]*(ip+jp)/2.0*
             (1.0-RAbs((real)(grid->v[i][j]))/3600.0/GetOrb(i, j, k))*1000.0);
           if ((p < pcut || (p == pcut && (i > icut ||
@@ -465,8 +465,8 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
     PrintSz("progr ");
   sprintf(sz, "%7.7s", szObjName[obj1]); PrintSz(sz);
   AnsiColor(kSignA(sign1));
-  sprintf(sz, " %c%c%c%c%c",
-    ret1 > 0 ? '(' : (ret1 < 0 ? '[' : '<'), chSig3(sign1),
+  sprintf(sz, " %c%.3s%c",
+    ret1 > 0 ? '(' : (ret1 < 0 ? '[' : '<'), szSignName[sign1],
     ret1 > 0 ? ')' : (ret1 < 0 ? ']' : '>')); PrintSz(sz);
   AnsiColor(asp > 0 ? kAspA[asp] : kMainA[1]);
   PrintCh(' ');
@@ -490,8 +490,8 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
     AnsiColor(kSignA(sign2));
     if (chart == 't' || chart == 'u' || chart == 'T' || chart == 'U')
       PrintSz("natal ");
-    sprintf(sz, "%c%c%c%c%c ",
-      ret2 > 0 ? '(' : (ret2 < 0 ? '[' : '<'), chSig3(sign2),
+    sprintf(sz, "%c%.3s%c ",
+      ret2 > 0 ? '(' : (ret2 < 0 ? '[' : '<'), szSignName[sign2],
       ret2 > 0 ? ')' : (ret2 < 0 ? ']' : '>')); PrintSz(sz);
     AnsiColor(kObjA[obj2]);
     sprintf(sz, "%.10s", szObjName[obj2]); PrintSz(sz);
@@ -533,9 +533,7 @@ void ChartInDayInfluence(void)
         continue;
       source[occurcount] = i; aspect[occurcount] = k; dest[occurcount] = j;
       l = grid->v[i][j];
-      power[occurcount] =
-        ((i <= oNorm ? rTransitInf[i] : 2.0)/4.0)*
-        ((j <= oNorm ? rTransitInf[j] : 2.0)/4.0)*
+      power[occurcount] = (RTransitInf(i)/4.0) * (RTransitInf(j)/4.0) *
         rAspInf[k]*(1.0-(real)abs(l)/3600.0/GetOrb(i, j, k));
       occurcount++;
     }
@@ -582,7 +580,7 @@ void ChartInDayInfluence(void)
 /* transiting chart and the given natal chart, as specified with the -T */
 /* switch, and display the transits in order sorted by influence.       */
 
-void ChartTransitInfluence(bool fProg)
+void ChartTransitInfluence(flag fProg)
 {
   int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY];
   real power[MAXINDAY];
@@ -631,7 +629,7 @@ void ChartTransitInfluence(bool fProg)
 
   /* Loop through the grid, and build up a list of the valid transits. */
 
-  for (i = 0; i <= oNorm; i++) {
+  for (i = 0; i <= cObj; i++) {
     if (FIgnore2(i))
       continue;
     for (j = 0; j <= cObj; j++) {
@@ -640,9 +638,8 @@ void ChartTransitInfluence(bool fProg)
         continue;
       source[occurcount] = i; aspect[occurcount] = k; dest[occurcount] = j;
       l = grid->v[i][j];
-      power[occurcount] = rTransitInf[i]*
-        ((j <= oNorm ? rObjInf[j] : 2.0)/4.0)*rAspInf[k]*
-        (1.0-(real)abs(l)/3600.0/GetOrb(i, j, k));
+      power[occurcount] = RTransitInf(i) * (RObjInf(j)/4.0) * rAspInf[k] *
+        (1.0-(real)NAbs(l)/3600.0/GetOrb(i, j, k));
       occurcount++;
     }
   }
@@ -875,20 +872,20 @@ void DisplayRelation(void)
       else
         AnsiColor(kDefault);
       switch (i) {
-      case 1: sprintf(sz, "Years  : %.2f", is.JD/365.25);      break;
-      case 2: sprintf(sz, "Months : %.2f", is.JD/(365.25/12)); break;
-      case 3: sprintf(sz, "Weeks  : %.2f", is.JD/7.0);         break;
-      case 4: sprintf(sz, "Days   : %.2f", is.JD);             break;
-      case 5: sprintf(sz, "Hours  : %.2f", is.JD*24.0);        break;
-      case 6: sprintf(sz, "Minutes: %.2f", is.JD*24.0*60.0);   break;
-      case 7: sprintf(sz, "Seconds: %.2f", is.JD*24.0*3600.0); break;
-      case 8: sprintf(sz, "Longitude: %.2f", k);               break;
-      case 9: sprintf(sz, "Latitude : %.2f", l);               break;
+      case 1: sprintf(sz, "Years  : %.2f", is.JD/365.25);        break;
+      case 2: sprintf(sz, "Months : %.2f", is.JD/(365.25/12.0)); break;
+      case 3: sprintf(sz, "Weeks  : %.2f", is.JD/7.0);           break;
+      case 4: sprintf(sz, "Days   : %.2f", is.JD);               break;
+      case 5: sprintf(sz, "Hours  : %.2f", is.JD*24.0);          break;
+      case 6: sprintf(sz, "Minutes: %.2f", is.JD*(24.0*60.0));   break;
+      case 7: sprintf(sz, "Seconds: %.2f", is.JD*(24.0*3600.0)); break;
+      case 8: sprintf(sz, "Longitude: %.2f", k);                 break;
+      case 9: sprintf(sz, "Latitude : %.2f", l);                 break;
       case 10:
         l = DFromR(RAcos(RSinD(ciMain.lat)*RSinD(ciTwin.lat) +
           RCosD(ciMain.lat)*RCosD(ciTwin.lat)*RCosD(k)));
         sprintf(sz, "Distance : %.2f (%.2f %s)", l, l / 360.0 *
-          (us.fEuroTime ? 40075.0 : 24901.0), us.fEuroTime ? "km" : "miles");
+          (us.fEuroDist ? 40075.0 : 24901.0), us.fEuroDist ? "km" : "miles");
         break;
       }
       PrintSz(sz);

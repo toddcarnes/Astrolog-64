@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: general.cpp
+** Astrolog (Version 6.10) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -178,6 +178,25 @@ long Dvd(long x, long y)
   if (((x >= 0) == (y >= 0)) || x-z*y == 0)
     return z;
   return z - 1;
+}
+
+
+/* Lookup a string within a table (case insensitively) returning the index */
+/* that goes with the matched string, or -1 if the string is not found.    */
+
+int SzLookup(CONST StrLook *rgStrLook, CONST char *sz)
+{
+  CONST char *pch1, *pch2;
+  int irg;
+
+  for (irg = 0; rgStrLook[irg].isz >= 0; irg++) {
+    for (pch1 = sz, pch2 = rgStrLook[irg].sz;
+      *pch1 && ChCap(*pch1) == ChCap(*pch2); pch1++, pch2++)
+      ;
+    if (*pch1 == chNull && pch1 - sz >= 3)
+      return rgStrLook[irg].isz;
+  }
+  return -1;
 }
 
 
@@ -562,7 +581,7 @@ void PrintCh(char ch)
 /* Print a string on the screen. Unlike the normal PrintSz(), here we still */
 /* go to the standard output even if text is being sent to a file with -os. */
 
-void PrintSzScreen(char *sz)
+void PrintSzScreen(CONST char *sz)
 {
   FILE *fileT;
 
@@ -576,7 +595,7 @@ void PrintSzScreen(char *sz)
 /* Print a general user message given a string. This is just like the */
 /* warning displayer below just that we print in a different color.   */
 
-void PrintNotice(char *sz)
+void PrintNotice(CONST char *sz)
 {
 #ifndef WIN
   /* Notice messages are ignored in the Windows version. */
@@ -590,7 +609,7 @@ void PrintNotice(char *sz)
 /* Print a warning message given a string. This is called in non-fatal  */
 /* cases where we return to normal execution after printing the string. */
 
-void PrintWarning(char *sz)
+void PrintWarning(CONST char *sz)
 {
 #ifndef WIN
   AnsiColor(kRainbowA[1]);
@@ -609,13 +628,13 @@ void PrintWarning(char *sz)
 /* running of the current chart sequence, which can terminate the program  */
 /* but isn't a fatal error in that we can still fall back to the -Q loop.  */
 
-void PrintError(char *sz)
+void PrintError(CONST char *sz)
 {
 #ifndef WIN
   AnsiColor(kRainbowA[1]);
   fprintf(stderr, "%s: %s\n", szAppName, sz);
-  Terminate(tcError);
   AnsiColor(kDefault);
+  Terminate(tcError);
 #else
   char szT[cchSzDef];
 
@@ -627,7 +646,7 @@ void PrintError(char *sz)
 
 /* Simplification for a commonly printed error message. */
 
-void ErrorArgc(char *szOpt)
+void ErrorArgc(CONST char *szOpt)
 {
   char sz[cchSzDef];
 
@@ -638,7 +657,7 @@ void ErrorArgc(char *szOpt)
 
 /* Another simplification for a commonly printed error message. */
 
-void ErrorValN(char *szOpt, int nVal)
+void ErrorValN(CONST char *szOpt, int nVal)
 {
   char sz[cchSzDef];
 
@@ -650,7 +669,7 @@ void ErrorValN(char *szOpt, int nVal)
 
 /* Yet another place to print a type of error message. */
 
-void ErrorArgv(char *szOpt)
+void ErrorArgv(CONST char *szOpt)
 {
   char sz[cchSzDef];
 
@@ -661,7 +680,7 @@ void ErrorArgv(char *szOpt)
 
 /* Still another place to print a type of error message. */
 
-void ErrorSwitch(char *szOpt)
+void ErrorSwitch(CONST char *szOpt)
 {
   char sz[cchSzDef];
 
@@ -673,7 +692,7 @@ void ErrorSwitch(char *szOpt)
 #ifdef PLACALC
 /* Print error messages dealing with ephemeris file access. */
 
-void ErrorEphem(char *sz, long l)
+void ErrorEphem(CONST char *sz, long l)
 {
   char szT[cchSzDef];
 
@@ -694,9 +713,7 @@ void ErrorEphem(char *sz, long l)
 
 void PrintTab(char ch, int cch)
 {
-  int i;
-
-  for (i = 0; i < cch; i++)
+  while (cch-- > 0)
     PrintCh(ch);
 }
 
@@ -768,13 +785,12 @@ char *SzZodiac(real deg)
 
   switch (us.nDegForm) {
   case 0:
-
     /* Normally, we format the position in degrees/sign/minutes format: */
 
     sign = (int)deg / 30;
     d = (int)deg - sign*30;
     m = (int)(RFract(deg)*60.0);
-    sprintf(szZod, "%2d%c%c%c%02d", d, chSig3(sign + 1), m);
+    sprintf(szZod, "%2d%.3s%02d", d, szSignName[sign + 1], m);
     if (is.fSeconds) {
       s = RFract(deg)*60.0; s = RFract(s)*60.0;
       sprintf(&szZod[7], "'%02d\"", (int)s);
@@ -808,22 +824,30 @@ char *SzZodiac(real deg)
 
 char *SzAltitude(real deg)
 {
-  static char szAlt[10];
+  static char szAlt[11];
   int d, m, f;
   real s;
   char ch;
 
   f = deg < 0.0;
   deg = RAbs(deg);
-  if (us.fRound)
-    deg += (is.fSeconds ? rRound/60.0/60.0 : rRound/60.0);
-  d = (int)deg;
-  m = (int)(RFract(deg)*60.0);
-  ch = us.fAnsiChar > 1 ? 176 : chDeg1;
-  sprintf(szAlt, "%c%2d%c%02d'", f ? '-' : '+', d, ch, m);
-  if (is.fSeconds) {
-    s = RFract(deg)*60.0; s = RFract(s)*60.0;
-    sprintf(&szAlt[7], "%02d\"", (int)s);
+  if (us.nDegForm != 2) {
+    if (us.fRound)
+      deg += (is.fSeconds ? rRound/60.0/60.0 : rRound/60.0);
+    d = (int)deg;
+    m = (int)(RFract(deg)*60.0);
+    ch = us.fAnsiChar > 1 ? 176 : chDeg1;
+    sprintf(szAlt, "%c%2d%c%02d'", f ? '-' : '+', d, ch, m);
+    if (is.fSeconds) {
+      s = RFract(deg)*60.0; s = RFract(s)*60.0;
+      sprintf(&szAlt[7], "%02d\"", (int)s);
+    }
+  } else {
+    s = RAbs(deg);
+    if (!is.fSeconds)
+      sprintf(szAlt, s < 10.0 ? "%c%1.4f" : "%c%2.3f", f ? '-' : '+', s);
+    else
+      sprintf(szAlt, s < 10.0 ? "%c%1.7f" : "%c%2.6f", f ? '-' : '+', s);
   }
   return szAlt;
 }
@@ -863,18 +887,18 @@ char *SzDate(int mon, int day, int yea, int nFormat)
 
   if (us.fEuroDate) {
     switch (nFormat) {
-    case  2: sprintf(szDat, "%2d %c%c%c%5d", day, chMon3(mon), yea); break;
+    case  2: sprintf(szDat, "%2d %.3s%5d", day, szMonth[mon], yea);  break;
     case  1: sprintf(szDat, "%d %s %d", day, szMonth[mon], yea);     break;
     case -1: sprintf(szDat, "%2d-%2d-%2d", day, mon, abs(yea)%100);  break;
     default: sprintf(szDat, "%2d-%2d-%4d", day, mon, yea);           break;
     }
   } else {
     switch (nFormat) {
-    case  3: sprintf(szDat, "%c%c%c %2d, %d", chMon3(mon), day, yea); break;
-    case  2: sprintf(szDat, "%c%c%c %2d%5d", chMon3(mon), day, yea);  break;
-    case  1: sprintf(szDat, "%s %d, %d", szMonth[mon], day, yea);     break;
-    case -1: sprintf(szDat, "%2d/%2d/%2d", mon, day, abs(yea)%100);   break;
-    default: sprintf(szDat, "%2d/%2d/%4d", mon, day, yea);            break;
+    case  3: sprintf(szDat, "%.3s %2d, %d", szMonth[mon], day, yea); break;
+    case  2: sprintf(szDat, "%.3s %2d%5d", szMonth[mon], day, yea);  break;
+    case  1: sprintf(szDat, "%s %d, %d", szMonth[mon], day, yea);    break;
+    case -1: sprintf(szDat, "%2d/%2d/%2d", mon, day, abs(yea)%100);  break;
+    default: sprintf(szDat, "%2d/%2d/%4d", mon, day, yea);           break;
     }
   }
   return szDat;
@@ -930,8 +954,8 @@ char *SzZone(real zon)
 {
   static char szZon[7];
 
-  sprintf(szZon, "%d:%02d%s", (int)RAbs(zon), (int)(RFract(RAbs(zon))*100.0+
-    rRound/60.0), zon > 0.0 ? "W" : (zon < 0.0 ? "E" : ""));
+  sprintf(szZon, "%d:%02d%c", (int)RAbs(zon), (int)(RFract(RAbs(zon))*100.0+
+    rRound/60.0), zon < 0.0 ? 'E' : 'W');
   return szZon;
 }
 
@@ -985,6 +1009,27 @@ char *SzLocation(real lon, real lat)
 }
 
 
+/* Format and return a string containing an elevation above sea level,  */
+/* displayed in either meters or feet, as used with topocentric charts. */
+
+char *SzElevation(real elv)
+{
+  static char szElev[21];
+  char *pch;
+
+  sprintf(szElev, "%.2f", us.fEuroDist ? us.elvDef : us.elvDef / rFtToM);
+  for (pch = szElev; *pch; pch++)
+    ;
+  while (*(--pch) == '0')  /* Drop off any trailing 0 digits. */
+    ;
+  if (*pch != '.')
+    pch++;
+  *pch = chNull;
+  sprintf(pch, "%s", us.fEuroDist ? "m" : "ft");
+  return szElev;
+}
+
+
 #ifdef TIME
 /* Compute the date and time it is right now as the program is running      */
 /* using the computer's internal clock. We do this by getting the number    */
@@ -1035,53 +1080,6 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real zon)
 #endif /* TIME */
 
 
-#ifdef PCG
-/* Map one character value to another. This is used in processing special  */
-/* keys and alt key combinations, which are read in from the keyboard as a */
-/* zero immediately followed by some value. This converts that value into  */
-/* something more useful to process and deal with.                         */
-
-int NFromAltN(int nAlt)
-{
-  /* Map number pad keys to the numbers characters they correspond to. */
-  if (nAlt == 82)
-    return '0';
-  else if (FBetween(nAlt, 79, 81))
-    return '1' + nAlt - 79;
-  else if (FBetween(nAlt, 75, 77))
-    return '4' + nAlt - 75;
-  else if (FBetween(nAlt, 71, 73))
-    return '7' + nAlt - 71;
-
-  /* Map F1 through F12 function keys to the values 201-212. */
-  else if (FBetween(nAlt, 59, 68))
-    return 201 + nAlt - 59;
-  else if (FBetween(nAlt, 133, 134))
-    return 211 + nAlt - 133;
-
-  /* Map Shift+F1 through Shift+F12 keys to the values 213-224. */
-  else if (FBetween(nAlt, 84, 93))
-    return 213 + nAlt - 84;
-  else if (FBetween(nAlt, 135, 136))
-    return 223 + nAlt - 135;
-
-  /* Map Control+F1 through Control+F12 keys to the values 225-236. */
-  else if (FBetween(nAlt, 94, 103))
-    return 225 + nAlt - 94;
-  else if (FBetween(nAlt, 137, 138))
-    return 235 + nAlt - 137;
-
-  /* Map Alt+F1 through Alt+F12 keys to the values 237-248. */
-  else if (FBetween(nAlt, 104, 113))
-    return 237 + nAlt - 104;
-  else if (FBetween(nAlt, 139, 140))
-    return 247 + nAlt - 139;
-
-  return chNull;
-}
-#endif
-
-
 /* Given a string representing the complete pathname to a file, strip off    */
 /* all the path information leaving just the filename itself. This is called */
 /* by the main program to determine the name of the Astrolog executable.     */
@@ -1119,7 +1117,7 @@ char *ProcessProgname(char *szPath)
 
 char *SzPersist(char *szSrc)
 {
-  char szT[cchSzDef], *szNew;
+  char *szNew;
   int cb;
 
   /* Some strings such as outer level command line parameter arguments */
@@ -1127,32 +1125,24 @@ char *SzPersist(char *szSrc)
   if (is.fSzPersist)
     return szSrc;
 
-  /* Otherwise we make a copy of the string in the local heap and use it. */
+  /* Otherwise we make a copy of the string and use it. */
   cb = CchSz(szSrc)+1;
-  AllocateNear(szNew, cb);
-  if (szNew == NULL) {
-    sprintf(szT, "%s: Not enough near memory for string (%d bytes).",
-      szAppName, cb);
-    PrintWarning(szT);
-  } else
+  szNew = (char *)PAllocate(cb, "string");
+  if (szNew != NULL)
     CopyRgb((byte *)szSrc, (byte *)szNew, cb);
   return szNew;
 }
 
 
-/* This is Astrolog's memory allocation routine, returning a pointer given */
-/* a size, a flag for if it is a more than 64K huge allocation, and a      */
-/* string to use when printing an error if the allocation fails.           */
+/* This is Astrolog's memory allocation routine, returning a pointer given  */
+/* a size, and a string to use when printing error if the allocation fails. */
 
-lpbyte PAllocate(long lcb, bool fHuge, char *szType)
+lpbyte PAllocate(long lcb, CONST char *szType)
 {
   char szT[cchSzDef];
   lpbyte lp;
 
-  if (fHuge)
-    AllocateHuge(lp, lcb);
-  else
-    AllocateFar(lp, (int)lcb);
+  lp = (lpbyte)PAllocateCore(lcb);
   if (lp == NULL && szType) {
     sprintf(szT, "%s: Not enough memory for %s (%ld bytes).",
       szAppName, szType, lcb);

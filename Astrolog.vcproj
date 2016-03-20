@@ -190,6 +190,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\swehouse.h"
+				>
+			</File>
+			<File
 				RelativePath=".\swejpl.h"
 				>
 			</File>
@@ -303,6 +307,10 @@
 			</File>
 			<File
 				RelativePath=".\swedate.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\swehouse.cpp"
 				>
 			</File>
 			<File

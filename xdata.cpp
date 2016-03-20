@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: xdata.cpp
+** Astrolog (Version 6.10) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -70,16 +70,13 @@ GS gs = {
 #else
   0,
 #endif
-  200, 0, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL, oCore, 600, 1111
-#ifdef PCG
-  , DEFHIRESMODE, DEFLORESMODE
-#endif
+  200, 1, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL, oCore, 600, 1111
   };
 
 GI gi = {
   0, fFalse, -1,
   NULL, 0, NULL, NULL, 0, 0.0, fFalse,
-  2, 1, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1
+  2, 1, 1, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1
 #ifdef X11
   , NULL, 0, 0, 0, 0, 0, 0, 0, 0
 #endif
@@ -88,14 +85,6 @@ GI gi = {
 #endif
 #ifdef META
   , NULL, NULL, MAXMETA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-#endif
-#ifdef MSG
-  , -1000
-#endif
-#ifdef BGI
-  , -1000, fFalse, VGA, VGAHI, 1, 0
-#endif
-#ifdef MACG
 #endif
   };
 
@@ -130,20 +119,6 @@ CONST KV rgbbmp[cColor] = {
   0x7F0000L, 0x7F007FL, 0x7F7F00L, 0xBFBFBFL,
   0x7F7F7FL, 0x0000FFL, 0x00FF00L, 0x00FFFFL,
   0xFF0000L, 0xFF00FFL, 0xFFFF00L, 0xFFFFFFL};
-#ifdef MSG
-CONST KV rgb[cColor] = {
-  _BLACK, _RED, _GREEN, _BROWN,
-  _BLUE, _MAGENTA, _CYAN, _WHITE,
-  _GRAY, _LIGHTRED, _LIGHTGREEN, _YELLOW,
-  _LIGHTBLUE, _LIGHTMAGENTA, _LIGHTCYAN, _BRIGHTWHITE};
-#endif
-#ifdef BGI
-CONST KV rgb[cColor] = {
-  EGA_BLACK, EGA_RED, EGA_GREEN, EGA_BROWN,
-  EGA_BLUE, EGA_MAGENTA, EGA_CYAN, EGA_LIGHTGRAY,
-  EGA_DARKGRAY, EGA_LIGHTRED, EGA_LIGHTGREEN, EGA_YELLOW,
-  EGA_LIGHTBLUE, EGA_LIGHTMAGENTA, EGA_LIGHTCYAN, EGA_WHITE};
-#endif
 #ifdef X11
 CONST char *szColorX[cColor] = {
   "black", "orangered3", "green4", "darkorange2",
@@ -158,19 +133,16 @@ int ikPalette[cColor] =
 #endif
 
 /* These are the actual color arrays and variables used by the program.      */
-/* Technically, Astrolog always assumes we are drawning on a color terminal; */
-/* for B/W graphics, all the values below are filled with black or white.    */
+/* Technically, Astrolog always assumes we are drawning on a color terminal. */
+/* For B/W graphics, all the values below are filled with black or white.    */
 
-KI kMainB[9], kRainbowB[8], kElemB[4], kAspB[cAspect+1], kObjB[objMax],
-  kRayB[cRay+1];
+KI kMainB[9], kRainbowB[8], kElemB[cElem], kAspB[cAspect+1], kObjB[objMax],
+  kRayB[cRay+2];
 
 /* Some physical X window variables dealing with the window itself. */
 
 #ifdef X11
 XSizeHints hint;
-#if FALSE
-XWMHints *wmhint;
-#endif
 char xkey[10];
 #endif
 
@@ -190,13 +162,13 @@ CONST char *szDrawSign[cSign+2] = {"",
   "ND4HU2HLGDFBR6EUHLGD2G",                /* Aries        */
   "BL3D2F2R2E2U2H2NE2L2NH2G2",             /* Taurus       */
   "BLU3LHBR7GLNL3D6NL3RFBL7ERU3",          /* Gemini       */
-  "BGNDHLGDFRNEFR2EREBU3NHDGLHUENRHL2GLG", /* Cancer       */
+  "BFNDERFDGLNHGL2HLHBU3NEDFREUHNLER2FRF", /* Cancer       */
   "BF4H2UEU2H2L2G2D2FDGH",                 /* Leo          */
-  "BF4BLHNGNHEU5G2ND3U2HGND6HGND6H",       /* Virgo        */
+  "BF4BLH2U3E2D5G2BU5U2HGND6HGND6H",       /* Virgo        */
   "BGNL3HUER2FDGR3BD2L8",                  /* Libra        */
   "BH4FND6EFND6EFD6FREU",                  /* Scorpio      */
   "BG4E3NH2NF2E5NL2D2",                    /* Sagittarius  */
-  "BH3BLED4FND2EU2ENF2UFERFDGLF2D2G",      /* Capricorn #1 */
+  "BH3BLED4FND2EU2EUFNDERFDGLNHF2D2G",     /* Capricorn #1 */
   "BG4EUEDFDEUEDFDEUEBU5GDGUHUGDGUHUGDG",  /* Aquarius     */
   "NL4NR4BH4F2D4G2BR8H2U4E2",              /* Pisces       */
   "BH4RFR2ER3G3D2GDFR2EU2HL3G2DG"};        /* Capricorn #2 */
@@ -204,18 +176,18 @@ CONST char *szDrawSign[cSign+2] = {"",
 CONST char *szDrawSign2[cSign+2] = {"",
   "BD8U7HU3HU2H2L2G2D2F2BR12E2U2H2L2G2D2GD3G",     /* Aries  */
   "BH6BU2FDFRFNR4GLGDGD4FDFRFR4EREUEU4HUHLHEREUE", /* Taurus */
-  "", /* Gemini */
-  "BG5NRLH2U2E2R2F2D2G2F2R4ER2E3BH6NE2D2F2R2E2U2H2L2H2L4GL2G3", /* Cancer */
-  "", /* Leo   */
-  "", /* Virgo */
+  "BL2U6LHLHBR14GLGLNL6D12NL6RFRFBL14ERERU6",      /* Gemini */
+  "BF5NLRE2U2H2L2G2D2F2G2L4HL2H3BE6NH2D2G2L2H2U2E2R2E2R4FR2F3", /* Cancer */
+  "BF8H4U2E2U4HUHLHL4GLGDGD4FDFD2GL2HU",           /* Leo   */
+  "BF8BL2H3UHU5E4D9GDG3BU10U4H2G2ND12H2G2ND12H2",  /* Virgo */
   "", /* Libra */
   "BH8F2ND12E2F2ND12E2F2D12F2RE2U3NGF", /* Scorpio */
   "", /* Sagittarius  */
-  "", /* Capricorn #1 */
+  "BH6BL2E2D4FD4FND4EU2EUEU2EUF2ND2E2R2F2D2G2L2NH2F4D4G2", /* Capricorn #1 */
   "BG8EUE2UEDFD2FDEUE2UEDFD2FDEUE2UEBU10GDG2DGUHU2HUGDG2DGUHU2HUGDG2DG",
   /* Aquarius */
-  "NL8NR8BH8F3DFD6GDG3BR16H3UHU6EUE3", /* Pisces */
-  ""}; /* Capricorn #2 */
+  "NL8NR8BH8F3DFD6GDG3BR16H3UHU6EUE3",             /* Pisces */
+  "BH8RFRFR4ER2ER4G5DGD2GDGD2F2R4E2U4H2L6G4DGDG"}; /* Capricorn #2 */
 
 CONST char *szDrawObject[oNorm+5] = {
   "ND4NL4NR4U4LGLDGD2FDRFR2ERUEU2HULHL",    /* Earth   */
@@ -225,7 +197,7 @@ CONST char *szDrawObject[oNorm+5] = {
   "LHU2ER2FD2GLD2NL2NR2D2",                 /* Venus   */
   "HLG2DF2RE2UHE4ND2L2",                    /* Mars    */
   "BH3RFDGDGDR5NDNR2U6E",                   /* Jupiter */
-  "BH3R2NUNR2D3ND3RERFDGDF",                /* Saturn  */
+  "BH3R2NUNR2D4ND2E2RFDGDF",                /* Saturn  */
   "BD4NEHURBFULU3NUNR2L2NU2DGBU5NFBR6GD3F", /* Uranus #1 */
   "BD4U2NL2NR2U5NUNRLBL2NUNLDF2R2E2UNRU",   /* Neptune   */
   "D2NL2NR2D2BU8GFEHBL3D2F2R2E2U2",         /* Pluto  #1 */
@@ -284,8 +256,8 @@ CONST char *szDrawObject2[oNorm+5] = {
   "BD8U2NL6NR6U2E4HUHUHUHNUGDGDGDGF4",            /* Pallas Athena */
   "BD8U2NL4NR4U8NL7NR7NE5NF5NG5NH5U6",            /* Juno          */
   "BU8D3BG5NL3DF2DF2DFEUE2UE2UR3BH4GDG2DGHUH2UH", /* Vesta         */
-  "", /* North Node      */
-  "", /* South Node      */
+  "BG4BDHL2GD2FR2EU5H2U4E4R4F4D4G2D5FR2EU2HL2G",  /* North Node    */
+  "BH4BUGL2HU2ER2FD5G2D4F4R4E4U4H2U5ER2FD2GL2H",  /* South Node    */
   "", /* Lilith #1       */
   "", /* Part of Fortune */
   "", /* Vertex          */
@@ -303,13 +275,13 @@ CONST char *szDrawObject2[oNorm+5] = {
   "", /* 11th Cusp */
   "", /* 12th Cusp */
   "", /* Vulcan    */
-  "", /* Cupido    */
+  "BH8BR2F2D2G2DG2DR16BG6U2NL4NR4U10LHU2ER2FD2GL", /* Cupido    */
   "", /* Hades     */
-  "", /* Zeus      */
+  "BU8NG4NF4D14ND2BLHL2HLBR12LGL2GL2GL2GLBR12LHL2HL", /* Zeus      */
   "", /* Kronos    */
-  "", /* Apollon   */
+  "U6NL2R4NR2D6NL4NR4D8NR2L4NL2U8L8UE2U3H2", /* Apollon   */
   "", /* Admetos   */
-  "", /* Vulcanus  */
+  "G2DG2DG2R12H2UH2UH2U8NG4F4", /* Vulcanus  */
   "", /* Poseidon  */
   "", /* Uranus #2 */
   "", /* Pluto  #2 */

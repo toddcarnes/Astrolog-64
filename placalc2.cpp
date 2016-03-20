@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: placalc2.cpp
+** Astrolog (Version 6.10) File: placalc2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "placalc.h"
@@ -75,7 +75,7 @@
 /* which has knowledge of and uses both Astrolog and Placalc definitions, */
 /* and does things such as translation to Placalc indices and formats.    */
 
-bool FPlacalcPlanet(int ind, double jd, int helio,
+flag FPlacalcPlanet(int ind, real jd, flag fHelio,
   real *obj, real *objalt, real *dir, real *space)
 {
   int iobj, flag;
@@ -95,7 +95,7 @@ bool FPlacalcPlanet(int ind, double jd, int helio,
     return fFalse;
 
   jd_ad = jd - JUL_OFFSET;
-  flag = helio ? CALC_BIT_SPEED | CALC_BIT_HELIO : CALC_BIT_SPEED;
+  flag = fHelio ? CALC_BIT_SPEED | CALC_BIT_HELIO : CALC_BIT_SPEED;
   jd_ad += deltat(jd_ad);
   if (calc(iobj, jd_ad, flag, &rlng, &rrad, &rlat, &rspeed) == OK) {
     *obj    = rlng;

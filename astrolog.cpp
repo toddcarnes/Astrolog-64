@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.00) File: astrolog.cpp
+** Astrolog (Version 6.10) File: astrolog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2015 by
+** not enumerated below used in this program are Copyright (C) 1991-2016 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 12/20/2015.
+** Last code change made 3/19/2016.
 */
 
 #include "astrolog.h"
@@ -169,7 +169,7 @@ LDone:
     fclose(is.S);     /* file as with the -os switch, close it here.        */
 
   if (grid) {
-    DeallocateFar(grid);
+    DeallocateP(grid);
     grid = NULL;
   }
 }
@@ -203,7 +203,7 @@ void InitVariables(void)
 /* parse it into its various switches and parameters, then go process them */
 /* and change program settings. Basically a wrapper for other functions.   */
 
-bool FProcessCommandLine(char *szLine)
+flag FProcessCommandLine(char *szLine)
 {
   char szCommandLine[cchSzMax], *rgsz[MAXSWITCHES];
   int argc, cb, fT = fFalse;
@@ -244,7 +244,7 @@ int NParseCommandLine(char *szLine, char **argv)
   char *pch = szLine;
 
   /* Split the entered line up into its individual switch strings. */
-  while ((_char)*pch >= ' ' || *pch == chTab) {
+  while ((uchar)*pch >= ' ' || *pch == chTab) {
     if (*pch == ' ' || *pch == chTab) {
       if (fSpace)
         /* Skip over the current run of spaces between strings. */
@@ -275,7 +275,7 @@ int NParseCommandLine(char *szLine, char **argv)
     }
     pch++;
   }
-  argv[0] = szAppNameCore;
+  argv[0] = (char *)szAppNameCore;
   argv[argc] = NULL;         /* Set last string in switch array to Null. */
   return argc;
 }
@@ -316,15 +316,17 @@ int NPromptSwitches(char *line, char *argv[MAXSWITCHES])
 /* process one switch, which we know to be one of the obscure -Y types.    */
 
 int NProcessSwitchesRare(int argc, char **argv, int pos,
-  bool fOr, bool fAnd, bool fNot)
+  flag fOr, flag fAnd, flag fNot)
 {
   int darg = 0, i, j, k, l;
   real r;
   char ch1, ch2;
-  OE oe;
   lpbyte lpb;
   int *lpn;
-  lpreal lpr;
+  real *lpr;
+#ifdef MATRIX
+  OE oe;
+#endif
 #ifdef INTERPRET
   char *sz;
 #endif
@@ -333,6 +335,14 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
   switch (argv[0][pos]) {
   case chNull:
     SwitchF(us.fSwitchRare);
+    break;
+
+  case 'T':
+    SwitchF(us.fTruePos);
+    break;
+
+  case 'V':
+    SwitchF(us.fTopoPos);
     break;
 
   case 'n':
@@ -345,6 +355,10 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 
   case 't':
     SwitchF(us.fEuroTime);
+    break;
+
+  case 'v':
+    SwitchF(us.fEuroDist);
     break;
 
   case 'r':
@@ -438,6 +452,23 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     darg++;
     break;
 
+#ifdef SWISS
+  case 'e':
+    if (argc <= 2) {
+      ErrorArgc("Ye");
+      return tcError;
+    }
+    i = NParseSz(argv[1], pmObject);
+    if (!FUranian(i)) {
+      ErrorValN("Ye", i);
+      return tcError;
+    }
+    rgObjSwiss[i - uranLo] = atoi(argv[2]);
+    darg += 2;
+    break;
+#endif
+
+#ifdef MATRIX
   case 'E':
     if (argc <= 17) {
       ErrorArgc("YE");
@@ -457,6 +488,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     rgoe[IoeFromObj(i)] = oe;
     darg += 17;
     break;
+#endif
 
   case 'R':
     if (argc <= 2 + (ch1 == 'Z')*2) {
@@ -528,16 +560,16 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
       return tcError;
     }
     if (ch1 == '0') {
-      rObjInf[oNorm+1]   = atof(argv[1]);
-      rObjInf[oNorm+2]   = atof(argv[2]);
+      rObjInf[oNorm1+1]  = atof(argv[1]);
+      rObjInf[oNorm1+2]  = atof(argv[2]);
       rHouseInf[cSign+1] = atof(argv[3]);
       rHouseInf[cSign+2] = atof(argv[4]);
       darg += 4;
       break;
     } else if (ch1 == '7') {
-      rObjInf[oNorm+3]   = atof(argv[1]);
-      rObjInf[oNorm+4]   = atof(argv[2]);
-      rObjInf[oNorm+5]   = atof(argv[3]);
+      rObjInf[oNorm1+3]  = atof(argv[1]);
+      rObjInf[oNorm1+4]  = atof(argv[2]);
+      rObjInf[oNorm1+5]  = atof(argv[3]);
       rHouseInf[cSign+3] = atof(argv[4]);
       rHouseInf[cSign+4] = atof(argv[5]);
       rHouseInf[cSign+5] = atof(argv[6]);
@@ -546,7 +578,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     }
     k = ch1 == 'C' ? pmSign : (ch1 == 'A' ? pmAspect : pmObject);
     i = NParseSz(argv[1], k); j = NParseSz(argv[2], k);
-    k = ch1 == 'C' ? cSign : (ch1 == 'A' ? cAspect : cObj);
+    k = ch1 == 'C' ? cSign : (ch1 == 'A' ? cAspect : oNorm1);
     if (!FBetween(i, 0, k)) {
       ErrorValN("Yj", i);
       return tcError;
@@ -752,10 +784,10 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 /* Process a command switch line passed to the program. Read each entry in */
 /* the argument list and set all the program modes and charts to display.  */
 
-bool FProcessSwitches(int argc, char **argv)
+flag FProcessSwitches(int argc, char **argv)
 {
   int ich, i, j;
-  bool fNot, fOr, fAnd;
+  flag fNot, fOr, fAnd;
   real rT;
   char ch1, ch2, *pch;
   CI ci;
@@ -1113,7 +1145,7 @@ bool FProcessSwitches(int argc, char **argv)
         break;
       }
 #endif
-      if (argc <= 2 - (i & 1)) {
+      if (argc <= 2 - (i == 1)) {
         ErrorArgc("t");
         return fFalse;
       }
@@ -1131,7 +1163,7 @@ bool FProcessSwitches(int argc, char **argv)
         }
       }
       YeaT = NParseSz(argv[2 - (i > 0)], pmYea);
-      argc -= 2 - (i & 1); argv += 2 - (i & 1);
+      argc -= 2 - (i == 1); argv += 2 - (i == 1);
       break;
 
     case 'T':
@@ -1249,6 +1281,23 @@ bool FProcessSwitches(int argc, char **argv)
           ErrorValR("zl", us.latDef);
           return fFalse;
         }
+        argc -= 2; argv += 2;
+        break;
+      } else if (ch1 == 'v') {
+        if (argc <= 1) {
+          ErrorArgc("zv");
+          return fFalse;
+        }
+        us.elvDef = RParseSz(argv[1], pmElv);
+        argc--; argv++;
+        break;
+      } else if (ch1 == 'j') {
+        if (argc <= 2) {
+          ErrorArgc("zj");
+          return fFalse;
+        }
+        us.namDef = SzPersist(argv[1]);
+        us.locDef = SzPersist(argv[2]);
         argc -= 2; argv += 2;
         break;
       } else if (ch1 == 't') {
@@ -1665,12 +1714,12 @@ bool FProcessSwitches(int argc, char **argv)
         ErrorArgc("x");
         return fFalse;
       }
-      i = atoi(argv[1]);
-      if (!FValidHarmonic(i)) {
-        ErrorValN("x", i);
+      rT = atof(argv[1]);
+      if (!FValidHarmonic(rT)) {
+        ErrorValR("x", rT);
         return fFalse;
       }
-      us.nHarmonic = i;
+      us.rHarmonic = rT;
       argc--; argv++;
       break;
 
@@ -1850,21 +1899,15 @@ bool FProcessSwitches(int argc, char **argv)
       }
       break;
 
-#ifdef PCG
+    /* No longer implemented, but still skip a parameter and do nothing for */
+    /* compatibility with old astrolog.as files.                            */
     case 'V':
       if (argc <= 1) {
         ErrorArgc("V");
         return fFalse;
       }
-      i = atoi(argv[1]);
-      if (!FValidTextrows(i)) {
-        ErrorValN("V", i);
-        return fFalse;
-      }
-      gs.nTextRows = i;
       argc--; argv++;
       break;
-#endif
 
 #ifdef GRAPH
     case 'X':
@@ -1910,7 +1953,7 @@ bool FProcessSwitches(int argc, char **argv)
     case '.':                /* "-." is usually used to exit the -Q loop. */
       Terminate(tcForce);
 
-    case 'B':                /* For no useful reason, -B sounds a beep. */
+    case 'B':                /* For no definite purpose, -B sounds a beep. */
 #ifndef WIN
       putchar(chBell);
 #else
@@ -1935,10 +1978,9 @@ bool FProcessSwitches(int argc, char **argv)
 */
 
 #ifndef WIN
-#ifndef NOMAIN
 /* The main program, the starting point for Astrolog, follows. This routine */
 /* basically consists of a loop, inside which we read a command line, and   */
-/* go process it, before actually calling a routine to do the neat stuff.   */
+/* go process it, before actually calling a routine to display astrology.   */
 
 #ifdef SWITCHES
 int main(int argc, char **argv)
@@ -1956,12 +1998,6 @@ int main()
   FProcessSwitchFile(DEFAULT_INFOFILE, NULL);
 
 LBegin:
-#ifdef PCG
-  if (gs.nTextRows > 0) {
-    PcSetTextRows(gs.nTextRows);
-    neg(gs.nTextRows);
-  }
-#endif
   if (us.fNoSwitches) {                             /* Go prompt for    */
     argc = NPromptSwitches(szCommandLine, rgsz);    /* switches if we   */
     argv = rgsz;                                    /* don't have them. */
@@ -1973,12 +2009,6 @@ LBegin:
       us.fNoSwitches = fTrue;
       goto LBegin;
     }
-#ifdef PCG
-    if (gs.nTextRows > 0) {
-      PcSetTextRows(gs.nTextRows);
-      neg(gs.nTextRows);
-    }
-#endif
     Action();
   }
   if (us.fLoop || us.fNoQuit) { /* If -Q in effect loop back and get switch */
@@ -1990,7 +2020,6 @@ LBegin:
   Terminate(tcOK);    /* The only standard place to exit Astrolog is here. */
   return 0;
 }
-#endif /* NOMAIN */
 #endif /* WIN */
 
 /* astrolog.cpp */
