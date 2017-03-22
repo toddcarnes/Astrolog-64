@@ -666,6 +666,10 @@ flag FSwissPlanet(int ind, real jd, flag fHelio,
 
   /* Convert Astrolog calculation settings to Swiss Ephemeris flags. */
   iflag = SEFLG_SPEED;
+  if (us.fSidereal) {
+    swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
+    iflag |= SEFLG_SIDEREAL;
+  }
   if (fHelio && ind != oNod && ind != oLil)
     iflag |= SEFLG_HELCTR;
   if (us.fTruePos)
@@ -683,7 +687,7 @@ flag FSwissPlanet(int ind, real jd, flag fHelio,
     }
     return fFalse;
   }
-  *obj    = xx[0];
+  *obj    = xx[0] - is.rSid + us.rZodiacOffset;
   *objalt = xx[1];
   *space  = xx[2];
   *dir    = xx[3];
@@ -711,7 +715,7 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   case hsCampanus:      ch = 'C'; break;
   case hsMeridian:      ch = 'X'; break;
   case hsRegiomontanus: ch = 'R'; break;
-  case hsPorphyry:      ch = 'P'; break;
+  case hsPorphyry:      ch = 'O'; break;
   case hsMorinus:       ch = 'M'; break;
   case hsTopocentric:   ch = 'T'; break;
   case hsAlcabitius:    ch = 'B'; break;
@@ -749,6 +753,11 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   *ob  = RFromD(eps);
   for (i = 1; i <= cSign; i++)
     chouse[i] = Mod(cusp[i] + is.rSid);
+
+  /* Want generic MC. Undo if house system flipped it 180 degrees. */
+  if ((housesystem == hsCampanus || housesystem == hsRegiomontanus ||
+    housesystem == hsTopocentric) && MinDifference(*mc, *asc) < 0.0)
+    *mc = Mod(*mc + rDegHalf);
 
   /* Have Astrolog compute the houses if Swiss Ephemeris didn't do so. */
   if (ch == 'A')

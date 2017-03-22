@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: charts3.cpp
+** Astrolog (Version 6.20) File: charts3.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -120,7 +120,7 @@ void ChartInDaySearch(flag fProg)
       /* beginning time chart is copied from the previous end time chart. */
 
       SetCI(ciCore, fYear ? MonT : Mon, DayT, yea0,
-        DegToDec(24.0*(real)div/(real)division), Dst, Zon, Lon, Lat);
+        24.0*(real)div/(real)division, Dst, Zon, Lon, Lat);
       if (fProg) {
         is.JDp = MdytszToJulian(MonT, DD+1, yea0, 0.0, Dst, Zon);
         ciCore = ciMain;
@@ -163,7 +163,7 @@ void ChartInDaySearch(flag fProg)
         /* Now search for anything making an aspect to the current planet. */
 
         for (j = i+1; j <= cObj; j++) if (!FIgnore(j) && (fProg || FThing(j)))
-          for (k = 1; k <= us.nAsp; k++) if (FAcceptAspect(i, k, j)) {
+          for (k = 1; k <= us.nAsp; k++) if (FAcceptAspect(i, -k, j)) {
             d1 = cp1.obj[i]; d2 = cp2.obj[i];
             e1 = cp1.obj[j]; e2 = cp2.obj[j];
             if (MinDistance(d1, d2) < MinDistance(e1, e2)) {
@@ -257,7 +257,7 @@ void ChartInDaySearch(flag fProg)
         }
       }
       SetCI(ciSave, fYear || fProg ? l : Mon, j, yea0,
-        DegToDec(time[i] / 60.0), Dst, Zon, Lon, Lat);
+        time[i] / 60.0, Dst, Zon, Lon, Lat);
       k = DayOfWeek(fYear || fProg ? l : Mon, j, yea0);
       AnsiColor(kRainbowA[k + 1]);
       sprintf(sz, "(%.3s) ", szDay[k]); PrintSz(sz);
@@ -373,7 +373,7 @@ void ChartTransitSearch(flag fProg)
 
       d = 1.0 + (daysiz/24.0/60.0)*(real)div/(real)division;
       SetCI(ciCore, MonT, (int)d, YeaT,
-        DegToDec(RFract(d)*24.0), DstT, ZonT, LonT, LatT);
+        RFract(d)*24.0, DstT, ZonT, LonT, LatT);
       if (fProg) {
         is.JDp = MdytszToJulian(MM, DD, YY, 0.0, DstT, ZonT);
         ciCore = ciMain;
@@ -456,13 +456,15 @@ void ChartTransitSearch(flag fProg)
       /* Now loop through list and display all the transits. */
 
       for (i = 0; i < occurcount; i++) {
-        s1 = (uint)time[i]/24/60;
-        s3 = (uint)time[i]-s1*24*60;
-        s2 = s3/60;
-        s3 = s3-s2*60;
-        s4 = us.fSeconds ? (int)(time[i]*60.0)-(((s1*24+s2)*60+s3)*60) : -1;
-        SetCI(ciSave, MonT, s1+1, YeaT, DegToDec((real)
-          ((uint)time[i]-s1*24*60) / 60.0), DstT, ZonT, LonT, LatT);
+        j = (int)(time[i] * 60.0);
+        s1 = j / (24*60*60);
+        j = j - s1 * (24*60*60);
+        s2 = j / (60*60);
+        k = j - s2 * (60*60);
+        s3 = k / 60;
+        s4 = us.fSeconds ? k - s3*60 : -1;
+        SetCI(ciSave,
+          MonT, s1+1, YeaT, (real)j / (60.0*60.0), DstT, ZonT, LonT, LatT);
         sprintf(sz, "%s %s ",
           SzDate(MonT, s1+1, YeaT, fFalse), SzTime(s2, s3, s4)); PrintSz(sz);
         PrintAspect(source[i], sign[i], isret[i], aspect[i],
@@ -532,7 +534,7 @@ void ChartInDayHorizon(void)
   /* For each segment we get the planet positions at its endpoints.       */
 
   for (div = 1; div <= division; div++) {
-    ciCore = ciMain; ciCore.tim = DegToDec(24.0*(real)div/(real)division);
+    ciCore = ciMain; ciCore.tim = 24.0*(real)div/(real)division;
     CastChart(fTrue);
     mc1 = mc2;
     mc2 = RFromD(planet[oMC]); k = RFromD(planetalt[oMC]);
@@ -572,7 +574,7 @@ void ChartInDayHorizon(void)
         fRet[occurcount] = (int)RSgn(cp1.dir[i]) + (int)RSgn(cp2.dir[i]);
         azialt[occurcount] = k;
         ciSave = ciMain;
-        ciSave.tim = DegToDec(time[occurcount] / 60.0);
+        ciSave.tim = time[occurcount] / 60.0;
         occurcount++;
       }
     }
@@ -597,7 +599,7 @@ void ChartInDayHorizon(void)
 
   for (i = 0; i < occurcount; i++) {
     ciSave = ciMain;
-    ciSave.tim = DegToDec(time[i] / 60.0);
+    ciSave.tim = time[i] / 60.0;
     j = DayOfWeek(Mon, Day, Yea);
     AnsiColor(kRainbowA[j + 1]);
     sprintf(sz, "(%.3s) ", szDay[j]); PrintSz(sz);
@@ -682,7 +684,10 @@ void ChartEphemeris(void)
 
   for (mon = mon1; mon <= mon2; mon++) {
     daysiz = DayInMonth(mon, yea);
-    PrintSz(us.fEuroDate ? "Dy/Mo/Yr" : "Mo/Dy/Yr");
+    if (is.fSeconds)
+      PrintSz(us.fEuroDate ? "Dy/Mo/Year" : "Mo/Dy/Year");
+    else
+      PrintSz(us.fEuroDate ? "Dy/Mo/Yr" : "Mo/Dy/Yr");
     for (j = 0; j <= cObj; j++) {
       if (!FIgnore(j)) {
         sprintf(sz, "  %s%-4.4s", is.fSeconds ? "  " : "", szObjName[j]);
@@ -697,7 +702,7 @@ void ChartEphemeris(void)
 
       SetCI(ciCore, mon, i, yea, Tim, Dst, Zon, Lon, Lat);
       CastChart(fTrue);
-      PrintSz(SzDate(mon, i, yea, -1));
+      PrintSz(SzDate(mon, i, yea, is.fSeconds-1));
       PrintCh(' ');
       for (j = 0; j <= cObj; j++)
         if (!FIgnore(j)) {

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: xdata.cpp
+** Astrolog (Version 6.20) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -64,13 +64,14 @@ GS gs = {
   fTrue,
 #endif
   fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse,
-  fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse, DEFAULTX, DEFAULTY,
+  fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse,
+  DEFAULTX, DEFAULTY,
 #ifdef WIN
   -10,
 #else
   0,
 #endif
-  200, 1, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL, oCore, 600, 1111
+  200, 100, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL, oCore, 600, 1111
   };
 
 GI gi = {
@@ -94,7 +95,7 @@ WI wi = {
   hdcNil, hdcNil, (HWND)NULL, (HPEN)NULL, (HBRUSH)NULL, (HFONT)NULL,
   0, 0, 0, 0, 0, 0, 0, -1, -1,
   0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
-  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, kBlack, 1, 1000};
+  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, kBlack, 1, 1000};
 
 OPENFILENAME ofn = {
   sizeof(OPENFILENAME), (HWND)NULL, (HINSTANCE)NULL, NULL, NULL, 0, 1, NULL,
@@ -131,6 +132,7 @@ KV rgbind[cColor], fg, bg;
 int ikPalette[cColor] =
   {-0, -1, 1, 4, 6, 3, -8, 5, -3, -2, -4, -5, -7, 2, 7, -6};
 #endif
+char *szWheelX[4+1] = {"", "", "", "", ""};
 
 /* These are the actual color arrays and variables used by the program.      */
 /* Technically, Astrolog always assumes we are drawning on a color terminal. */
@@ -154,8 +156,10 @@ char xkey[10];
 */
 
 #ifdef STROKE
-CONST char szObjectFont[oNorm+2] = ";QRSTUVWXYZ     <    a  c     b  >";
-CONST char szAspectFont[cAspect+1] = "!\"#$'&%()+-       ";
+//                                  ESMMVMJSUNPccpjvnslpveA23I56789M12
+CONST char szObjectFont[oNorm+1] = ";QRSTUVWXYZ     <>    a  c     b  ";
+//                                    C OSTSisssqbssnbbts
+CONST char szAspectFont[cAspect+1] = "!\"#$'&%()+*       ";
 #endif
 
 CONST char *szDrawSign[cSign+2] = {"",

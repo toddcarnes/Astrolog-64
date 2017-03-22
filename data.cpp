@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: data.cpp
+** Astrolog (Version 6.20) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -66,13 +66,13 @@ US us = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Chart suboptions */
-  0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+  0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
 
   /* Table chart types */
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Main flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #ifdef EPHEM
   1,
 #else
@@ -92,7 +92,7 @@ US us = {
 #else
   1,
 #endif
-  0, 0, 0, 0,
+  0, 0, 0, 0, 0,
 
   /* Rare flags */
   0, 0,
@@ -101,7 +101,7 @@ US us = {
 #else
   fFalse,
 #endif
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
@@ -127,21 +127,21 @@ US us = {
 
   /* Value subsettings */
 
-  4, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0L, 0, BIODAYS};
+  4, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0L, oEar, oEar, 0, BIODAYS};
 
 IS is = {
-  fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
+  fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
   NULL, NULL, NULL, NULL, 0, 0, 0, 0.0, 0.0, 0.0,
-  NULL, 0.0, 0.0, 0.0, 0.0, 0.0};
+  NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
 
-CI ciCore = {11, 19, 1971, 11.01, 0.0, 8.0, 122.19984, 47.36584, "", ""};
-CI ciMain = {-1, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTwin = {9, 11, 1991, 0.01, 0.0, 0.0, 122.19984, 47.36584, "", ""};
-CI ciThre = {-1, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciFour = {-1, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTran = {12, 31, 2015, 23.59, 0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciSave = {3, 19, 2016, 20.302, 0.0, 8.0, 122.19984, 47.36584, "", ""};
-CP cp0, cp1, cp2;
+CI ciCore = {11, 19, 1971, HM(11, 1),      0.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciMain = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),  0.0, 0.0, DEFAULT_LOC, "", ""};
+CI ciThre = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciFour = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTran = {12, 31, 2016, HM(23, 59),     0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciSave = {3,  20, 2017, HMS(2, 28, 39), 0.0, 8.0, DEFAULT_LOC, "", ""};
+CP cp0, cp1, cp2, cp3, cp4;
 
 
 /*
@@ -153,7 +153,7 @@ CP cp0, cp1, cp2;
 real spacex[oNorm+1], spacey[oNorm+1], spacez[oNorm+1], force[objMax];
 GridInfo *grid = NULL;
 int starname[cStar+1], kObjA[objMax];
-char *szMacro[48];
+char *szMacro[48], *szWheel[4+1] = {"", "", "", "", ""};
 
 /* Restriction status of each object, as specified with -R switch. */
 
@@ -175,7 +175,14 @@ byte ignore2[objMax] = {1,
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /* Stars    */
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-byte ignorez[4] = {0, 0, 0, 0};    /* Restrictions for -Zd chart events. */
+/* Restriction status of each aspect, as specified with -RA switch. */
+
+byte ignorea[cAspect+1] = {0,
+  0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+byte ignorez[4] = {0, 0, 0, 0};     /* Restrictions for -Zd chart events. */
+
+byte ignore7[5] = {0, 1, 1, 0, 1};  /* Restrictions for rulership types. */
 
 /* Gauquelin sector plus zones, as specified with -Yl switch. */
 
@@ -237,7 +244,7 @@ CONST char *szSystem[cSystem] = {
   "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
   "Regiomontanus", "Porphyry", "Morinus", "Topocentric", "Alcabitius",
   "Krusinski", "Equal (MC)", "Pullen (S-Ratio)", "Pullen (S-Delta)", "Whole",
-  "Vedic", "Null"};
+  "Vedic", "Sripati", "Null"};
 CONST StrLook rgSystem[] = {{"E-Asc", hsEqual}, {"E-MC", hsEqualMC},
   {"P-SR", hsSinewaveRatio}, {"P-SD", hsSinewaveDelta},
   {"Ratio", hsSinewaveRatio}, {"Delta", hsSinewaveDelta},
@@ -250,6 +257,7 @@ CONST char *szAspectName[cAspect+1] = {"",
   "Quintile", "Biquintile",
   "Semiquintile", "Septile", "Novile",
   "Binovile", "Biseptile", "Triseptile", "Quatronovile"};
+CONST StrLook rgAspectName[] = {{"Quincunx", aInc}, {"", -1}};
 
 CONST char *szAspectAbbrev[cAspect+3] = {"",
   "Con", "Opp", "Squ", "Tri", "Sex",
@@ -305,6 +313,9 @@ CONST char *szDir[4] = {"North", "East", "South", "West"};
 
 CONST char *szSuffix[cSign+1] = {"",
   "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "th", "th"};
+
+CONST char *szEphem[cmMax] = {
+  "Swiss Ephemeris", "Placalc Ephemeris", "Matrix Formulas", "None"};
 
 real rAspAngle[cAspect+1] = {0,
   0.0, 180.0, 90.0, 120.0, 60.0, 150.0, 30.0, 45.0, 135.0, 72.0, 144.0,
@@ -452,14 +463,23 @@ real rTransitInf[oNorm1] = {10,
   80};
 
   /* Informational astronomical data for planets - */
-CONST real rObjDist[oVes+1] = {149.59787, 0.0, 0.3844,
+CONST real rObjDist[oNorm+1] = {rEarthDist, 0.0, 0.3844,
   57.91, 108.2, 227.94, 778.33, 1426.98, 2870.99, 4497.07, 5913.52,
-  13.670*149.59787, 2.767*149.59787, 2.770*149.59787, 2.669*149.59787,
-  2.361*149.59787};
-CONST real rObjYear[oVes+1] = {1, 0, 27.32166/365.25,
-  87.969/365.25, 224.701/365.25, 686.98/365.25, 11.8623,
+  13.670*rEarthDist, 2.767*rEarthDist, 2.770*rEarthDist, 2.669*rEarthDist,
+  2.361*rEarthDist, 0.3844, 0.3844, 0.3844,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.13744*rEarthDist, 40.99837*rEarthDist, 50.66744*rEarthDist,
+  59.21436*rEarthDist, 64.81690*rEarthDist, 70.29949*rEarthDist,
+  73.62765*rEarthDist, 77.25568*rEarthDist, 83.66907*rEarthDist};
+CONST real rObjYear[oNorm+1] = {1.0, 0.0, 27.32166/rDayInYear,
+  87.969/rDayInYear, 224.701/rDayInYear, 686.98/rDayInYear, 11.8623,
   29.458, 84.01, 164.79, 248.54,
-  51.0, 4.60, 4.61, 4.36, 3.63};
+  51.0, 4.60, 4.61, 4.36, 3.63,
+  6792.45/rDayInYear, 6792.45/rDayInYear, 699.65/rDayInYear,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  18.58/rDayInYear, 94923.63/rDayInYear, 129906.79/rDayInYear,
+  163537.13/rDayInYear, 186804.87/rDayInYear, 210470.60/rDayInYear,
+  225232.03/rDayInYear, 241643.79/rDayInYear, 271464.37/rDayInYear};
 CONST real rObjDiam[oVes+1] = {12756.0, 1392000.0, 3476.0,
   4878.0, 12102.0, 6786.0, 142984.0, 120536.0, 51118.0, 49528.0, 2372.0,
   320.0, 955.0, 538.0, 226.0, 503.0};

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: intrpret.cpp
+** Astrolog (Version 6.20) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -66,7 +66,7 @@ void FieldWord(CONST char *sz)
   static int cursor = 0;
   int i, j;
 
-  /* Hack: Dump buffer if function called with a null string. */
+  /* Dump buffer if function called with a null string. */
 
   if (sz == NULL) {
     line[cursor] = 0;
@@ -99,7 +99,7 @@ void FieldWord(CONST char *sz)
 
 void InterpretGeneral(void)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int i;
 
   PrintSz("Signs of the zodiac represent psychological characteristics.\n\n");
@@ -141,11 +141,13 @@ void InterpretGeneral(void)
 
 void InterpretAspectGeneral(void)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int i;
 
   PrintSz("\nAspects are different relationships between planets.\n\n");
-  for (i = 1; i <= Min(us.nAsp, cAspectInt); i++) {
+  for (i = 1; i <= us.nAsp; i++) {
+    if (!FInterpretAsp(i))
+      continue;
     AnsiColor(kAspA[i]);
     sprintf(sz, "When planets are %s, one", szAspectName[i]);
     FieldWord(sz); sprintf(sz, szInteract[i], ""); FieldWord(sz);
@@ -165,12 +167,12 @@ void InterpretAspectGeneral(void)
 
 void InterpretLocation(void)
 {
-  char sz[cchSzDef*2], c;
+  char sz[cchSzMax], c;
   int i, j;
 
   PrintL();
   for (i = 0; i <= cObjInt; i++) {
-    if (ignore[i] || FCusp(i))
+    if (ignore[i] || !FInterpretObj(i))
       continue;
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
@@ -187,7 +189,7 @@ void InterpretLocation(void)
     sprintf(sz, "%s, and", szDesc[j]); FieldWord(sz);
     sprintf(sz, "%s.", szDesire[j]); FieldWord(sz);
     FieldWord("Most often this manifests");
-    if (ret[i] < 0.0 && i != oNod)
+    if (ret[i] < 0.0 && i != oNod && i != oSou)
       FieldWord("in an independent, backward, introverted manner, and");
     FieldWord("in the area of life dealing with");
     sprintf(sz, "%s.", szLifeArea[inhouse[i]]); FieldWord(sz);
@@ -213,12 +215,11 @@ void InterpretLocation(void)
 
 void InterpretAspect(int x, int y)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int n;
 
   n = grid->n[x][y];
-  if (n < 1 || n > cAspectInt ||
-    FCusp(x) || FCusp(y) || x > cObjInt || y > cObjInt)
+  if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
   sprintf(sz, "%s %s %s: %s's", szObjName[x],
@@ -250,14 +251,14 @@ void InterpretGrid(void)
 
 
 /* Print an interpretation for a particular midpoint in effect in a chart. */
-/* This is called from the ChartMidpoint routine.                          */
+/* This is called from the ChartMidpoint() routine.                        */
 
 void InterpretMidpoint(int x, int y)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int n, i;
 
-  if (FCusp(x) || FCusp(y) || x > cObjInt || y > cObjInt)
+  if (!FInterpretObj(x) || !FInterpretObj(y))
     return;
   n = grid->n[y][x];
   AnsiColor(kSignA(n));
@@ -271,10 +272,10 @@ void InterpretMidpoint(int x, int y)
   sprintf(sz, "%s, and", szDesc[n]); FieldWord(sz);
   sprintf(sz, "%s.", szDesire[n]); FieldWord(sz);
   FieldWord("Most often this manifests in");
-  if (ret[x]+ret[y] < 0.0 && x != oNod && y != oNod)
+  if (ret[x] + ret[y] < 0.0 && x != oNod && y != oNod)
     FieldWord("an independent, backward, introverted manner, and");
   FieldWord("the area of life dealing with");
-  i = HousePlaceIn(ZFromS(n) + (real)grid->v[y][x]/3600.0);
+  i = HousePlaceIn2D(ZFromS(n) + (real)grid->v[y][x]/3600.0);
   sprintf(sz, "%s.", szLifeArea[i]); FieldWord(sz);
   FieldWord(NULL);
 }
@@ -285,7 +286,7 @@ void InterpretMidpoint(int x, int y)
 
 void InterpretInDay(int source, int aspect, int dest)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
 
   if (source > cObjInt || dest > cObjInt)
     return;
@@ -313,7 +314,7 @@ void InterpretInDay(int source, int aspect, int dest)
 
   /* Interpret aspect between transiting planets. */
 
-  } else if (aspect > 0 && aspect <= cAspectInt) {
+  } else if (FInterpretAsp(aspect)) {
     AnsiColor(kAspA[aspect]);
     FieldWord("Energy representing"); FieldWord(szMindPart[source]);
     sprintf(sz, szInteract[aspect], szModify[1][aspect-1]);
@@ -330,14 +331,15 @@ void InterpretInDay(int source, int aspect, int dest)
 }
 
 
-/* This is a subprocedure of ChartTransitSearch(). Print the interpretation */
-/* for a particular transit of a planet to a natal object of a chart.       */
+/* This is called from ChartTransitSearch() and ChartTransitInfluence(). */
+/* Print the interpretation for a particular transit of a planet making  */
+/* an aspect to a natal object of a chart.                               */
 
 void InterpretTransit(int source, int aspect, int dest)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
 
-  if (source <= oCore && dest <= oCore && aspect <= cAspectInt) {
+  if (FInterpretObj(source) && FInterpretObj(dest)) {
     AnsiColor(kAspA[aspect]);
     FieldWord("Energy representing"); FieldWord(szMindPart[source]);
     sprintf(sz, szInteract[aspect], szModify[1][aspect-1]);
@@ -366,12 +368,12 @@ void InterpretTransit(int source, int aspect, int dest)
 
 void InterpretSynastry(void)
 {
-  char sz[cchSzDef*2], c;
+  char sz[cchSzMax], c;
   int i, j;
 
   PrintL();
   for (i = 0; i <= cObjInt; i++) {
-    if (ignore[i] || FCusp(i))
+    if (ignore[i] || !FInterpretObj(i))
       continue;
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
@@ -421,12 +423,11 @@ void InterpretSynastry(void)
 
 void InterpretAspectRelation(int x, int y)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int n;
 
   n = grid->n[y][x];
-  if (n < 1 || n > cAspectInt ||
-    FCusp(x) || FCusp(y) || x > cObjInt || y > cObjInt)
+  if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
   sprintf(sz, "%s %s %s: %s's", szObjName[x],
@@ -464,7 +465,7 @@ void InterpretGridRelation(void)
 
 void InterpretMidpointRelation(int x, int y)
 {
-  char sz[cchSzDef*2];
+  char sz[cchSzMax];
   int n;
 
   if (FCusp(x) || FCusp(y) || x > cObjInt || y > cObjInt)
@@ -480,9 +481,10 @@ void InterpretMidpointRelation(int x, int y)
     FieldWord("very");
   sprintf(sz, "%s, and", szDesc[n]); FieldWord(sz);
   sprintf(sz, "%s.", szDesire[n]); FieldWord(sz);
-  if (cp1.dir[x]+cp2.dir[y] < 0.0 && x != oNod && y != oNod) {
-    FieldWord("Most often this manifests in");
-    FieldWord("an independent, backward, introverted manner.");
+  if (cp1.dir[x]+cp2.dir[y] < 0.0 &&
+    x != oNod && y != oNod && x != oSou && y != oSou) {
+    FieldWord("Most often this manifests in "
+      "an independent, backward, introverted manner.");
   }
   FieldWord(NULL);
 }
@@ -550,25 +552,46 @@ void ComputeInfluence(real power1[objMax], real power2[objMax])
     x = 0.0;
     c = Dignify(i, j);
     if (c[1] == 'R') x += rObjInf[oNorm1+1]; /* Planets in signs they rule */
-    if (c[2] == 'X') x += rObjInf[oNorm1+2]; /* or exalted have influence. */
-    if (c[3] == 'S') x += rObjInf[oNorm1+3];
-    if (c[4] == 'H') x += rObjInf[oNorm1+4];
+    if (c[4] == 'X') x += rObjInf[oNorm1+2]; /* or exalted have influence. */
+    if (c[2] == 'S') x += rObjInf[oNorm1+3];
+    if (c[3] == 'H') x += rObjInf[oNorm1+4];
     if (c[5] == 'Y') x += rObjInf[oNorm1+5];
     c = Dignify(i, inhouse[i]);
     if (c[1] == 'R') x += rHouseInf[cSign+1]; /* Planets in houses aligned  */
-    if (c[2] == 'X') x += rHouseInf[cSign+2]; /* with sign ruled or exalted */
-    if (c[3] == 'S') x += rHouseInf[cSign+3]; /* in have influence.         */
-    if (c[4] == 'H') x += rHouseInf[cSign+4];
+    if (c[4] == 'X') x += rHouseInf[cSign+2]; /* with sign ruled or exalted */
+    if (c[2] == 'S') x += rHouseInf[cSign+3]; /* in have influence.         */
+    if (c[3] == 'H') x += rHouseInf[cSign+4];
     if (c[5] == 'Y') x += rHouseInf[cSign+5];
     power1[i] += x;
+    x = RObjInf(i)/2.0;
     if (i != rules[j])                       /* The planet ruling the sign */
-      power1[rules[j]] += RObjInf(i)/2.0;    /* and the house that the     */
+      power1[rules[j]] += x;                 /* and the house that the     */
     if (i != (j = rules[inhouse[i]]))        /* current planet is in, gets */
-      power1[j] += RObjInf(i)/2.0;           /* extra influence.           */
+      power1[j] += x;                        /* extra influence.           */
+    if (!ignore7[1]) {
+      k = rgSignEso1[j];          if (k > 0 && i != k) power1[k] += x;
+      k = rgSignEso2[j];          if (k > 0 && i != k) power1[k] += x;
+      k = rgSignEso1[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
+      k = rgSignEso2[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
+    }
+    if (!ignore7[2]) {
+      k = rgSignHie1[j];          if (k > 0 && i != k) power1[k] += x;
+      k = rgSignHie2[j];          if (k > 0 && i != k) power1[k] += x;
+      k = rgSignHie1[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
+      k = rgSignHie2[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
+    }
   }
   for (i = 1; i <= cSign; i++) {         /* Various planets get influence */
     j = SFromZ(chouse[i]);               /* if house cusps fall in signs  */
     power1[rules[j]] += rHouseInf[i];    /* they rule.                    */
+    if (!ignore7[1]) {
+      k = rgSignEso1[j]; if (k) power1[k] += rHouseInf[i];
+      k = rgSignEso2[j]; if (k) power1[k] += rHouseInf[i];
+    }
+    if (!ignore7[2]) {
+      k = rgSignHie1[j]; if (k) power1[k] += rHouseInf[i];
+      k = rgSignHie2[j]; if (k) power1[k] += rHouseInf[i];
+    }
   }
 
   /* Second, for each object, find its power based on aspects it makes. */

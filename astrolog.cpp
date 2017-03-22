@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: astrolog.cpp
+** Astrolog (Version 6.20) File: astrolog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -92,7 +92,7 @@ void Action(void)
   AnsiColor(kDefault);
   InitColors();
 
-  /* First let's adjust the restriction status of the cusps, uranians, and */
+  /* First let's adjust the restriction status of the cusps, Uranians, and */
   /* fixed stars based on whether -C, -u, and -U switches are in effect.   */
 
   if (!us.fCusp)
@@ -209,7 +209,7 @@ flag FProcessCommandLine(char *szLine)
   int argc, cb, fT = fFalse;
   FILE *fileT;
 
-  if (szLine == NULL)
+  if (szLine == NULL || *szLine == chNull)
     return fTrue;
   if (Mon != -1)
     ciCore = ciMain;
@@ -369,6 +369,10 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     SwitchF(us.fSmartCusp);
     break;
 
+  case 'O':
+    SwitchF(us.fSmartSave);
+    break;
+
   case '8':
     SwitchF(us.fClip80);
     break;
@@ -406,6 +410,27 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     }
     us.lTimeAddition = atol(argv[1]);
     darg++;
+    break;
+
+  case '1':
+    if (argc <= 2) {
+      ErrorArgc("Y1");
+      return tcError;
+    }
+    i = NParseSz(argv[1], pmObject);
+    if (!FItem(i)) {
+      ErrorValN("Y1", i);
+      return tcError;
+    }
+    j = NParseSz(argv[2], pmObject);
+    if (!FItem(j)) {
+      ErrorValN("Y1", j);
+      return tcError;
+    }
+    us.fObjRotWhole = (ch1 == '0' && !fAnd);
+    us.objRot1 = i;
+    us.objRot2 = j;
+    darg += 2;
     break;
 
   case 'l':
@@ -491,7 +516,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 #endif
 
   case 'R':
-    if (argc <= 2 + (ch1 == 'Z')*2) {
+    if (argc <= 2 + (ch1 == 'Z')*2 + (ch1 == '7')*3) {
       ErrorArgc("YR");
       return tcError;
     }
@@ -507,6 +532,14 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
       ignorez[2] = atoi(argv[3]) != 0;
       ignorez[3] = atoi(argv[4]) != 0;
       darg += 4;
+      break;
+    } else if (ch1 == '7') {
+      ignore7[0] = i != 0;
+      ignore7[1] = j != 0;
+      ignore7[2] = atoi(argv[3]) != 0;
+      ignore7[3] = atoi(argv[4]) != 0;
+      ignore7[4] = atoi(argv[5]) != 0;
+      darg += 5;
       break;
     }
     if (!FItem(i)) {
@@ -623,16 +656,20 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     if (ch1 == chNull) {
       ruler1[i] = j;
       ruler2[i] = k;
-      if (FBetween(i, 1, oMain) && j != 0)
+      if (FBetween(i, 0, oMain) && j != 0)
         rules[j] = i;
     } else if (ch1 == '0') {
       exalt[i] = j;
     } else if (ch2 != '0') {
       rgObjEso1[i] = j;
       rgObjEso2[i] = k;
+      if (FBetween(i, 0, oMain) && j != 0)
+        rgSignEso1[j] = i;
     } else {
       rgObjHie1[i] = j;
       rgObjHie2[i] = k;
+      if (FBetween(i, 0, oMain) && j != 0)
+        rgSignHie1[j] = i;
     }
     darg += 3 - (ch1 == '0');
     break;
@@ -760,7 +797,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     j = atoi(argv[5]);
     r = (j < 0 ? -1.0 : 1.0)*((real)abs(j) + atof(argv[6])/60.0);
     planetalt[i] = Mod((r + rDegQuad) * 2.0) / 2.0 - rDegQuad;
-    ret[i] = RFromD(atof(argv[7]));
+    ret[i] = atof(argv[7]);
     if (i <= oNorm)
       SphToRec(atof(argv[8]), planet[i], planetalt[i],
         &spacex[i], &spacey[i], &spacez[i]);
@@ -786,7 +823,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 
 flag FProcessSwitches(int argc, char **argv)
 {
-  int ich, i, j;
+  int ich, i, j, k;
   flag fNot, fOr, fAnd;
   real rT;
   char ch1, ch2, *pch;
@@ -846,6 +883,17 @@ flag FProcessSwitches(int argc, char **argv)
       break;
 
     case 'M':
+      if (FBetween(ch1, '1', '4')) {
+        i = (ch1 - '0') + (ch2 == '0');
+        if (argc <= i) {
+          ErrorArgc("M");
+          return fFalse;
+        }
+        for (j = 1; j <= i; j++)
+          szWheel[(ch2 == '0' && j >= i) ? 0 : j] = SzPersist(argv[j]);
+        argc -= i; argv += i;
+        break;
+      }
       i = (ch1 == '0');
       if (argc <= 1+i) {
         ErrorArgc("M");
@@ -876,8 +924,6 @@ flag FProcessSwitches(int argc, char **argv)
     case 'v':
       if (ch1 == '0')
         SwitchF(us.fVelocity);
-      else if (ch1 == '7')
-        SwitchF(us.fListingEso);
       SwitchF(us.fListing);
       break;
 
@@ -1016,7 +1062,7 @@ flag FProcessSwitches(int argc, char **argv)
         LonT = us.lonDef; LatT = us.latDef;
 #ifdef TIME
         if (j)
-          GetTimeNow(&MonT, &DayT, &YeaT, &TimT, ZonT-DstT);
+          GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
 #endif
         if (i) {
           MonT = 0;
@@ -1135,7 +1181,7 @@ flag FProcessSwitches(int argc, char **argv)
         ch1 = argv[0][++ich];
 #ifdef TIME
       if (ch1 == 'n') {
-        GetTimeNow(&MonT, &DayT, &YeaT, &TimT, ZonT-DstT);
+        GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
         if (i == 1)
           MonT = 0;
         else if (i > 1) {
@@ -1179,7 +1225,7 @@ flag FProcessSwitches(int argc, char **argv)
       }
 #ifdef TIME
       if (ch1 == 'n') {
-        GetTimeNow(&MonT, &DayT, &YeaT, &TimT, ZonT-DstT);
+        GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
         break;
       }
 #endif
@@ -1383,10 +1429,10 @@ flag FProcessSwitches(int argc, char **argv)
       }
       is.fHaveInfo = fTrue;
       if (ch1 == 'j') {
-        is.JD = atof(argv[1])+rRound;
+        is.JD = atof(argv[1]) + rRound;
         TT = RFract(is.JD);
-        JulianToMdy(is.JD-TT, &MM, &DD, &YY);
-        TT = DegToDec(TT * 24.0);
+        JulianToMdy(is.JD - TT, &MM, &DD, &YY);
+        TT *= 24.0;
         SS = ZZ = 0.0; OO = us.lonDef; AA = us.latDef;
       } else {
         MM = i > 1 ? NParseSz(argv[1], pmMon) : 1;
@@ -1490,9 +1536,11 @@ flag FProcessSwitches(int argc, char **argv)
             ErrorValN("RA", i);
             return fFalse;
           } else {
-            rAspOrb[i] = -rDegHalf;
+            inv(ignorea[i]);
             argc--; argv++;
           }
+        for (us.nAsp = cAspect; us.nAsp > 0 && ignorea[us.nAsp]; us.nAsp--)
+          ;
         break;
       }
       if (ch1 == 'T') {
@@ -1528,6 +1576,25 @@ flag FProcessSwitches(int argc, char **argv)
           SwitchF(pch[i]);
           argc--; argv++;
         }
+      for (j = fFalse, i = cuspLo; i <= cuspHi; i++)
+        if (!ignore[i]) {
+          j = fTrue;
+          break;
+        }
+      us.fCusp = j;
+      for (j = fFalse, i = uranLo; i <= uranHi; i++)
+        if (!ignore[i]) {
+          j = fTrue;
+          break;
+        }
+      us.fUranian = j;
+      for (j = fFalse, i = starLo; i <= starHi; i++)
+        if (!ignore[i]) {
+          j = fTrue;
+          break;
+        }
+      if (!(us.nStar && j))
+        us.nStar = j;
       break;
 
     case 'C':
@@ -1556,6 +1623,10 @@ flag FProcessSwitches(int argc, char **argv)
           ErrorValN("A", i);
           return fFalse;
         }
+        for (j = us.nAsp + 1; j <= i; j++)
+          ignorea[j] = fFalse;
+        for (j = i + 1; j <= cAspect; j++)
+          ignorea[j] = fTrue;
         us.nAsp = i;
         argc--; argv++;
       } else {
@@ -1608,6 +1679,10 @@ flag FProcessSwitches(int argc, char **argv)
       break;
 
     case 'c':
+      if (ch1 == '3') {
+        SwitchF(us.fHouse3D);
+        break;
+      }
       if (argc <= 1) {
         ErrorArgc("c");
         return fFalse;
@@ -1670,7 +1745,7 @@ flag FProcessSwitches(int argc, char **argv)
       us.fProgress = fTrue;
 #ifdef TIME
       if (ch1 == 'n') {
-        GetTimeNow(&Mon, &Day, &Yea, &Tim, us.zonDef - us.dstDef);
+        GetTimeNow(&Mon, &Day, &Yea, &Tim, us.dstDef, us.zonDef);
         is.JDp = MdytszToJulian(Mon, Day, Yea, Tim, us.dstDef, us.zonDef);
         break;
       }
@@ -1732,6 +1807,7 @@ flag FProcessSwitches(int argc, char **argv)
         ErrorValN("1", i);
         return fFalse;
       }
+      us.fSolarWhole = (ch1 == '0' && !fAnd);
       us.objOnAsc = fAnd ? 0 : i+1;
       break;
 
@@ -1744,6 +1820,7 @@ flag FProcessSwitches(int argc, char **argv)
         ErrorValN("2", i);
         return fFalse;
       }
+      us.fSolarWhole = (ch1 == '0' && !fAnd);
       us.objOnAsc = fAnd ? 0 : -(i+1);
       break;
 
@@ -1777,12 +1854,26 @@ flag FProcessSwitches(int argc, char **argv)
         ErrorValN("F", i);
         return fFalse;
       }
-      force[i] = (NParseSz(argv[2], pmSign)-1.0)*30.0+DecToDeg(atof(argv[3]));
-      if (force[i] < 0.0 || force[i] >= rDegMax) {
-        ErrorValR("F", force[i]);
-        return fFalse;
-      } else
+      if (ch1 != 'm') {
+        force[i] = ZD(NParseSz(argv[2], pmSign), atof(argv[3]));
+        if (force[i] < 0.0 || force[i] >= rDegMax) {
+          ErrorValR("F", force[i]);
+          return fFalse;
+        }
         force[i] += rDegMax;
+      } else {
+        j = NParseSz(argv[2], pmObject);
+        if (!FItem(j)) {
+          ErrorValN("Fm", j);
+          return fFalse;
+        }
+        k = NParseSz(argv[3], pmObject);
+        if (!FItem(k)) {
+          ErrorValN("Fm", k);
+          return fFalse;
+        }
+        force[i] = (real)-(j * cObj + k + 1);
+      }
       argc -= 3; argv += 3;
       break;
 

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: data2.cpp
+** Astrolog (Version 6.20) File: data2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -57,6 +57,11 @@
 */
 
 #ifdef CONSTEL
+#ifdef PC
+// Bug workaround: MSVC++ 2005 has problems accessing first string in file.
+CONST char *szCnstlInit = "";
+#endif
+
 CONST char *szCnstlName[cCnstl+1] = {"",
   "Andromeda", "Antilia", "Apus", "Aquarius",
   "Aquila", "Ara", "Aries", "Auriga",
@@ -327,7 +332,7 @@ char *szLifeArea[cSign+1] = {"",
   "the future, life goals, and association with friends and groups",
   "things that disrupt or cause disassociation with the personality"};
 
-char *szInteract[cAspectInt+1] = {"",
+char *szInteract[cAspect+1] = {"",
   "is %sconnected and fused together with",
   "%sopposes and creates tension with",
   "is %sin conflict with",
@@ -338,21 +343,25 @@ char *szInteract[cAspectInt+1] = {"",
   "%screates internal friction with",
   "%screates internal agitation with",
   "%screatively relates externally with",
-  "%screatively relates internally with"};
+  "%screatively relates internally with",
+  "", "", "", "", "", "", ""};
 
-char *szTherefore[cAspectInt+1] = {"",
+char *szTherefore[cAspect+1] = {"",
   "Both parts are prominent in their psyche", "Balance is needed",
   "Adaptation is required by both sides", "", "",
-  "They can often relate in a discordant way", "", "", "", "", ""};
+  "They can often relate in a discordant way", "", "", "", "", "",
+  "", "", "", "", "", "", ""};
 
 /* Modifier array makes the interpretation stronger for narrower orbs. */
 
-char *szModify[3][cAspectInt] =
+char *szModify[3][cAspect] =
   {{"always ", "always ", "irreconcilably ", "always ", "much ",
-  "completely ", "often ", "often ", "often ", "often ", "often "},
-  {"", "", "", "", "", "", "", "", "", "", ""},
+  "completely ", "often ", "often ", "often ", "often ", "often ",
+  "", "", "", "", "", "", ""},
+  {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},
   {"somewhat ", "somewhat ", "somewhat ", "somewhat ", "some ", "somewhat ",
-  "sometimes ", "sometimes ", "sometimes ", "sometimes ", "sometimes "}};
+  "sometimes ", "sometimes ", "sometimes ", "sometimes ", "sometimes ",
+  "", "", "", "", "", "", ""}};
 #endif /* INTERPRET */
 
 /* data2.cpp */

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: matrix.cpp
+** Astrolog (Version 6.20) File: matrix.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -105,8 +105,7 @@ long MdyToJulian(int mon, int day, int yea)
 
 real MdytszToJulian(int mon, int day, int yea, real tim, real dst, real zon)
 {
-  return (real)MdyToJulian(mon, day, yea) +
-    (DecToDeg(tim) + DecToDeg(zon) - DecToDeg(dst)) / 24.0;
+  return (real)MdyToJulian(mon, day, yea) + (tim + zon - dst) / 24.0;
 }
 
 
@@ -158,12 +157,10 @@ void JulianToMdy(real JD, int *mon, int *day, int *yea)
 
 real ProcessInput(flag fDate)
 {
-  TT = RSgn(TT)*RFloor(RAbs(TT))+RFract(RAbs(TT))*100.0/60.0 +
-    (DecToDeg(ZZ) - DecToDeg(SS));
-  OO = DecToDeg(OO);
+  TT = RSgn(TT)*RFloor(RAbs(TT))+RFract(RAbs(TT)) + (ZZ - SS);
   AA = Min(AA, rDegQuad-rSmall);    /* Make sure the chart isn't being cast */
   AA = Max(AA, -(rDegQuad-rSmall)); /* on the precise North or South Pole.  */
-  AA = RFromD(DecToDeg(AA));
+  AA = RFromD(AA);
 
   /* if parameter 'fDate' isn't set, then we can assume that the true time */
   /* has already been determined (as in a -rm switch time midpoint chart). */
@@ -185,9 +182,10 @@ real ProcessInput(flag fDate)
     /* Compute angle that the ecliptic is inclined to the Celestial Equator */
     is.OB = RFromD(23.452294-0.0130125*is.T);
 
-    Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0);  /* Mean lunar node */
-    Off = (259205536.0*is.T+2013816.0)/3600.0;             /* Mean Sun        */
-    Off = 17.23*RSin(RFromD(Ln))+1.27*RSin(RFromD(Off))-(5025.64+1.11*is.T)*is.T;
+    Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0); /* Mean lunar node */
+    Off = (259205536.0*is.T+2013816.0)/3600.0;            /* Mean Sun        */
+    Off = 17.23*RSin(RFromD(Ln)) + 1.27*RSin(RFromD(Off)) -
+      (5025.64+1.11*is.T)*is.T;
     Off = (Off-84038.27)/3600.0;
     is.rSid = (us.fSidereal ? Off : 0.0) + us.rZodiacOffset;
     return Off;
@@ -620,12 +618,12 @@ void ComputePlanets(void)
     XS = X; YS = Y; ZS = G;              /* position coordinates   */
     if (FBetween(ind, oJup, oPlu))
       ErrorCorrect(ind, &XS, &YS, &ZS);
-    ret[ind] =                                        /* Helio daily motion */
-      (XS*helioy[ind]-YS*heliox[ind])/(XS*XS+YS*YS);
+    ret[ind] = DFromR((XS*helioy[ind]-YS*heliox[ind]) /
+      (XS*XS+YS*YS));  /* Helio daily motion */
     spacex[ind] = XS; spacey[ind] = YS; spacez[ind] = ZS;
     ProcessPlanet(ind, 0.0);
 LNextPlanet:
-    ind += (ind == oSun ? 2 : (ind != cPlanet ? 1 : uranLo-cPlanet));
+    ind += (ind == oSun ? 2 : (ind != cPlanet ? 1 : uranLo+1-cPlanet));
   }
 
   spacex[oEar] = spacex[oSun];
@@ -640,7 +638,7 @@ LNextPlanet:
   if (us.objCenter == oSun) {
     if (us.fVelocity)
       for (i = 0; i <= oNorm; i++)    /* Use relative velocity */
-        ret[i] = RFromD(1.0);         /* if -v0 is in effect.  */
+        ret[i] = 1.0;                 /* if -v0 is in effect.  */
     return;
   }
 
@@ -659,17 +657,17 @@ LNextPlanet:
     }
   }
   for (i = oEar; i <= (us.fUranian ? oNorm : cPlanet);
-    i += (i == oSun ? 2 : (i != cPlanet ? 1 : uranLo-cPlanet))) {
+    i += (i == oSun ? 2 : (i != cPlanet ? 1 : uranLo+1-cPlanet))) {
     if ((ignore[i] && i > oSun) || i == ind)
       continue;
     XS = spacex[i]; YS = spacey[i]; ZS = spacez[i];
-    ret[i] = (XS*(helioy[i]-helioy[ind])-YS*(heliox[i]-heliox[ind]))/
-      (XS*XS+YS*YS);
+    ret[i] = DFromR((XS*(helioy[i]-helioy[ind])-YS*(heliox[i]-heliox[ind])) /
+      (XS*XS + YS*YS));
     if (ind == oEar && !us.fTruePos)
-      aber = 0.0057756*RSqr(XS*XS+YS*YS+ZS*ZS)*DFromR(ret[i]); /* Aberration */
+      aber = 0.0057756 * RSqr(XS*XS+YS*YS+ZS*ZS) * ret[i];  /* Aberration */
     ProcessPlanet(i, aber);
-    if (us.fVelocity)                         /* Use relative velocity */
-      ret[i] = RFromD(ret[i]/helioret[i]);    /* if -v0 is in effect   */
+    if (us.fVelocity)                 /* Use relative velocity */
+      ret[i] = ret[i]/helioret[i];    /* if -v0 is in effect   */
   }
   spacex[ind] = spacey[ind] = spacez[ind] = 0.0;
 }

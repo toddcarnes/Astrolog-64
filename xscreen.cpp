@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: xscreen.cpp
+** Astrolog (Version 6.20) File: xscreen.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -99,6 +99,7 @@ static char icon_bits[] = {
 void InitColorsX()
 {
   int i;
+  flag fInverse = gs.fInverse;
 #ifdef X11
   Colormap cmap;
   XColor xcol;
@@ -116,10 +117,15 @@ void InitColorsX()
     }
   }
 #endif
-  gi.kiOn   = kMainA[!gs.fInverse];
-  gi.kiOff  = kMainA[gs.fInverse];
-  gi.kiLite = gs.fColor ? kMainA[2+gs.fInverse] : gi.kiOn;
-  gi.kiGray = gs.fColor ? kMainA[3-gs.fInverse] : gi.kiOn;
+#ifdef WIN
+  /* Don't print on a black background unless user really wants that. */
+  if (wi.hdcPrint != NULL && us.fSmartSave)
+    fInverse = fTrue;
+#endif
+  gi.kiOn   = kMainA[!fInverse];
+  gi.kiOff  = kMainA[fInverse];
+  gi.kiLite = gs.fColor ? kMainA[2+fInverse] : gi.kiOn;
+  gi.kiGray = gs.fColor ? kMainA[3-fInverse] : gi.kiOn;
   for (i = 0; i <= 8; i++)
     kMainB[i]    = gs.fColor ? kMainA[i]    : gi.kiOn;
   for (i = 0; i <= 7; i++)
@@ -252,7 +258,7 @@ void AddTime(int mode, int toadd)
     mode = 4;
 
   h = RFloor(TT);
-  m = RFract(TT)*100.0;
+  m = RFract(TT)*60.0;
   if (mode == 1)
     m += 1.0/60.0*(real)toadd;    /* Add seconds. */
   else if (mode == 2)
@@ -308,7 +314,7 @@ void AddTime(int mode, int toadd)
     YY += 100 * toadd;     /* Add centuries. */
   else if (mode == 9)
     YY += 1000 * toadd;    /* Add millenia.  */
-  TT = h+m/100.0;          /* Recalibrate hour time. */
+  TT = h + m/60.0;         /* Recalibrate hour time. */
 }
 
 
@@ -397,10 +403,10 @@ void CommandLineX()
 /* Given two chart size values, adjust them such that the chart will look */
 /* "square". We round the higher value down and check certain conditions. */
 
-void SquareX(int *x, int *y, int force)
+void SquareX(int *x, int *y, flag fForce)
 {
-  if (!force && !fSquare)    /* Unless we want to force a square, realize */
-    return;                  /* that some charts look better rectangular. */
+  if (!fForce && !fSquare)    /* Unless we want to force a square, realize */
+    return;                   /* that some charts look better rectangular. */
   if (*x > *y)
     *x = *y;
   else
@@ -594,10 +600,10 @@ void InteractX()
             0, 0, gs.xWin, gs.yWin, 0, 0);
         } else if (xevent.xbutton.button == Button2 && (gi.nMode ==
           gAstroGraph || gi.nMode == gWorldMap) && gs.nRot == 0) {
-          Lon = DegToDec(rDegHalf -
-            (real)(xevent.xbutton.x-1)/(real)(gs.xWin-2)*rDegMax);
-          Lat = DegToDec(rDegQuad -
-            (real)(xevent.xbutton.y-1)/(real)(gs.yWin-2)*181.0);
+          Lon = rDegHalf -
+            (real)(xevent.xbutton.x-1)/(real)(gs.xWin-2)*rDegMax;
+          Lat = rDegQuad -
+            (real)(xevent.xbutton.y-1)/(real)(gs.yWin-2)*181.0;
           sprintf(sz, "Mouse is at %s.", SzLocation(Lon, Lat));
           PrintNotice(sz);
         } else if (xevent.xbutton.button == Button3)
@@ -968,9 +974,10 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
 {
   int darg = 0, i, j;
   real rT;
-  char ch1;
+  char ch1, ch2;
 
   ch1 = argv[0][pos+1];
+  ch2 = ch1 == chNull ? chNull : argv[0][pos+2];
   switch (argv[0][pos]) {
   case chNull:
     break;
@@ -1000,6 +1007,17 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
 
 #ifdef META
   case 'M':
+    if (FBetween(ch1, '1', '4')) {
+      i = (ch1 - '0') + (ch2 == '0');
+      if (argc <= i) {
+        ErrorArgc("XM");
+        return tcError;
+      }
+      for (j = 1; j <= i; j++)
+        szWheelX[(ch2 == '0' && j >= i) ? 0 : j] = SzPersist(argv[j]);
+      darg += i;
+      break;
+    }
     if (us.fNoWrite || is.fSzInteract) {
       ErrorArgv("XM");
       return tcError;
@@ -1080,6 +1098,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       return tcError;
     }
     gs.nScale = i;
+    gi.nScale = gs.nScale/100;   /* So -XM2 works */
     darg++;
     break;
 

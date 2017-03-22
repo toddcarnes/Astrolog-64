@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: astrolog.h
+** Astrolog (Version 6.20) File: astrolog.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 /*
@@ -62,7 +62,8 @@
 #define PC /* Comment out this #define if you have a Unix, Mac, or other */
            /* system that isn't a generic PC running DOS or MS Windows.  */
 
-/*#define MAC /* Comment out this #define if you're not compiling for a Mac. */
+/*#define MACOLD /* Comment out this #define if you're not compiling for an  */
+               /* old pre-OSX Mac. Modern Mac systems should not use this. */
 
 /*#define X11 /* Comment out this #define if you don't have X windows, or */
             /* else have them and don't wish to compile in X graphics.  */
@@ -162,9 +163,9 @@
   /* files as accessed with the -b switch. This is normally the default  */
   /* dir above but may be changed to be somewhere else.                  */
 
-#define DEFAULT_LONG 122.20 /* Change these values to the longitude west    */
-#define DEFAULT_LAT   47.36 /* and latitude north of your current location. */
-                            /* Use negative values for east/southern areas. */
+#define DEFAULT_LONG DM(122,20) /* Change numbers to longitude and latitude */
+#define DEFAULT_LAT  DM(47, 36) /* of your current location. Use negative   */
+                                /* values for eastern or southern degrees.  */
 
 #define DEFAULT_ZONE 8.00 /* Change this number to the time zone of your */
                           /* current location in hours before (west of)  */
@@ -179,7 +180,7 @@
 #define DEFAULT_SYSTEM 0 /* Normally, Placidus houses are used (unless the */
                          /* user specifies otherwise). If you want a       */
                          /* different default system, change this number   */
-                         /* to a value from 0..9 (values same as in -c).   */
+                         /* to a value from 0..17 (values same as in -c).  */
 
 #define DEFAULT_ASPECTS 5 /* Default number of aspects to use in charts. */
 
@@ -216,8 +217,8 @@
 #endif /* GRAPH */
 
 /*#define TRUENODE /* Comment out this #define if you'd prefer the 'Node'    */
-                   /* object to refer to the Mean North Node of the Moon by  */
-                   /* default as opposed to the True North Node of the Moon. */
+                 /* object to refer to the Mean North Node of the Moon by  */
+                 /* default as opposed to the True North Node of the Moon. */
 
 /*
 ** By the time you reach here and the above values are customized as
@@ -346,14 +347,14 @@
 #endif
 #endif /* PLACALC */
 
-#ifdef MAC
+#ifdef MACOLD
 #ifdef SWITCHES
-#error "If 'MAC' is defined 'SWITCHES' must not be as well"
+#error "If 'MACOLD' is defined 'SWITCHES' must not be as well"
 #endif
 #ifdef ENVIRON
-#error "If 'MAC' is defined 'ENVIRON' must not be as well"
+#error "If 'MACOLD' is defined 'ENVIRON' must not be as well"
 #endif
-#endif /* MAC */
+#endif /* MACOLD */
 
 #ifdef X11
 #ifndef GRAPH
@@ -388,9 +389,6 @@
 #ifdef MACG
 #ifndef GRAPH
 #error "If 'MACG' is defined 'GRAPH' must be too"
-#endif
-#ifndef MAC
-#error "If 'MACG' is defined 'MAC' must be too"
 #endif
 #ifdef X11
 #error "If 'MACG' is defined 'X11' must not be as well"
@@ -440,9 +438,9 @@
 #define fTrue  TRUE
 
 #define szAppNameCore "Astrolog"
-#define szVersionCore "6.10"
-#define szArchCore    "64 bit"
-#define szDateCore    "March 2016"
+#define szVersionCore "6.20"
+#define szArchCore    "32 bit"
+#define szDateCore    "March 2017"
 #define szAddressCore \
   "Astara@msn.com - http://www.astrolog.org/astrolog.htm"
 #define szNowCore     "now"
@@ -459,6 +457,7 @@
 #define dayJ2G1    4
 #define dayJ2G2    15
 
+#define rSqr2      1.41421356237309504880
 #define rPi        3.14159265358979323846
 #define rPi2       (rPi*2.0)
 #define rPiHalf    (rPi/2.0)
@@ -467,6 +466,9 @@
 #define rDegQuad   90.0
 #define rDegRad    (rDegHalf/rPi)
 #define rFtToM     0.3048
+#define rInToCm    2.54
+#define rDayInYear 365.24219
+#define rEarthDist 149.59787
 #define rEpoch2000 (-24.736467)
 #define rAxis      23.44578889
 #define rSmall     (1.7453E-09)
@@ -489,7 +491,6 @@
 #define cObjInt    uranHi
 #define objMax     (cObj+1)
 #define cAspect    18
-#define cAspectInt aBQn
 #define cCnstl     88
 #define cZone      69
 #define cSector    36
@@ -650,8 +651,9 @@ enum _housesystem {
   hsSinewaveDelta = 13,
   hsWhole         = 14,
   hsVedic         = 15,
-  hsNull          = 16,
-  cSystem = 17,
+  hsSripati       = 16,
+  hsNull          = 17,
+  cSystem = 18,
 };
 
 /* Biorhythm cycle constants */
@@ -763,6 +765,16 @@ enum _arabicparts {
   apSpi = 1,
 };
 
+/* Calculation methods */
+
+enum _calculationmethod {
+  cmSwiss   = 0,
+  cmPlacalc = 1,
+  cmMatrix  = 2,
+  cmNone    = 3,
+  cmMax     = 4,
+};
+
 /* Draw text formatting flags */
 
 enum _drawtext {
@@ -787,11 +799,12 @@ enum _parsemode {
   pmLon    = 7,
   pmLat    = 8,
   pmElv    = 9,
-  pmObject = 10,
-  pmAspect = 11,
-  pmSystem = 12,
-  pmSign   = 13,
-  pmColor  = 14,
+  pmLength = 10,
+  pmObject = 11,
+  pmAspect = 12,
+  pmSystem = 13,
+  pmSign   = 14,
+  pmColor  = 15,
 };
 
 /* Termination codes */
@@ -866,11 +879,12 @@ enum _terminationcode {
 #define FObject(obj)  ((obj) <= oVes || (obj) >= uranLo)
 #define FThing(obj)   ((obj) <= cThing || (obj) >= uranLo)
 #define FHelio(obj)   (FNorm(obj) && FObject(obj) && (obj) != oMoo)
-#define FAspect(asp)  FBetween(asp, 1, us.nAsp)
+#define FAspect(asp)  FBetween(asp, 1, cAspect)
 #define FSector(s)    FBetween(s, 1, cSector)
-#define ChDst(dst)    (dst == 0.0 ? 'S' : (dst == 1.0 ? 'D' : 'A'))
 #define ChDashF(f)    (f ? '=' : '_')
 #define SzNumF(f)     (f ? "1 " : "0 ")
+#define ChDst(dst)    (dst == 0.0 ? 'S' : (dst == 1.0 ? 'D' : \
+  (dst != 24.0 ? 'A' : (is.fDst ? 'D' : 'S'))))
 #define DayInYearHi(yea) (365-28+DayInMonth(2, yea))
 #define FChSwitch(ch) \
   ((ch) == '-' || (ch) == '/' || (ch) == '_' || (ch) == '=' || (ch) == ':')
@@ -878,8 +892,7 @@ enum _terminationcode {
 #define FValidMon(mon) FBetween(mon, 1, 12)
 #define FValidDay(day, mon, yea) ((day) >= 1 && (day) <= DayInMonth(mon, yea))
 #define FValidYea(yea) FBetween(yea, -32000, 32000)
-#define FValidTim(tim) ((tim) > -2.0 && (tim) < 24.0 && \
-  RFract(RAbs(tim)) < 0.60)
+#define FValidTim(tim) ((tim) > -2.0 && (tim) < 24.0)
 #define FValidDst(dst) FValidZon(dst)
 #define FValidZon(zon) FBetween(zon, -24.0, 24.0)
 #define FValidLon(lon) FBetween(lon, -rDegHalf, rDegHalf)
@@ -891,7 +904,7 @@ enum _terminationcode {
 #define FValidCenter(obj) (FBetween(obj, oEar, uranHi) && FThing(obj))
 #define FValidHarmonic(r) FBetween(r, -32000.0, 32000.0)
 #define FValidWheel(n) FBetween(n, 1, WHEELROWS)
-#define FValidAstrograph(n) (n > 0 && 160%n == 0)
+#define FValidAstrograph(n) ((n) > 0 && (n) < 90)
 #define FValidPart(n) FBetween(n, 1, cPart)
 #define FValidBioday(n) FBetween(n, 1, 199)
 #define FValidScreen(n) FBetween(n, 20, 200)
@@ -909,9 +922,19 @@ enum _terminationcode {
   ((ch) == 'N' || (ch) == 'C' || (ch) == 'V' || (ch) == 'A' || (ch) == 'B')
 #define FValidTimer(n) FBetween(n, 1, 32000)
 
+#define DM(d, m) ((d) + (m)/60.0)
+#define DMS(d, m, s) (DM(d, m) + (s)/3600.0)
+#define ZD(z, d) ((real)(((z)-1)*30) + (d))
+#define ZDMS(z, d, m, s) ((real)(((z)-1)*30) + DMS(d, m, s))
+#define HM(h, m) ((h) + (m)/60.0)
+#define HMS(h, m, s) (HM(h, m) + (s)/3600.0)
+
 #define kSignA(s) kObjA[cuspLo-1+(s)]
 #define kSignB(s) kObjB[cuspLo-1+(s)]
-#define kModeA(m) kElemA[m <= 1 ? m : eWat]
+#define kModeA(m) kElemA[(m) <= 1 ? (m) : eWat]
+#define kModeB(m) kElemB[(m) <= 1 ? (m) : eWat]
+#define FInterpretObj(obj) ((obj) <= cObjInt && szMindPart[obj][0])
+#define FInterpretAsp(asp) ((asp) > 0 && szInteract[asp][0])
 #define szPerson  (ciMain.nam[0] ? ciMain.nam : "This person")
 #define szPerson0 (ciMain.nam[0] ? ciMain.nam : "the person")
 #define szPerson1 (ciMain.nam[0] ? ciMain.nam : "Person1")
@@ -941,7 +964,7 @@ enum _terminationcode {
 #ifndef PC
 #define chDirSep '/'
 #define chSwitch '-'
-#ifndef MAC
+#ifndef MACOLD
 #define ldTime 2440588L
 #else
 #define ldTime 2416481L
@@ -1072,7 +1095,6 @@ typedef struct _UserSettings {
 
   /* Chart suboptions */
   flag fVelocity;      /* -v0 */
-  flag fListingEso;    /* -v7 */
   flag fWheelReverse;  /* -w0 */
   flag fGridConfig;    /* -g0 */
   flag fAppSep;        /* -ga */
@@ -1109,6 +1131,7 @@ typedef struct _UserSettings {
   flag fUranian;     /* -u */
   flag fProgress;    /* Are we doing a -p progressed chart?           */
   flag fInterpret;   /* Is -I interpretation switch in effect?        */
+  flag fHouse3D;     /* -c3 */
   flag fDecan;       /* -3 */
   flag fFlip;        /* -f */
   flag fGeodetic;    /* -G */
@@ -1130,6 +1153,7 @@ typedef struct _UserSettings {
   flag fSolarArc;    /* -p0 */
   flag fWritePos;    /* -o0 */
   flag fAnsiChar;    /* -k0 */
+  flag fSolarWhole;  /* -10 */
 
   /* Rare flags */
   flag fTruePos;     /* -YT */
@@ -1140,10 +1164,12 @@ typedef struct _UserSettings {
   flag fEuroDist;    /* -Yv */
   flag fRound;       /* -Yr */
   flag fSmartCusp;   /* -YC */
+  flag fSmartSave;   /* -YO */
   flag fClip80;      /* -Y8 */
   flag fWriteOld;    /* -Yo */
   flag fHouseAngle;  /* -Yc */
   flag fPolarAsc;    /* -Yp */
+  flag fObjRotWhole; /* -Y10 */
   flag fIgnoreSign;  /* -YR0 */
   flag fIgnoreDir;   /* -YR0 */
   flag fNoWrite;     /* -0o */
@@ -1160,7 +1186,7 @@ typedef struct _UserSettings {
   int   objCenter;    /* -h */
   int   nStar;        /* -U */
   real  rHarmonic;    /* Harmonic chart value passed to -x switch.     */
-  int   objOnAsc;     /* House value passed to -1 or -2 switch.        */
+  int   objOnAsc;     /* Planet value passed to -1 or -2 switch.       */
   int   dayDelta;     /* -+, -- */
   int   nDegForm;     /* -s */
   int   nDivision;    /* -d */
@@ -1183,12 +1209,15 @@ typedef struct _UserSettings {
   int   nRatio2;
   int   nScrollRow;      /* -YQ */
   long  lTimeAddition;   /* -Yz */
+  int   objRot1;         /* -Y1 */
+  int   objRot2;         /* -Y1 */
   int   nArabicNight;    /* -YP */
   int   nBioday;         /* -Yb */
 } US;
 
 typedef struct _InternalSettings {
   flag fHaveInfo;     /* Do we need to prompt user for chart info?         */
+  flag fDst;          /* Has Daylight Saving Time been autodetected?       */
   flag fProgress;     /* Are we doing a chart involving progression?       */
   flag fReturn;       /* Are we doing a transit chart for returns?         */
   flag fMult;         /* Have we already printed at least one text chart?  */
@@ -1232,7 +1261,7 @@ typedef struct _ChartPositions {
   real alt[objMax];   /* Ecliptic declination.    */
   real dir[objMax];   /* Retrogradation velocity. */
   real cusp[cSign+1]; /* House cusp positions.    */
-  byte house[objMax]; /* House each object is in. */
+  int house[objMax];  /* House each object is in. */
 } CP;
 
 #ifdef GRAPH
@@ -1266,7 +1295,7 @@ typedef struct _GraphicsSettings {
   real xInch;       /* PostScript horizontal paper size inches.  */
   real yInch;       /* PostScript vertical paper size inches.    */
   char *szDisplay;  /* Current X11 display name (-Xd).           */
-  int nGridCell;    /* Number of cells in -g grids (-Yg).        */
+  int nGridCell;    /* Number of cells in -g grids (-YXg).       */
   int nRayWidth;    /* Column width in -7 esoteric chart (-YX7). */
   int nGlyphs;      /* Settings for what gylphs to use (-YG).    */
 } GS;
@@ -1373,6 +1402,7 @@ typedef struct _OrbitalElements {
 #define nScrollPage 6
 #define cchSzMaxFile 128
 #define szFileTempCore "astrolog.tmp"
+#define szFileAutoCore "astrolog.bmp"
 
 typedef struct _WindowInternal {
   HINSTANCE hinst; /* Instance of the Astrolog window class.    */
@@ -1411,6 +1441,7 @@ typedef struct _WindowInternal {
   flag fChartWindow; /* Does chart change cause window resize? */
   flag fWindowChart; /* Does window resize cause chart change? */
   flag fNoUpdate;    /* Do we not automatically update screen? */
+  flag fAutoSave;    /* Are we saving bitmap after win draw?   */
   KI kiPen;          /* The current pen scribble color.        */
   int nDir;          /* Animation step factor and direction.   */
   UINT nTimerDelay;  /* Milliseconds between animation draws.  */

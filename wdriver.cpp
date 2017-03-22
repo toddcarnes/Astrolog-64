@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: wdriver.cpp
+** Astrolog (Version 6.20) File: wdriver.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -113,6 +113,10 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
 
   case 'n':
     SwitchF(wi.fNoUpdate);
+    break;
+
+  case 'o':
+    SwitchF(wi.fAutoSave);
     break;
 
   case 'S':
@@ -420,12 +424,12 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
       /* Alt+click on a world map chart means relocate the chart there. */
       if (wMsg == WM_LBUTTONDOWN && GetKeyState(VK_MENU) < 0) {
         if (fMap && gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
-          Lon = DegToDec(rDegHalf-(real)(x-gi.xOffset)/(real)gs.xWin*rDegMax);
+          Lon = rDegHalf-(real)(x-gi.xOffset)/(real)gs.xWin*rDegMax;
           if (Lon < -rDegHalf)
             Lon = -rDegHalf;
           else if (Lon > rDegHalf)
             Lon = rDegHalf;
-          Lat = DegToDec(rDegQuad-(real)(y-gi.yOffset)/(real)gs.yWin*180.0);
+          Lat = rDegQuad-(real)(y-gi.yOffset)/(real)gs.yWin*rDegHalf;
           if (Lat < -rDegQuad)
             Lat = -rDegQuad;
           else if (Lat > rDegQuad)
@@ -475,14 +479,12 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
       y = WHi(lParam);
       if (us.fGraphics && (us.fAstroGraph || gi.nMode == gWorldMap) &&
         gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
-        Lon = DegToDec(rDegHalf-(real)(x-gi.xOffset)/
-          (real)gs.xWin*rDegMax);
+        Lon = rDegHalf - (real)(x-gi.xOffset) / (real)gs.xWin*rDegMax;
         if (Lon < -rDegHalf)
           Lon = -rDegHalf;
         else if (Lon > rDegHalf)
           Lon = rDegHalf;
-        Lat = DegToDec(rDegQuad-(real)(y-gi.yOffset)/
-          (real)gs.yWin*rDegHalf);
+        Lat = rDegQuad - (real)(y-gi.yOffset) / (real)gs.yWin*rDegHalf;
         if (Lat < -rDegQuad)
           Lat = -rDegQuad;
         else if (Lat > rDegQuad)
@@ -973,6 +975,7 @@ int NWmCommand(WORD wCmd)
   case cmdHouse14:
   case cmdHouse15:
   case cmdHouse16:
+  case cmdHouse17:
     WiCheckMenu(cmdHouse00 + us.nHouseSystem, fFalse);
     us.nHouseSystem = (int)(wCmd - cmdHouse00);
     WiCheckMenu(wCmd, fTrue);
@@ -982,6 +985,12 @@ int NWmCommand(WORD wCmd)
   case cmdHouseSetSolar:
     us.objOnAsc = us.objOnAsc ? 0 : oSun+1;
     WiCheckMenu(cmdHouseSetSolar, us.objOnAsc);
+    wi.fCast = fTrue;
+    break;
+
+  case cmdHouseSet3D:
+    inv(us.fHouse3D);
+    WiCheckMenu(cmdHouseSet3D, us.fHouse3D);
     wi.fCast = fTrue;
     break;
 
@@ -1072,8 +1081,8 @@ int NWmCommand(WORD wCmd)
     WiDoDialog(DlgSetting, dlgSetting);
     break;
 
-  case cmdObscure:
-    WiDoDialog(DlgObscure, dlgObscure);
+  case cmdDisplay:
+    WiDoDialog(DlgDisplay, dlgDisplay);
     break;
 
   /* Chart Menu */
@@ -1575,6 +1584,7 @@ void API RedoMenu()
     CheckMenu(cmd, fFalse);
   CheckMenu(cmdHouse00 + us.nHouseSystem, fTrue);
   CheckMenu(cmdHouseSetSolar, us.objOnAsc);
+  CheckMenu(cmdHouseSet3D, us.fHouse3D);
   CheckMenu(cmdHouseSetDecan, us.fDecan);
   CheckMenu(cmdHouseSetFlip, us.fFlip);
   CheckMenu(cmdHouseSetGeodetic, us.fGeodetic);
@@ -1625,6 +1635,7 @@ flag API FRedraw(void)
   HBITMAP hbmp, hbmpOld;
   HFONT hfontOld;
   int nScrollRow, i;
+  flag fSmartSave, fAnsiColor, fAnsiChar;
 
   /* Local variables used for copying to the Windows clipboard. */
   HFILE hfile;
@@ -1634,6 +1645,8 @@ flag API FRedraw(void)
   METAFILEPICT mfp;
   HMETAFILE hmf;
 
+  fSmartSave = us.fSmartSave &&
+    (wi.wCmd == cmdSaveText || wi.wCmd == cmdCopyText);
   if (wi.fHourglass)
     hcurOld = SetCursor(LoadCursor((HINSTANCE)NULL, IDC_WAIT));
   ClearB((lpbyte)&ps, sizeof(PAINTSTRUCT));
@@ -1681,11 +1694,27 @@ flag API FRedraw(void)
       us.nScrollRow = wi.yClient / wi.yChar;
     }
   }
+  if (fSmartSave) {
+    fAnsiColor = us.fAnsiColor; fAnsiChar = us.fAnsiChar;
+    us.fAnsiColor = fFalse; us.fAnsiChar = fFalse;
+  }
 
   Action();    /* Actually go and create the chart here. */
 
+  if (wi.fAutoSave && us.fGraphics && !gs.fBitmap) {
+    gs.fBitmap = fTrue;
+    gs.fMeta = gs.fPS = fFalse;
+    gi.szFileOut = szFileAutoCore;
+    Action();
+    gi.szFileOut = NULL;
+    gs.fBitmap = fFalse;
+  }
+
   /* Cleanup and copy from the buffer to the screen if need be. */
 
+  if (fSmartSave) {
+    us.fAnsiColor = fAnsiColor; us.fAnsiChar = fAnsiChar;
+  }
   if (!us.fGraphics) {
     if (wi.hdcPrint != hdcNil)
       us.nScrollRow = nScrollRow;
@@ -1771,6 +1800,8 @@ flag API FRedraw(void)
     }
     ProcessState();
   }
+  if (fSmartSave)
+    wi.wCmd = 0;
 
   wi.fRedraw = fFalse;
   if (wi.fNoUpdate)
@@ -1902,6 +1933,7 @@ flag FCreateProgramGroup(flag fAll)
 
   /* Delete old previous version shortcuts from folder */
   DeleteShortcut(szDir, "Astrolog 6.00");
+  DeleteShortcut(szDir, "Astrolog 6.10");
 
   /* Add main shortcuts in folder */
   sprintf(szName, "%s %s", szAppName, szVersionCore);

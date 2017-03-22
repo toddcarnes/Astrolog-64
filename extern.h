@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: extern.h
+** Astrolog (Version 6.20) File: extern.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 /*
@@ -106,18 +106,20 @@ extern flag FProcessSwitches P((int, char **));
 #define chouse    cp0.cusp
 #define inhouse   cp0.house
 
-#define FIgnoreA(a) (rAspOrb[a] < 0.0)
+#define FIgnoreA(a) (ignorea[a] || rAspOrb[a] < 0.0)
+#define DEFAULT_LOC DMS(122, 19, 38), DMS(47, 36, 37)
 
 extern US us;
 extern IS is;
 extern CI ciCore, ciMain, ciTwin, ciThre, ciFour, ciTran, ciSave;
-extern CP cp0, cp1, cp2;
+extern CP cp0, cp1, cp2, cp3, cp4;
 
 extern real spacex[oNorm+1], spacey[oNorm+1], spacez[oNorm+1], force[objMax];
 extern GridInfo *grid;
 extern int starname[cStar+1], kObjA[objMax];
 
-extern byte ignore[objMax], ignore2[objMax], ignorez[4], pluszone[cSector+1];
+extern byte ignore[objMax], ignore2[objMax], ignorea[cAspect+1], ignorez[4],
+  ignore7[5], pluszone[cSector+1];
 extern real rAspAngle[cAspect+1], rAspOrb[cAspect+1], rObjOrb[oNorm+2],
   rObjAdd[oNorm+2];
 extern int ruler1[oNorm+1], ruler2[oNorm+1], exalt[oNorm+1], rules[cSign+1],
@@ -130,7 +132,7 @@ extern CONST char *szAppName, *szSignName[cSign+1], *szSignAbbrev[cSign+1],
   *szAspectName[cAspect+1], *szAspectAbbrev[cAspect+3],
   *szAspectGlyph[cAspect+1], *szAspectConfig[cAspConfig],
   *szElem[cElem], *szMode[3], *szMonth[cSign+1], *szDay[cWeek], *szZon[cZone],
-  *szDir[4], *szSuffix[cSign+1];
+  *szDir[4], *szSuffix[cSign+1], *szEphem[cmMax];
 extern CONST int rgAspConfig[cAspConfig];
 extern CONST real rZon[cZone];
 extern CONST char *szObjName[objMax], *szCnstlName[cCnstl+1],
@@ -138,11 +140,11 @@ extern CONST char *szObjName[objMax], *szCnstlName[cCnstl+1],
   *szCnstlGenitive[cCnstl+1];
 extern CONST real rStarBright[cStar+1], rStarData[cStar*6];
 extern char *szMindPart[oNorm+1], *szDesc[cSign+1], *szDesire[cSign+1],
-  *szLifeArea[cSign+1], *szInteract[cAspectInt+1], *szTherefore[cAspectInt+1],
-  *szModify[3][cAspectInt];
-extern CONST StrLook rgObjName[], rgSystem[];
+  *szLifeArea[cSign+1], *szInteract[cAspect+1], *szTherefore[cAspect+1],
+  *szModify[3][cAspect];
+extern CONST StrLook rgObjName[], rgSystem[], rgAspectName[];
 
-extern CONST real rObjDist[oVes+1], rObjYear[oVes+1], rObjDiam[oVes+1],
+extern CONST real rObjDist[oNorm+1], rObjYear[oNorm+1], rObjDiam[oVes+1],
   rObjDay[oPlu+1], rObjMass[oPlu+1], rObjAxis[oPlu+1];
 extern CONST byte cSatellite[oPlu+1];
 extern CONST AI ai[cPart];
@@ -152,12 +154,13 @@ extern CONST int iErrorOffset[oPlu-oJup+1];
 extern CONST real rErrorData[72+51+42*3];
 extern OE rgoe[oVes+cUran-2];
 extern int rgObjSwiss[cUran];
-extern char *szMacro[48];
+extern char *szMacro[48], *szWheel[4+1];
 extern CONST char *szColor[cColor+2];
 
 extern int rgObjRay[oNorm+1], rgSignRay[cSign+1], rgSignRay2[cSign+1][cRay+1],
   rgObjEso1[oNorm+1], rgObjEso2[oNorm+1], rgObjHie1[oNorm+1],
-  rgObjHie2[oNorm+1], kRayA[cRay+2];
+  rgObjHie2[oNorm+1], rgSignEso1[cSign+1], rgSignEso2[cSign+1],
+  rgSignHie1[cSign+1], rgSignHie2[cSign+1], kRayA[cRay+2];
 extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 
 
@@ -169,6 +172,7 @@ extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 extern void SwapR P((real *, real *));
 extern int CchSz P((CONST char *));
 extern int NCompareSz P((CONST char *, CONST char *));
+extern int FMatchSz P((CONST char *, CONST char *));
 extern void ClearB P((lpbyte, int));
 extern void CopyRgb P((byte *, byte *, int));
 extern real RSgn P((real));
@@ -215,7 +219,8 @@ extern char *SzTim P((real));
 extern char *SzZone P((real));
 extern char *SzLocation P((real, real));
 extern char *SzElevation P((real));
-extern void GetTimeNow P((int *, int *, int *, real *, real));
+extern char *SzLength P((real));
+extern void GetTimeNow P((int *, int *, int *, real *, real, real));
 extern int NFromAltN P((int));
 extern char *ProcessProgname P((char *));
 extern char *SzPersist P((char *));
@@ -238,14 +243,11 @@ extern flag FInputData P((CONST char *));
 /* From calc.cpp */
 
 #define RBiorhythm(day, rate) (RSin(((day)/(rate))*rPi2)*100.0)
+#define HousePlaceIn2D(deg) HousePlaceIn(deg, 0.0)
 
-extern int HousePlaceIn P((real));
+extern int HousePlaceIn P((real, real));
+extern real HousePlaceIn3D P((real, real));
 extern void ComputeInHouses P((void));
-extern void HouseAlcabitius P((void));
-extern void HouseEqualMidheaven P((void));
-extern void HousePorphyryNeo P((void));
-extern void HouseWhole P((void));
-extern void HouseNull P((void));
 extern void ComputeHouses P((int));
 extern void ComputeStars P((real));
 extern real Decan P((real));
@@ -265,8 +267,8 @@ extern void CreateElemTable P((ET *));
 
 /* From matrix.cpp */
 
-#define EclToEqu(Z, L) CoorXform(Z, L, RFromD(rAxis))
-#define EquToEcl(Z, L) CoorXform(Z, L, RFromD(-rAxis))
+#define EclToEqu(Z, L) CoorXform(Z, L, is.OB)
+#define EquToEcl(Z, L) CoorXform(Z, L, -is.OB)
 #define EquToLocal(Z, L, T) CoorXform(Z, L, T)
 #define JulianDayFromTime(t) ((t)*36525.0+2415020.0)
 #define IoeFromObj(obj) \
@@ -443,11 +445,12 @@ extern KV fg, bg;
 #ifdef WIN
 extern int ikPalette[cColor];
 #endif
+extern char *szWheelX[4+1];
 
-extern CONST KV rgb[cColor], rgbbmp[cColor];
+extern CONST KV rgbbmp[cColor];
 extern KI kMainB[9], kRainbowB[8], kElemB[cElem], kAspB[cAspect+1],
   kObjB[objMax], kRayB[cRay+2];
-extern CONST char szObjectFont[oNorm+2], szAspectFont[cAspect+1],
+extern CONST char szObjectFont[oNorm+1], szAspectFont[cAspect+1],
   *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawObject[oNorm+5],
   *szDrawObject2[oNorm+5], *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1],
   *szDrawAspect[cAspect+3], *szDrawAspect2[cAspect+3], *szDrawCh[256-32],
@@ -584,7 +587,7 @@ extern flag FProper P((int));
 extern void FillSymbolRing P((real *, real));
 extern void FillSymbolLine P((real *));
 extern real PlaceInX P((real));
-extern real HousePlaceInX P((real));
+extern real HousePlaceInX P((real, real));
 extern void XChartWheelRelation P((void));
 extern void XChartWheelThreeFour P((void));
 extern void XChartGridRelation P((void));
@@ -600,7 +603,7 @@ extern void BeginX P((void));
 extern void AddTime P((int, int));
 extern void Animate P((int, int));
 extern void CommandLineX P((void));
-extern void SquareX P((int *, int *, int));
+extern void SquareX P((int *, int *, flag));
 extern void InteractX P((void));
 extern void EndX P((void));
 #endif
@@ -683,7 +686,7 @@ extern flag API DlgObject2 P((HWND, uint, WORD, LONG));
 extern flag API DlgRestrict P((HWND, uint, WORD, LONG));
 extern flag API DlgStar P((HWND, uint, WORD, LONG));
 extern flag API DlgSetting P((HWND, uint, WORD, LONG));
-extern flag API DlgObscure P((HWND, uint, WORD, LONG));
+extern flag API DlgDisplay P((HWND, uint, WORD, LONG));
 extern flag API DlgTransit P((HWND, uint, WORD, LONG));
 extern flag API DlgProgress P((HWND, uint, WORD, LONG));
 extern flag API DlgChart P((HWND, uint, WORD, LONG));

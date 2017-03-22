@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: charts1.cpp
+** Astrolog (Version 6.20) File: charts1.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -95,7 +95,7 @@ void PrintHeader(void)
 void ChartListing(void)
 {
   ET et;
-  char sz[cchSzDef];
+  char sz[cchSzMax];
   int i, j, k, fNam, fLoc;
   real rT;
 
@@ -120,8 +120,9 @@ void ChartListing(void)
       us.fEquator ? "Declin. " : "Latitude"); PrintSz(sz);
   } else {
     sprintf(sz,
-      "Body  Locat. Ret. %s. Rul.      House  Rul. Veloc.    %s Houses.\n",
-      us.fEquator ? "Decl" : "Lati", szSystem[us.nHouseSystem]); PrintSz(sz);
+      "Body  Locat. Ret. %s. Rul.      House  Rul. Veloc.    %s%s Houses.\n",
+      us.fEquator ? "Decl" : "Lati", us.fHouse3D ? "3D " : "",
+      szSystem[us.nHouseSystem]); PrintSz(sz);
   }
   if (!fNam && !fLoc)
     PrintL();
@@ -157,7 +158,7 @@ void ChartListing(void)
       sprintf(sz, "[%c] ", *Dignify(j, k)); PrintSz(FCusp(j) ? "    " : sz);
       if (FThing(j)) {
         PrintCh((char)(ret[j] < 0.0 ? '-' : '+'));
-        rT = DFromR(RAbs(ret[j]));
+        rT = RAbs(ret[j]);
         sprintf(sz, us.fSeconds ? (rT < 10.0 ? "%9.7f" : "%9.6f") :
           (rT < 10.0 ? "%5.3f" : "%5.2f"), rT); PrintSz(sz);
       } else
@@ -192,15 +193,17 @@ void ChartListing(void)
       } else if (i == cSign+7)
         PrintTab(' ', 23);
       sz[0] = chNull;
+      k = kDefault;
       switch (i-cSign) {
       case 1: sprintf(sz, "   +:%2d", et.coYang);  break;
       case 2: sprintf(sz, "   -:%2d", et.coYin);   break;
-      case 3: sprintf(sz, "   M:%2d", et.coMC);    break;
-      case 4: sprintf(sz, "   N:%2d", et.coIC);    break;
-      case 5: sprintf(sz, "   A:%2d", et.coAsc);   break;
-      case 6: sprintf(sz, "   D:%2d", et.coDes);   break;
+      case 3: sprintf(sz, "   M:%2d", et.coMC);    k = eEar; break;
+      case 4: sprintf(sz, "   N:%2d", et.coIC);    k = eWat; break;
+      case 5: sprintf(sz, "   A:%2d", et.coAsc);   k = eFir; break;
+      case 6: sprintf(sz, "   D:%2d", et.coDes);   k = eAir; break;
       case 7: sprintf(sz,    "<:%2d", et.coLearn); break;
       }
+      AnsiColor(k == kDefault ? k : kElemA[k]);
       PrintSz(sz);
     } else {
       PrintSz(" Decan: ");
@@ -227,7 +230,8 @@ void ChartListing(void)
     AnsiColor(kSignA(k));
     sprintf(sz, "     [%2d%s house]", k, szSuffix[k]); PrintSz(sz);
     AnsiColor(kDefault);
-    sprintf(sz, "     ______%s", us.fSeconds ? "____" : " "); PrintSz(sz);
+    PrintSz("     +");
+    sprintf(sz, us.fSeconds ? "%9.7f" : "%5.3f", ret[j]); PrintSz(sz);
     AnsiColor(kObjA[j]);
     sprintf(sz, " Star #%2d: %5.2f\n", i-oNorm, rStarBright[j-oNorm]);
     PrintSz(sz);
@@ -516,7 +520,7 @@ void PrintWheelCenter(int irow)
     break;
   case 5:
     nT = us.fEuroTime; us.fEuroTime = fTrue;
-    sprintf(szT, "%s", SzTim(DegToDec(DFromR(is.RA)*(24.0/rDegMax))));
+    sprintf(szT, "%s", SzTim(DFromR(is.RA)*(24.0/rDegMax)));
     sprintf(sz, "UT: %s, Sid.T: %s", SzTim(Tim+Zon-Dst), szT);
     us.fEuroTime = nT;
     break;
@@ -804,6 +808,7 @@ void PrintMidpointSummary(int *cs, int count, long lSpanSum)
 
   if (!us.fMidSummary)
     return;
+  AnsiColor(kDefault);
   if (count == 0) {
     PrintSz("No midpoints in list.\n");
     return;
@@ -858,21 +863,21 @@ void ChartMidpoint(void)
       break;
     mcut = mlo; icut = ilo; jcut = jlo;
     count++;                               /* Display the current midpoint. */
+    cs[mlo/(3600*30)+1]++;
+    m = (int)(MinDistance(planet[ilo], planet[jlo])*3600.0);
+    lSpanSum += m;
 #ifdef INTERPRET
     if (us.fInterpret) {                   /* Interpret it if -I in effect. */
       InterpretMidpoint(ilo, jlo);
       continue;
     }
 #endif
-    cs[mlo/(3600*30)+1]++;
     sprintf(sz, "%4d: ", count); PrintSz(sz);
     mid = (real)mlo/3600.0; PrintZodiac(mid);
     PrintCh(' ');
     PrintAspect(ilo, SFromZ(planet[ilo]), (int)RSgn(ret[ilo]), 0,
       jlo, SFromZ(planet[jlo]), (int)RSgn(ret[jlo]), 'm');
     AnsiColor(kDefault);
-    m = (int)(MinDistance(planet[ilo], planet[jlo])*3600.0);
-    lSpanSum += m;
     sprintf(sz, "-%4d%c%02d'", m/3600, chDeg1, m%3600/60); PrintSz(sz);
     if (is.fSeconds) {
       sprintf(sz, "%02d\"", m%60); PrintSz(sz);
@@ -931,8 +936,8 @@ void ChartHorizon(void)
 
   /* Set up some initial variables. */
 
-  fPrime = us.fPrimeVert;
-  lon = RFromD(Mod(DecToDeg(Lon))); lat = RFromD(DecToDeg(Lat));
+  fPrime = us.fPrimeVert || us.fHouse3D;
+  lon = RFromD(Mod(Lon)); lat = RFromD(Lat);
   tot = us.nStar ? cObj : oNorm;
 
   /* First find zenith location on Earth of each object. */
@@ -944,8 +949,9 @@ void ChartHorizon(void)
 
   /* Then, convert this to local horizon altitude and azimuth. */
 
-  for (i = 0; i <= tot; i++) if (!ignore[i] && i != oMC) {
-    lonz[i] = RFromD(Mod(DFromR(lonz[oMC]-lonz[i]+lon)));
+  vx = lonz[oMC];
+  for (i = 0; i <= tot; i++) if (!ignore[i]) {
+    lonz[i] = RFromD(Mod(DFromR(vx-lonz[i]+lon)));
     lonz[i] = RFromD(Mod(DFromR(lonz[i]-lon+rPiHalf)));
     EquToLocal(&lonz[i], &latz[i], rPiHalf-lat);
     azi[i] = rDegMax-DFromR(lonz[i]); alt[i] = DFromR(latz[i]);
@@ -955,25 +961,29 @@ void ChartHorizon(void)
   /* coordinates to prime vertical coordinates that we'll print instead. */
 
   if (fPrime) {
-    for (i = 0; i <= tot; i++) if (!ignore[i] && i != oMC) {
+    for (i = 0; i <= tot; i++) if (!ignore[i]) {
       azi[i] = RFromD(azi[i]); alt[i] = RFromD(alt[i]);
       CoorXform(&azi[i], &alt[i], rPiHalf);
       azi[i] = DFromR(azi[i]); alt[i] = DFromR(alt[i]);
+
+      /* 3D Campanus cusps should always be start of corresponding house. */
+      if (us.fHouse3D && us.nHouseSystem == hsCampanus && FCusp(i))
+        azi[i] = (real)((i - oAsc) * 30);
     }
   }
 
   /* Now, actually print the location of each object. */
 
   sprintf(szFormat, is.fSeconds ? " " : "");
-  sprintf(sz, "Body %s%sAltitude%s %s%sAzimuth%s%s  Azi. Vector%s    ",
-    szFormat, szFormat, szFormat, szFormat, szFormat, szFormat, szFormat,
-    szFormat);
+  sprintf(sz, "Body %s%sAltitude%s %s%sAzimuth%s%s%s  Azi. Vector%s    ",
+    szFormat, szFormat, szFormat, szFormat, szFormat,
+    us.fHouse3D ? "  " : "", szFormat, szFormat, szFormat);
   PrintSz(sz);
   sprintf(sz, "%s Vector%s%s    Moon Vector\n\n",
     us.objCenter != oSun ? "Sun" : "Earth", szFormat, szFormat); PrintSz(sz);
   for (k = 0; k <= tot; k++) {
     i = k <= oNorm ? k : oNorm+starname[k-oNorm];
-    if (ignore[i] || !FThing(i))
+    if (ignore[i] || (!us.fHouse3D && !FThing(i)))
       continue;
     AnsiColor(kObjA[i]);
     sprintf(sz, "%-4.4s: ", szObjName[i]); PrintSz(sz);
@@ -981,7 +991,13 @@ void ChartHorizon(void)
 
     /* Determine directional vector based on azimuth. */
 
-    sprintf(sz, " %s", SzDegree(azi[i])); PrintSz(sz);
+    if (!us.fHouse3D)
+      sprintf(sz, " %s", SzDegree(azi[i]));
+    else {
+      sprintf(sz, " %2d%s", SFromZ(azi[i]),
+        SzDegree(azi[i] - (real)((SFromZ(azi[i])-1)*30)));
+    }
+    PrintSz(sz);
     sx = RCos(RFromD(azi[i])); sy = RSin(RFromD(azi[i]));
     if (RAbs(sx) < RAbs(sy)) {
       vx = RAbs(sx / sy); vy = 1.0;
@@ -1068,10 +1084,9 @@ void ChartEsoteric(void)
     rank[objMax], i, j, n, c, n1 = 0, n2 = 0;
   real power1[objMax], power2[objMax], rRay1[cRay+1], rRay2[cRay+1],
     power[objMax], r = 0.0, r1 = 0.0, r2 = 0.0;
-  flag f;
+  flag fIgnore7Sav[5];
 
   /* Calculate data. */
-  f = us.fListingEso; us.fListingEso = fTrue;
   EnsureRay();
   for (i = 0; i <= cRay; i++) {
     nRay1[i] = nRay2[i] = i ? 0   : -1;
@@ -1079,9 +1094,9 @@ void ChartEsoteric(void)
   }
   ComputeInfluence(power1, power2);
   for (i = 0; i <= cObj; i++) {
-    power[i] = power1[i] + power2[i];
     if (FIgnore(i))
       continue;
+    power[i] = power1[i] + power2[i];
     r += power[i];
     n = SFromZ(planet[i]);
     for (j = 1; j <= cRay; j++) {
@@ -1090,7 +1105,7 @@ void ChartEsoteric(void)
         nRay1[j]++;
         nRay2[j] += c;
         rRay1[j] += power[i];
-        rRay2[j] += power[i] / (420 / rgSignRay2[n][j]);
+        rRay2[j] += power[i] / (real)(420 / rgSignRay2[n][j]);
       }
     }
   }
@@ -1098,6 +1113,10 @@ void ChartEsoteric(void)
   SortRank(rRay1, rank1, cRay); SortRank(rRay2, rank2, cRay);
 
   /* Print planet table. */
+  for (i = 0; i < 5; i++) {
+    fIgnore7Sav[i] = ignore7[i];
+    ignore7[i] = fFalse;
+  }
   PrintSz("Body    Location Rulers House Rulers Power Rank Percent\n");
   for (i = 0; i <= cObj; i++) {
     if (FIgnore(i))
@@ -1135,7 +1154,10 @@ void ChartEsoteric(void)
       power[i]/r*100.0); PrintSz(sz);
   }
   AnsiColor(kDefault);
-  sprintf(sz, "Total%37.1f       100.0%%\n", r); PrintSz(sz);
+  sprintf(sz, "Total            RSHXY        RSHXY%7.1f       100.0%%\n", r);
+  PrintSz(sz);
+  for (i = 0; i < 5; i++)
+    ignore7[i] = fIgnore7Sav[i];
 
   /* Print Ray table. */
   for (i = 1; i <= cRay; i++) {
@@ -1158,7 +1180,6 @@ void ChartEsoteric(void)
   sprintf(sz, "Tot:%5d%7.1f      100.0%% %c%6.2f%7.1f      100.0%%\n",
     n1, r1, chV, (real)n2 / 420.0, r2);
   PrintSz(sz);
-  us.fListingEso = f;
 }
 
 
@@ -1169,6 +1190,7 @@ void ChartSector(void)
 {
   char sz[cchSzDef];
   CP cp;
+  byte ignoreSav[objMax];
   int c[cSector + 1], i, sec, pls, kPls, cpls = 0, co = 0, cq = 0;
   real r, rT;
 
@@ -1177,6 +1199,7 @@ void ChartSector(void)
     cpls += pluszone[i];
   }
   cp = cp0;
+  CopyRgb(ignore, ignoreSav, sizeof(ignore));
   CastSectors();
 
   AnsiColor(kMainA[3]);
@@ -1216,7 +1239,7 @@ void ChartSector(void)
     PrintCh(' ');
     if (FThing(i)) {
       PrintCh((char)(ret[i] < 0.0 ? '-' : '+'));
-      rT = DFromR(RAbs(ret[i]));
+      rT = RAbs(ret[i]);
       sprintf(sz, is.fSeconds ? (rT < 10.0 ? "%7.5f" : "%7.4f") :
         (rT < 10.0 ? "%5.3f" : "%5.2f"), rT); PrintSz(sz);
     } else
@@ -1276,6 +1299,7 @@ void ChartSector(void)
       PrintSz("  . ");
   }
   PrintL();
+  CopyRgb(ignoreSav, ignore, sizeof(ignore));
   CastChart(fTrue);
 }
 
@@ -1290,7 +1314,7 @@ void ChartAstroGraph(void)
   char sz[cchSzDef];
   real planet1[objMax], planet2[objMax], mc[objMax], ic[objMax],
     asc[objMax], des[objMax], asc1[objMax], des1[objMax],
-    lo = DecToDeg(Lon), longm, w, x, y, z, ad, oa, am, od, dm;
+    lo = Lon, longm, w, x, y, z, ad, oa, am, od, dm;
   int cCross = 0, tot = cObj, i, j, k, l, m, n;
 
   if (us.fLatitudeCross) {
@@ -1311,13 +1335,20 @@ void ChartAstroGraph(void)
   for (i = 0; i <= cObj; i++)
     if (!ignore[i] && FThing(i)) {
       AnsiColor(kObjA[i]);
-      sprintf(sz, " %.3s", szObjName[i]); PrintSz(sz);
+      if (is.fSeconds) {
+        sprintf(sz, " %-10.10s", szObjName[i]);
+      } else
+        sprintf(sz, " %.3s", szObjName[i]);
+      PrintSz(sz);
     }
   AnsiColor(kDefault);
   PrintSz("\n------ :");
   for (i = 0; i <= tot; i++)
-    if (!ignore[i] && FThing(i))
+    if (!ignore[i] && FThing(i)) {
       PrintSz(" ###");
+      if (is.fSeconds)
+        PrintSz("#######");
+    }
 
   /* Print the longitude locations of the Midheaven lines. */
 
@@ -1336,7 +1367,12 @@ void ChartAstroGraph(void)
     if (z > rDegHalf)
       z -= rDegMax;
     mc[i] = z;
-    sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w'); PrintSz(sz);
+    if (is.fSeconds) {
+      sprintf(sz, "%s ", SzLocation(z, 0.0)); sz[11] = chNull;
+    } else {
+      sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w');
+    }
+    PrintSz(sz);
   }
   AnsiColor(kDefault);
 
@@ -1350,7 +1386,12 @@ void ChartAstroGraph(void)
     if (z > rDegHalf)
       z -= rDegMax;
     ic[i] = z;
-    sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w'); PrintSz(sz);
+    if (is.fSeconds) {
+      sprintf(sz, "%s ", SzLocation(z, 0.0)); sz[11] = chNull;
+    } else {
+      sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w');
+    }
+    PrintSz(sz);
   }
   AnsiColor(kDefault);
 
@@ -1361,7 +1402,14 @@ void ChartAstroGraph(void)
     if (!ignore[i] && FThing(i)) {
       AnsiColor(kObjA[i]);
       y = DFromR(planet2[i]);
-      sprintf(sz, "%3.0f%c", RAbs(y), y < 0.0 ? 's' : 'n'); PrintSz(sz);
+      if (is.fSeconds) {
+        sprintf(sz, " %s ", SzLocation(0.0, y));
+        for (j = 1; sz[j] = sz[j+11]; j++)
+          ;
+      } else {
+        sprintf(sz, "%3.0f%c", RAbs(y), y < 0.0 ? 's' : 'n');
+      }
+      PrintSz(sz);
       asc[i] = des[i] = asc1[i] = des1[i] = rLarge;
     }
   PrintL2();
@@ -1371,7 +1419,7 @@ void ChartAstroGraph(void)
   /* latitude, print the longitude location of the line in question.        */
 
   longm = RFromD(Mod(DFromR(planet1[oMC])+lo));
-  for (j = 80; j >= -80; j -= us.nAstroGraphStep) {
+  for (j = 89-(89 % us.nAstroGraphStep); j > -90; j -= us.nAstroGraphStep) {
     AnsiColor(kDefault);
     sprintf(sz, "Asc@%2d%c: ", j >= 0 ? j : -j, j < 0 ? 's' : 'n');
     PrintSz(sz);
@@ -1380,7 +1428,10 @@ void ChartAstroGraph(void)
       AnsiColor(kObjA[i]);
       ad = RTan(planet2[i])*RTan(RFromD(j));
       if (ad*ad > 1.0) {
-        PrintSz(" -- ");
+        PrintSz(" --");
+        if (is.fSeconds)
+          PrintSz("------ ");
+        PrintCh(' ');
         asc1[i] = des1[i] = cp2.dir[i] = rLarge;
       } else {
         ad = RAsin(ad);
@@ -1398,7 +1449,11 @@ void ChartAstroGraph(void)
         asc1[i] = asc[i];
         asc[i] = z = DFromR(z);
         cp2.dir[i] = ad;
-        sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w'); PrintSz(sz);
+        if (is.fSeconds) {
+          sprintf(sz, "%s ", SzLocation(z, 0.0)); sz[11] = chNull;
+        } else
+          sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w');
+        PrintSz(sz);
       }
     }
 
@@ -1412,9 +1467,12 @@ void ChartAstroGraph(void)
       if (!ignore[i] && FThing(i)) {
       AnsiColor(kObjA[i]);
       ad = cp2.dir[i];
-      if (ad == rLarge)
-        PrintSz(" -- ");
-      else {
+      if (ad == rLarge) {
+        PrintSz(" --");
+        if (is.fSeconds)
+          PrintSz("------ ");
+        PrintCh(' ');
+     } else {
         od = planet1[i]+ad;
         dm = od+rPiHalf;
         z = longm-dm;
@@ -1424,7 +1482,11 @@ void ChartAstroGraph(void)
           z -= 2.0*rPi;
         des1[i] = des[i];
         des[i] = z = DFromR(z);
-        sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w'); PrintSz(sz);
+        if (is.fSeconds) {
+          sprintf(sz, "%s ", SzLocation(z, 0.0)); sz[11] = chNull;
+        } else
+          sprintf(sz, "%3.0f%c", RAbs(z), z < 0.0 ? 'e' : 'w');
+        PrintSz(sz);
       }
     }
     PrintL();
@@ -1434,7 +1496,9 @@ void ChartAstroGraph(void)
     /* calculate and print the latitude crossings.                          */
 
     if (us.fLatitudeCross)
-      for (l = 0; l <= cObj; l++) if (!ignore[l] && FThing(l))
+      for (l = 0; l <= cObj; l++) {
+        if (ignore[l] || !FThing(l))
+          continue;
         for (k = 0; k <= cObj; k++) {
           if (ignore[k] || !FThing(k))
             continue;
@@ -1460,7 +1524,8 @@ void ChartAstroGraph(void)
             w = m ? des1[k] : asc1[k];
             z = m ? des[k] : asc[k];
             if (cCross < MAXCROSS && k > l &&
-                RAbs(x-y)+RAbs(w-z) < rDegHalf && RSgn(w-x) != RSgn(z-y)) {
+              RAbs(x-y)+RAbs(w-z) < rDegHalf && RSgn(w-x) != RSgn(z-y) &&
+              !(k == oSou && l == oNod)) {
               c->obj1[cCross] = n ? -l : l;
               c->obj2[cCross] = 100+(m ? -k : k);
               c->lat[cCross] = (real)j+5.0*
@@ -1471,6 +1536,7 @@ void ChartAstroGraph(void)
             }
           }
         }
+      }
     }
   }
   if (!us.fLatitudeCross)

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: charts2.cpp
+** Astrolog (Version 6.20) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -265,21 +265,21 @@ void ChartMidpointRelation(void)
       break;
     mcut = mlo; icut = ilo; jcut = jlo;
     count++;                               /* Display the current midpoint. */
+    cs[mlo/(30*60*60)+1]++;
+    m = (int)(MinDistance(cp1.obj[ilo], cp2.obj[jlo])*3600.0);
+    lSpanSum += m;
 #ifdef INTERPRET
     if (us.fInterpret) {                   /* Interpret it if -I in effect. */
       InterpretMidpointRelation(ilo, jlo);
       continue;
     }
 #endif
-    cs[mlo/(30*60*60)+1]++;
     sprintf(sz, "%4d: ", count); PrintSz(sz);
     PrintZodiac((real)mlo/3600.0);
     PrintCh(' ');
     PrintAspect(ilo, SFromZ(cp1.obj[ilo]), (int)RSgn(cp1.dir[ilo]), 0,
       jlo, SFromZ(cp2.obj[jlo]), (int)RSgn(cp2.dir[jlo]), 'M');
     AnsiColor(kDefault);
-    m = (int)(MinDistance(cp1.obj[ilo], cp2.obj[jlo])*3600.0);
-    lSpanSum += m;
     sprintf(sz, "-%4d%c%02d'", m/3600, chDeg1, m%3600/60); PrintSz(sz);
     if (is.fSeconds) {
       sprintf(sz, "%02d\"", m%60); PrintSz(sz);
@@ -305,6 +305,7 @@ void CastRelation(void)
   /* Cast the first chart. */
 
   ciMain = ciCore;
+  FProcessCommandLine(szWheel[1]);
   t1 = CastChart(fTrue);
   cp1 = cp0;
 
@@ -321,6 +322,7 @@ void CastRelation(void)
     is.JDp = MdytszToJulian(MM, DD, YY, TT, SS, ZZ);
     ciCore = ciMain;
   }
+  FProcessCommandLine(szWheel[2]);
   t2 = CastChart(fTrue);
   if (us.nRel == rcTransit) {
     for (i = 0; i <= cObj; i++)
@@ -328,7 +330,20 @@ void CastRelation(void)
   } else if (us.nRel == rcProgress)
     us.fProgress = fFalse;
   cp2 = cp0;
+  if (us.nRel == rcTriWheel || us.nRel == rcQuadWheel) {
+    ciCore = ciThre;
+    FProcessCommandLine(szWheel[3]);
+    CastChart(fTrue);
+    cp3 = cp0;
+    if (us.nRel == rcQuadWheel) {
+      ciCore = ciFour;
+      FProcessCommandLine(szWheel[4]);
+      CastChart(fTrue);
+      cp4 = cp0;
+    }
+  }
   ciCore = ciMain;
+  FProcessCommandLine(szWheel[0]);
 
   /* Now combine the two charts based on what relation we are doing.   */
   /* For the standard -r synastry chart, use the house cusps of chart1 */
@@ -373,19 +388,17 @@ void CastRelation(void)
     is.T = Ratio(t1, t2, ratio);
     t = (is.T*36525.0)+rRound; is.JD = RFloor(t)+2415020.0;
     TT = RFract(t)*24.0;
-    ZZ = Ratio(DecToDeg(Zon), DecToDeg(ciTwin.zon), ratio);
-    SS = Ratio(DecToDeg(Dst), DecToDeg(ciTwin.dst), ratio);
+    ZZ = Ratio(Zon, ciTwin.zon, ratio);
+    SS = Ratio(Dst, ciTwin.dst, ratio);
     TT -= ZZ - SS;
     if (TT < 0.0) {
       TT += 24.0; is.JD -= 1.0;
     }
     JulianToMdy(is.JD, &MM, &DD, &YY);
-    OO = Ratio(DecToDeg(Lon), DecToDeg(ciTwin.lon), ratio);
+    OO = Ratio(Lon, ciTwin.lon, ratio);
     if (RAbs(ciTwin.lon-Lon) > rDegHalf)
       OO = Mod(OO+rDegMax*ratio);
-    AA = Ratio(DecToDeg(Lat), DecToDeg(ciTwin.lat), ratio);
-    TT = DegToDec(TT); SS = DegToDec(SS); ZZ = DegToDec(ZZ);
-    OO = DegToDec(OO); AA = DegToDec(AA);
+    AA = Ratio(Lat, ciTwin.lat, ratio);
     ciMain = ciCore;
     CastChart(fTrue);
     us.nRel = rcNone;  /* Turn off so don't move to midpoint again. */
@@ -413,26 +426,32 @@ void CastRelation(void)
 
 void PrintInDay(int source, int aspect, int dest)
 {
+  /* If the Sun changes sign, then print out if this is a season change. */
   if (aspect == aSig) {
     if (source == oSun) {
       AnsiColor(kMainA[1]);
-      if (dest == 1)
-        PrintSz(" (Vernal Equinox)");     /* If the Sun changes sign, */
-      else if (dest == 4)                 /* then print out if this   */
-        PrintSz(" (Summer Solstice)");    /* is a season change.      */
-      else if (dest == 7)
-        PrintSz(" (Autumnal Equinox)");
-      else if (dest == 10)
-        PrintSz(" (Winter Solstice)");
+      if (dest == sAri || dest == sLib) {
+        if ((dest == sAri) == (AA >= 0.0))
+          PrintSz(" (Spring Equinox)");
+        else
+          PrintSz(" (Autumn Equinox)");
+      } else if (dest == sCan || dest == sCap) {
+        if ((dest == sCan) == (AA >= 0.0))
+          PrintSz(" (Summer Solstice)");
+        else
+          PrintSz(" (Winter Solstice)");
+      }
     }
+
+  /* Print out if the present aspect is a New, Full, or Half Moon. */
   } else if (aspect > 0) {
     if (source == oSun && dest == oMoo) {
       if (aspect <= aSqu)
         AnsiColor(kMainA[1]);
       if (aspect == aCon)
-        PrintSz(" (New Moon)");     /* Print out if the present */
-      else if (aspect == aOpp)      /* aspect is a New, Full,   */
-        PrintSz(" (Full Moon)");    /* or Half Moon.            */
+        PrintSz(" (New Moon)");
+      else if (aspect == aOpp)
+        PrintSz(" (Full Moon)");
       else if (aspect == aSqu)
         PrintSz(" (Half Moon)");
     }

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: xcharts0.cpp
+** Astrolog (Version 6.20) File: xcharts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -191,7 +191,8 @@ void DrawInfo()
     DrawPrint(ciMain.loc, gi.kiLite, fFalse);
   if (Mon != -1)
     DrawPrint(SzLocation(Lon, Lat), gi.kiLite, fFalse);
-  sprintf(sz, "%s houses", szSystem[us.nHouseSystem]);
+  sprintf(sz, "%s%s houses",
+    us.fHouse3D ? "3D " : "", szSystem[us.nHouseSystem]);
   DrawPrint(sz, gi.kiLite, fFalse);
   sprintf(sz, "%s, %s", us.fSidereal ? "Sidereal" : "Tropical",
     us.objCenter == oSun ? "Heliocentric" :
@@ -280,21 +281,26 @@ void DrawInfo()
 
   DrawPrint("", gi.kiLite, fFalse);
   CreateElemTable(&et);
-  sprintf(sz, "Fire: %d, Earth: %d,", et.coElem[eFir], et.coElem[eEar]);
-  DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "Air : %d, Water: %d", et.coElem[eAir], et.coElem[eWat]);
-  DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "Car: %d, Fix: %d, Mut: %d",
-    et.coMode[0], et.coMode[1], et.coMode[2]);
-  DrawPrint(sz, gi.kiLite, fFalse);
+  sprintf(sz, "Fire: %d,",   et.coElem[eFir]);
+  DrawPrint(sz, kElemB[eFir], fTrue);
+  sprintf(sz, " Earth: %d,", et.coElem[eEar]);
+  DrawPrint(sz, kElemB[eEar], fFalse);
+  sprintf(sz, "Air : %d,",   et.coElem[eAir]);
+  DrawPrint(sz, kElemB[eAir], fTrue);
+  sprintf(sz, " Water: %d",  et.coElem[eWat]);
+  DrawPrint(sz, kElemB[eWat], fFalse);
+  sprintf(sz, "Car: %d,",  et.coMode[0]); DrawPrint(sz, kModeB(0), fTrue);
+  sprintf(sz, " Fix: %d,", et.coMode[1]); DrawPrint(sz, kModeB(1), fTrue);
+  sprintf(sz, " Mut: %d",  et.coMode[2]); DrawPrint(sz, kModeB(2), fFalse);
   sprintf(sz, "Yang: %d, Yin: %d", et.coYang, et.coYin);
   DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "M: %d, N: %d, A: %d, D: %d",
-    et.coMC, et.coIC, et.coAsc, et.coDes);
-  DrawPrint(sz, gi.kiLite, fFalse);
-  sprintf(sz, "Ang: %d, Suc: %d, Cad: %d",
-    et.coModeH[0], et.coModeH[1], et.coModeH[2]);
-  DrawPrint(sz, gi.kiLite, fFalse);
+  sprintf(sz, "M: %d,",  et.coMC);  DrawPrint(sz, kElemB[eEar], fTrue);
+  sprintf(sz, " N: %d,", et.coIC);  DrawPrint(sz, kElemB[eWat], fTrue);
+  sprintf(sz, " A: %d,", et.coAsc); DrawPrint(sz, kElemB[eFir], fTrue);
+  sprintf(sz, " D: %d",  et.coDes); DrawPrint(sz, kElemB[eAir], fFalse);
+  sprintf(sz, "Ang: %d,",  et.coModeH[0]); DrawPrint(sz, kModeB(0), fTrue);
+  sprintf(sz, " Suc: %d,", et.coModeH[1]); DrawPrint(sz, kModeB(1), fTrue);
+  sprintf(sz, " Cad: %d",  et.coModeH[2]); DrawPrint(sz, kModeB(2), fFalse);
   sprintf(sz, "Learn: %d, Share: %d", et.coLearn, et.coShare);
   DrawPrint(sz, gi.kiLite, fFalse);
   us.fAnsiChar = a;
@@ -311,7 +317,8 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
   real unity, real r1, real r2, real r3, real r4, real r5)
 {
   int i;
-  real px, py, temp;
+  real px, py, temp, ra, rb;
+  flag fStroke = gs.fPS || gs.fMeta, fSav;
 
   /* Draw Ascendant/Descendant and Midheaven/Nadir lines across whole chart. */
 
@@ -327,14 +334,22 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
 
   /* Draw small five or one degree increments around the zodiac sign ring. */
 
+  fSav = us.fHouse3D; us.fHouse3D = fFalse;
   for (i = 0; i < nDegMax; i++) {
-    temp = PZ(HousePlaceInX((real)i));
+    temp = PZ(HousePlaceInX((real)i, 0.0));
     px = PX(temp); py = PY(temp);
-    DrawColor(i%5 ? gi.kiGray : gi.kiOn);
-    DrawDash(cx+POINT1(unitx, r3, px), cy+POINT1(unity, r3, py),
-      cx+POINT2(unitx, r4, px), cy+POINT2(unity, r4, py),
-      ((!gs.fColor || gs.fPS || gs.fMeta) && i%5)*2);
+    DrawColor(i%10 ? gi.kiGray : gi.kiOn);
+    if ((gs.fColor || fStroke) && i%5 > 0) {
+      ra = r3 + (r4 - r3) * 0.20;
+      rb = r3 + (r4 - r3) * 0.80;
+    } else {
+      ra = r3; rb = r4;
+    }
+    DrawDash(cx+POINT1(unitx, ra, px), cy+POINT1(unity, ra, py),
+      cx+POINT2(unitx, rb, px), cy+POINT2(unity, rb, py),
+      (!gs.fColor && !fStroke && i%5 > 0));
   }
+  us.fHouse3D = fSav;
 
   /* Draw circles for the zodiac sign and house rings. */
 
@@ -367,8 +382,6 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
     DrawSign(i, cx+POINT1(unitx, r5, PX(temp)),
       cy+POINT1(unity, r5, PY(temp)));
     temp = Midpoint(xhouse[i], xhouse[Mod12(i+1)]);
-    if (MinDistance(xhouse[i] - rDegQuad, temp) > rDegQuad)
-      temp = Mod(temp + rDegHalf);
     DrawHouse(i, cx+POINT1(unitx, r2, PX(temp)),
       cy+POINT1(unity, r2, PY(temp)));
   }
@@ -795,7 +808,7 @@ void DrawMap(flag fSky, flag fGlobe, int deg)
   rT = gs.fConstel ? rDegHalf - (fGlobe ? 0.0 : (real)deg) : Lon;
   if (rT < 0.0)
     rT += rDegMax;
-  for (i = 1; i <= cObj; i++) {
+  for (i = 0; i <= cObj; i++) {
     planet1[i] = RFromD(Tropical(planet[i]));
     planet2[i] = RFromD(planetalt[i]);
     EclToEqu(&planet1[i], &planet2[i]);    /* Calculate zenith long. & lat. */
@@ -803,11 +816,10 @@ void DrawMap(flag fSky, flag fGlobe, int deg)
 
   /* Compute screen coordinates of each object, if it's even visible. */
 
-  for (i = 1; i <= cObj; i++) if (FProper(i)) {
-    if (fSky)
-      x1 = planet1[i];
-    else
-      x1 = planet1[oMC]-planet1[i];
+  for (i = 0; i <= cObj; i++) if (FProper(i)) {
+    x1 = planet1[i];
+    if (!fSky)
+      x1 = planet1[oMC]-x1;
     if (x1 < 0.0)
       x1 += 2.0*rPi;
     if (x1 > rPi)
@@ -824,10 +836,44 @@ void DrawMap(flag fSky, flag fGlobe, int deg)
     M[i] = X[i]; N[i] = Y[i]+unit/2;
   }
 
+  /* Draw ecliptic equator and zodiac sign wedges. */
+
+  if (us.fHouse3D) {
+    DrawColor(kMainB[5]);
+    for (l = 0; l < 14; l++) {
+      for (i = -90; i < 90; i++) {
+        if (l < 12) {
+          j = l*30; k = i;
+        } else {
+          j = i+90 + (l > 12)*180; k = 0;
+        }
+        x1 = RFromD(Tropical((real)j));
+        y1 = RFromD((real)k);
+        EclToEqu(&x1, &y1);
+        if (!fSky)
+          x1 = planet1[oMC]-(real)x1;
+        if (x1 < 0.0)
+          x1 += 2.0*rPi;
+        if (x1 > rPi)
+          x1 -= 2.0*rPi;
+        x1 = Mod(rDegHalf-rT-DFromR(x1));
+        y1 = rDegQuad-DFromR(y1);
+        if (fGlobe) {
+          j = FGlobeCalc(x1, y1, &u, &v, cx, cy, rx, ry, deg) ? -1000 : u;
+          k = v;
+        } else {
+          j = (int)(x1 * (real)nScl);
+          k = (int)(y1 * (real)nScl);
+        }
+        DrawPoint(j, k);
+      }
+    }
+  }
+
   /* Now that we have the coordinates of each object, figure out where to   */
   /* draw the glyphs. Again we try not to draw glyphs on top of each other. */
 
-  for (i = 1; i <= cObj; i++) if (FProper(i)) {
+  for (i = 0; i <= cObj; i++) if (FProper(i)) {
     k = l = gs.xWin+gs.yWin;
 
     /* For each planet, we draw the glyph either right over or right under */
@@ -847,9 +893,9 @@ void DrawMap(flag fSky, flag fGlobe, int deg)
       if (k < l)
         N[i] -= unit;
   }
-  for (i = cObj; i >= 1; i--) if (X[i] >= 0 && FProper(i))      /* Draw the */
+  for (i = cObj; i >= 0; i--) if (X[i] >= 0 && FProper(i))      /* Draw the */
     DrawObject(i, M[i], N[i]);                                  /* glyphs.  */
-  for (i = cObj; i >= 1; i--) if (X[i] >= 0 && FProper(i)) {
+  for (i = cObj; i >= 0; i--) if (X[i] >= 0 && FProper(i)) {
     DrawColor(kObjB[i]);
     DrawSpot(X[i], Y[i]);
   }

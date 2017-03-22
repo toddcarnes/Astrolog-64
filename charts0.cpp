@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: charts0.cpp
+** Astrolog (Version 6.20) File: charts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -113,7 +113,7 @@ void DisplayCredits(void)
   PrintW("'Swiss Ephemeris' by Astrodienst AG, subject to license for Swiss",
     kRainbowA[4]);
   PrintW(
-    "Ephemeris Free Edition at http://www.astro.com/swisseph. Older 'Placalc'",
+    "Ephemeris Free Edition at http://www.astro.com/swisseph. Old 'Placalc'",
     kRainbowA[4]);
   PrintW(
     "library and formulas are by Alois Treindl, also from Astrodienst AG.",
@@ -238,6 +238,8 @@ void DisplaySwitches(void)
 #endif
   PrintS(" _M <1-48>: Run the specified command switch macro.");
   PrintS(" _M0 <1-48> <string>: Define the specified command switch macro.");
+  PrintS(
+    " _M[2-4][0] <strings>: Define macro(s) to run when chart calculated.");
   PrintS(" _Y: Display help list of less commonly used command switches.");
   PrintS("\nSwitches which determine the type of chart to display:");
   PrintS(" _v: Display list of object positions (chosen by default).");
@@ -340,11 +342,11 @@ void DisplaySwitches(void)
   PrintS(" _R [<obj1> [<obj2> ..]]: Restrict specific bodies from displays.");
   PrintS(" _R0 [<obj1> ..]: Like _R but restrict everything first.");
   PrintS(" _R1 [<obj1> ..]: Like _R0 but unrestrict and show all objects.");
-  PrintS(" _R[C,u,U]: Restrict all minor cusps, all uranians, or stars.");
+  PrintS(" _R[C,u,U]: Restrict all minor cusps, all Uranians, or stars.");
   PrintS(" _RT[0,1,C,u,U] [..]: Restrict transiting planets in _t lists.");
-  PrintS(" _RA [<asp1> ..]: Restrict aspects by giving them negative orbs.");
+  PrintS(" _RA [<asp1> ..]: Restrict specific aspects from displays.");
   PrintS(" _C: Include angular and non-angular house cusps in charts.");
-  PrintS(" _u: Include transneptunian/uranian bodies in charts.");
+  PrintS(" _u: Include transneptunian/Uranian bodies in charts.");
   PrintS(" _U: Include locations of fixed background stars in charts.");
   PrintS(" _U[z,l,n,b]: Order by azimuth, altitude, name, or brightness.");
   PrintS(" _A <0-18>: Specify the number of aspects to use in charts.");
@@ -364,12 +366,14 @@ void DisplaySwitches(void)
   PrintS(" _bm: Use inaccurate Matrix formulas when ephemeris unavailable.");
 #endif
   PrintS(" _c <value>: Select a different default system of houses.");
-  PrintS("  (0 = Placidus, 1 = Koch, 2 = Equal, 3 = Campanus, 4 = Meridian,");
+  PrintS("  0 = Placidus, 1 = Koch, 2 = Equal, 3 = Campanus, 4 = Meridian,");
   PrintS("  5 = Regiomontanus, 6 = Porphyry, 7 = Morinus, 8 = Topocentric,");
   PrintS(
     "  9 = Alcabitius, 10 = Krusinski, 11 = Equal MC, 12 = Pullen S-Ratio,");
-  PrintS("  13 = Pullen S-Delta, 14 = Whole, 15 = Vedic, 16 = None.)");
-  PrintS(" _s [..]: Compute a sidereal instead of the normal tropical chart.");
+  PrintS(
+    "  13 = Pullen S-Delta, 14 = Whole, 15 = Vedic, 16 = Sripati, 17 = None.");
+  PrintS(" _c3: Place in houses using latitude as well as zodiac position.");
+  PrintS(" _s [..]: Compute a sidereal instead of standard tropical chart.");
   PrintS(" _sr: Compute right ascension locations relative to equator.");
   PrintS(
     " _s[z,h,d]: Display locations as in zodiac, hours/minutes, or degrees.");
@@ -390,6 +394,7 @@ void DisplaySwitches(void)
   PrintS(" _J: Display wheel charts in Vedic format.");
   PrintS(" _9: Display objects in their zodiac navamsa positions.");
   PrintS(" _F <objnum> <sign> <deg>: Force object's position to be value.");
+  PrintS(" _Fm <objnum> <obj1> <obj2>: Force object's position to midpoint.");
   PrintS(" _+ [<days>]: Cast chart for specified no. of days in the future.");
   PrintS(" _- [<days>]: Cast chart for specified no. of days in the past.");
   PrintS(" _+[m,y] [<value>]: Cast chart for no. of months/years in future.");
@@ -450,12 +455,15 @@ void DisplaySwitchesRare(void)
   PrintS(" _Yv: Display distance in metric instead of imperial units.");
   PrintS(" _Yr: Round positions to nearest unit instead of crop fraction.");
   PrintS(" _YC: Automatically ignore insignificant house cusp aspects.");
+  PrintS(" _YO: Automatically adjust settings when exporting and printing.");
   PrintS(" _Y8: Clip text charts at the rightmost (e.g. 80th) column.");
   PrintS(" _YQ <rows>: Pause text scrolling after a page full has printed.");
   PrintS(" _Yo: Output chart info and position files in old style format.");
   PrintS(" _Yc: Angular cusp objects are house positions instead of angles.");
   PrintS(" _Yp: Fix polar houses by preserving Ascendant instead of MC.");
   PrintS(" _Yz <min>: Forward clock by amount for current moment charts.");
+  PrintS(
+    " _Y1[0] <obj1> <obj2>: Rotate planets so one is at other's position.");
   PrintS(" _Yl <1-36>: Toggle plus zone status of sector for sector chart.");
 #ifdef ARABIC
   PrintS(" _YP <-1,0,1>: Set how Arabic parts are computed for night charts.");
@@ -477,6 +485,8 @@ void DisplaySwitchesRare(void)
     " _YR0 <flag1> <flag2>: Set restrictions for sign, direction changes.");
   PrintS(
     " _YRZ <rise> <zenith> <set> <nadir>: Set restrictions for _Zd chart.");
+  PrintS(
+    " _YR7 <ruler> <exalt> <eso> <hier> <ray>: Set rulership restrictions.");
   PrintS(
     " _YAo <asp1> <asp2> <orb1>..<orb2>: Set aspect orbs for range.");
   PrintS(
@@ -534,7 +544,7 @@ void DisplaySwitchesRare(void)
 
 /* Print out a list of the various objects - planets, asteroids, house     */
 /* cusps, stars - recognized by the program, and their index values. This  */
-/* is displayed when the -O switch is invoked. For some objects, display   */
+/* is displayed when the -HO switch is invoked. For some objects, display  */
 /* additional information, e.g. ruling signs for planets, brightnesses and */
 /* positions in the sky for fixed stars, etc.                              */
 
@@ -546,7 +556,7 @@ void PrintObjects(void)
 
   if (!us.fCusp)
     for (i = cuspLo; i <= cuspHi; i++)    /* Set up restrictions properly: */
-      ignore[i] = fTrue;                  /* Minor cusps and uranians      */
+      ignore[i] = fTrue;                  /* Minor cusps and Uranians      */
   if (!us.fUranian)                       /* included only if -C and -u    */
     for (i = uranLo; i <= uranHi; i++)    /* switches are in effect.       */
       ignore[i] = fTrue;
@@ -646,8 +656,7 @@ void PrintObjects(void)
 
 /* Print out a list of all the aspects recognized by the program, and info  */
 /* about them: their names, index numbers, degree angles, present orbs, and */
-/* the description of their glyph. This gets displayed when the -A switch   */
-/* is invoked (without any argument).                                       */
+/* the description of their glyph. This gets displayed by the -HA switch.   */
 
 void PrintAspects(void)
 {
@@ -668,7 +677,7 @@ void PrintAspects(void)
 
 
 /* Print out a list of the 12 signs and houses of the zodiac, and their    */
-/* standard and traditional names, as done when the -H0 switch is invoked. */
+/* standard and traditional names, as done when the -HC switch is invoked. */
 
 void PrintSigns(void)
 {
@@ -688,8 +697,8 @@ void PrintSigns(void)
   AnsiColor(kDefault);
 
   /* Print Rays, esoteric rulerships, and exaltations of signs. */
-  PrintSz("\nNo. Sign        Rays  Exoteric   Esoteric   Hierarchical ");
-  PrintSz("Exalt Detriment  Fall\n\n");
+  PrintSz("\nNo. Sign        Rays  Exoteric   Esoteric   Hierarchical "
+    "Exalt Detriment  Fall\n\n");
   for (i = 1; i <= cSign; i++) {
     AnsiColor(kSignA(i));
     sprintf(sz, "%2d  %-11s%5d ", i, szSignName[i], rgSignRay[i]);
@@ -837,12 +846,12 @@ void PrintConstellations(void)
   char szGen[cchSzDef], sz[cchSzDef], chLast = chNull;
 
   sprintf(sz, "%s constellations:\n", szAppName); PrintSz(sz);
-  PrintSz("No. Name                Abbrev.   ");
-  PrintSz("Meaning            Genitive form\n\n");
+  PrintSz("No. Name                Abbrev.   "
+    "Meaning            Genitive form\n\n");
   for (i = 1; i <= cCnstl; i++) {
     if (szCnstlName[i][0] != chLast) {
       chLast = szCnstlName[i][0];
-      j = j + 1 & 3;
+      j = (j + 1) & 3;
       AnsiColor(kElemA[j]);
     }
     sprintf(sz, "%2d: %-19s (%s) ", i, szCnstlName[i], szCnstlAbbrev[i]);
@@ -872,18 +881,24 @@ void PrintOrbit(void)
   sprintf(sz, "%s planets:\n", szAppName); PrintSz(sz);
   PrintSz("   Name: Distance   Year Diameter     Day       Mass Density  ");
   PrintSz("Axis Satellites\n\n");
-  for (i = 0; i <= oVes; i++) {
+  for (i = 0; i <= oNorm; i++) {
+    if (ignore[i] || (i > oLil && i < uranLo))
+      continue;
     AnsiColor(kObjA[i]);
-    sprintf(sz, "%7s:%9.3f%7.2f%9.3f", szObjName[i],
-      rObjDist[i]/rObjDist[oEar], rObjYear[i], rObjDiam[i]/rObjDiam[oEar]);
+    sprintf(sz, "%7.7s:%9.3f%7.2f",
+      szObjName[i], rObjDist[i]/rObjDist[oEar], rObjYear[i]);
     PrintSz(sz);
-    if (i <= oPlu) {
-      r = rObjDiam[i]*1000.0/2.0;
-      sprintf(sz, "%8.2f%11.3f%8.2f%6.2f%11d",
-        rObjDay[i], rObjMass[i],
-        (rObjMass[i]*5.974E24/1000.0)/((4.0/3.0)*(r*r*r)*rPi),
-        rObjAxis[i], cSatellite[i]);
+    if (i <= oVes) {
+      sprintf(sz, "%9.3f", rObjDiam[i]/rObjDiam[oEar]);
       PrintSz(sz);
+      if (i <= oPlu) {
+        r = rObjDiam[i]*1000.0/2.0;
+        sprintf(sz, "%8.2f%11.3f%8.2f%6.2f%11d",
+          rObjDay[i], rObjMass[i],
+          (rObjMass[i]*5.974E24/1000.0)/((4.0/3.0)*(r*r*r)*rPi),
+          rObjAxis[i], cSatellite[i]);
+        PrintSz(sz);
+      }
     }
     PrintL();
   }
@@ -1058,7 +1073,7 @@ LNextPart:
       continue;
     sprintf(sz, "%3d: %23.23s ", ++h, ai[l].name); PrintSz(sz);
     PrintZodiac(rPart[l]);
-    j = HousePlaceIn(rPart[l]);
+    j = HousePlaceIn2D(rPart[l]);
     sprintf(sz, " [%2d%s] ", j, szSuffix[j]);
     AnsiColor(kSignA(j)); PrintSz(sz); AnsiColor(kDefault);
     PrintCh('(');
@@ -1151,7 +1166,7 @@ void DisplayKeysX(void)
   PrintS(" Press 'j' to toggle not clearing screen between chart updates.");
   PrintS(" Press 'v' to display current chart positions on text screen.");
   PrintS(" Press 'R', 'C', 'u', 'U' to toggle restriction status of minor");
-  PrintS("    objects, minor house cusps, uranian planets, and stars.");
+  PrintS("    objects, minor house cusps, Uranian planets, and stars.");
   PrintS(" Press 'c' to toggle relationship comparison chart mode.");
   PrintS(" Press 's', 'h', 'f', 'g', 'z', 'y' to toggle status of sidereal");
   PrintS("    zodiac, heliocentric charts, domal charts, decan charts,");
@@ -1216,11 +1231,11 @@ void DisplaySwitchesX(void)
   PrintS(" _Xb[n,c,v,a,b]: Set bitmap file output mode to X11 normal,");
   PrintS("  compacted, very compact, Ascii (bmtoa), or Windows bmp.");
 #ifdef PS
-  PrintS(" _Xp: Create PostScript stroke graphic instead of bitmap file.");
+  PrintS(" _Xp: Create PostScript vector graphic instead of bitmap file.");
   PrintS(" _Xp0: Like _Xp but create complete instead of encapsulated file.");
 #endif
 #ifdef META
-  PrintS(" _XM[0]: Create Windows metafile stroke graphic instead of bitmap.");
+  PrintS(" _XM[0]: Create Windows metafile vector graphic instead of bitmap.");
 #endif
   PrintS(" _Xo <file>: Write output bitmap or graphic to specified file.");
 #ifdef X11
@@ -1247,13 +1262,17 @@ void DisplaySwitchesX(void)
 #endif
   PrintS(" _XW: Simply create an image of the world map.");
   PrintS(" _XW0: Like _XW but do a non-rectangular Mollewide projection.");
-  PrintS(" _XG [<degrees>]: Display the image of the world as a globe.");
-  PrintS(" _XP: Like _XG but create the globe from a polar projection.");
+  PrintS(" _XG [<degrees> [<degrees>]]: Display image of world as a globe.");
+  PrintS(
+    " _XP [<degrees>]: Like _XG but create globe from a polar projection.");
 #ifdef CONSTEL
   PrintS(" _XF: Display maps as constellations on the celestial sphere.");
 #endif
 #ifdef ISG
   PrintS(" _Xn [<mode>]: Start up chart or globe display in animation mode.");
+#endif
+  PrintS(" _XM[2-4][0] <strings>: Define macro(s) to run when chart drawn.");
+#ifdef ISG
   PrintS(" _HX: Display list of key press options for screen graphics.");
 #endif
 }
@@ -1270,6 +1289,7 @@ void DisplaySwitchesW(void)
   PrintS(" _WN <1-32000>: Set animation update delay in milliseconds.");
   PrintS(" _WM <1-48> <text>: Set Windows menu text for macro command.");
   PrintS(" _Wn: Don't redraw screen until user forces update.");
+  PrintS(" _Wo: Continually autosave graphics screen to bitmap file.");
   PrintS(" _WSg: Setup Windows program group, for current user only.");
   PrintS(" _WSG: Setup Windows program group, for all users.");
   PrintS(" _WSd: Setup Windows desktop icon for program.");

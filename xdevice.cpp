@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: xdevice.cpp
+** Astrolog (Version 6.20) File: xdevice.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -199,6 +199,11 @@ void BeginFileX()
 
   if (us.fNoWrite)
     return;
+#ifdef WIN
+  if (gi.szFileOut == NULL)
+    return;
+#endif
+
 #ifndef WIN
   if (gi.szFileOut == NULL && (
 #ifdef PS
@@ -216,6 +221,7 @@ void BeginFileX()
     PrintSzScreen(line);
   }
 #endif /* WIN */
+
   loop {
 #ifndef WIN
     if (gi.szFileOut == NULL) {
@@ -228,10 +234,15 @@ void BeginFileX()
     gi.file = fopen(gi.szFileOut, gs.fPS ? "w" : "wb");
     if (gi.file != NULL)
       break;
-    else {
+#ifdef WIN
+    if (!wi.fAutoSave) {
+#endif
       PrintWarning("Couldn't create output file.");
       gi.szFileOut = NULL;
+#ifdef WIN
     }
+    break;
+#endif
   }
 }
 
@@ -245,7 +256,7 @@ void EndFileX()
 {
   char sz[cchSzDef];
 
-  if (gs.fBitmap) {
+  if (gs.fBitmap && gi.file != NULL) {
     if (gi.yBand) {
       sprintf(sz, "Writing part %d of chart bitmap to file.",
         gi.yOffset / gi.yBand + 1);
@@ -568,7 +579,7 @@ void MetaInit()
   MetaLong(14L);                          /* Bytes in string */
   MetaLong(LFromBB('A', 's', 't', 'r'));  /* "Astr" */
   MetaLong(LFromBB('o', 'l', 'o', 'g'));  /* "olog" */
-  MetaLong(LFromBB(' ', '6', '.', '1'));  /* " 6.1" */
+  MetaLong(LFromBB(' ', '6', '.', '2'));  /* " 6.2" */
   MetaWord(WFromBB('0', 0));              /* "0"    */
   MetaSaveDc();
   MetaWindowOrg(0, 0);

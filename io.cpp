@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: io.cpp
+** Astrolog (Version 6.20) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -213,8 +213,8 @@ flag FOutputData(void)
       return fFalse;
     }
     if (us.fWriteOld) {
-      fprintf(file, "%d\n%d\n%d\n%.2f\n%.2f\n%.2f\n%.2f\n",
-        Mon, Day, Yea, Tim, Zon-Dst, Lon, Lat);
+      fprintf(file, "%d\n%d\n%d\n%.2f\n%.2f\n%.2f\n%.2f\n", Mon, Day, Yea,
+        DegToDec(Tim), DegToDec(Zon-Dst), DegToDec(Lon), DegToDec(Lat));
     } else {
       fprintf(file, "@0103  ; %s chart info.\n", szAppName);
       i = us.fAnsiChar;
@@ -247,7 +247,7 @@ flag FOutputData(void)
           i = oAsc-1;
         else if (i == oAsc)
           i = oVtx-1;
-        else if (i == oVtx)    /* Skip minor cusps to write uranians  */
+        else if (i == oVtx)    /* Skip minor cusps to write Uranians  */
           i = us.fUranian ? uranLo-1 : cObj;
       }
       for (i = 1; i <= cSign/2; i++) {   /* Write first six cusp positions */
@@ -273,7 +273,7 @@ flag FOutputData(void)
           (int)planetalt[i], RFract(RAbs(planetalt[i]))*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :
           RSqr(spacex[i]*spacex[i]+spacey[i]*spacey[i]+spacez[i]*spacez[i]));
-        fprintf(file, "%14.9f%14.9f\n", DFromR(ret[i]), rT);
+        fprintf(file, "%14.9f%14.9f\n", ret[i], rT);
       }
     }
   }
@@ -303,7 +303,7 @@ flag FOutputData(void)
 int NParseSz(CONST char *szEntry, int pm)
 {
   char szLocal[cchSzMax], ch0, ch1, ch2, ch3;
-  CONST char *sz, *pch;
+  CONST char *sz;
   int cch, n, i;
 
   /* First strip off any leading or trailing spaces. */
@@ -319,19 +319,19 @@ int NParseSz(CONST char *szEntry, int pm)
     switch (pm) {
     /* Parse months, e.g. "February" or "Feb" -> 2 for February. */
     case pmMon:
-      for (i = 1; i <= cSign; i++) {
-        if (ch0 == szMonth[i][0] && ch1 == szMonth[i][1] &&
-          ch2 == szMonth[i][2])
+      for (i = 1; i <= cSign; i++)
+        if (FMatchSz(sz, szMonth[i]))
           return i;
-      }
       break;
     /* Parse planets, e.g. "Jupiter" or "Jup" -> 6 for Jupiter. */
     case pmObject:
       ch3 = ChUncap(sz[3]);
       for (i = 0; i <= cObj; i++) {
+        if (FMatchSz(sz, szObjName[i]))
+          return i;
+        /* Old style -o0 position files have "XXX:" format for planets. */
         if (ch0 == szObjName[i][0] && ch1 == szObjName[i][1] &&
-          ch2 == szObjName[i][2] &&
-          (ch3 == chNull || ch3 == ':' || ch3 == szObjName[i][3]))
+          ch2 == szObjName[i][2] && ch3 == ':')
           return i;
       }
       /* Allow "Node" to match North Node for compatibility with version */
@@ -343,38 +343,33 @@ int NParseSz(CONST char *szEntry, int pm)
       break;
     /* Parse aspects, e.g. "Conjunct" or "Con" -> 1 for the Conjunction. */
     case pmAspect:
-      for (i = 1; i <= cAspect; i++) {
-        pch = SzAspectAbbrev(i);
-        if (ch0 == pch[0] && ch1 == ChUncap(pch[1]) && ch2 == pch[2])
+      for (i = 1; i <= cAspect; i++)
+        if (FMatchSz(sz, SzAspectAbbrev(i)))
           return i;
-      }
+      i = SzLookup(rgAspectName, szEntry);
+      if (i >= 0)
+        return i;
       break;
     /* Parse house systems, e.g. "Koch" or "Koc" -> 1 for Koch houses. */
     case pmSystem:
-      for (i = 0; i < cSystem; i++) {
-        if (ch0 == szSystem[i][0] && ch1 == szSystem[i][1] &&
-          ch2 == szSystem[i][2])
+      for (i = 0; i < cSystem; i++)
+        if (FMatchSz(sz, szSystem[i]))
           return i;
-      }
       i = SzLookup(rgSystem, szEntry);
       if (i >= 0)
         return i;
       break;
     /* Parse zodiac signs, e.g. "Scorpio" or "Sco" -> 8 for Scorpio. */
     case pmSign:
-      for (i = 1; i <= cSign; i++) {
-        if (ch0 == szSignName[i][0] && ch1 == szSignName[i][1] &&
-          ch2 == szSignName[i][2])
+      for (i = 1; i <= cSign; i++)
+        if (FMatchSz(sz, szSignName[i]))
           return i;
-      }
       break;
     /* Parse colors, e.g. "White" or "Whi" -> 15 for White. */
     case pmColor:
-      for (i = 0; i < cColor+2; i++) {
-        if (ch0 == szColor[i][0] && ch1 == szColor[i][1] &&
-          ch2 == ChUncap(szColor[i][2]))
+      for (i = 0; i < cColor+2; i++)
+        if (FMatchSz(sz, szColor[i]))
           return i;
-      }
       if (!FNumCh(ch0))
         return -1;
       break;
@@ -407,9 +402,9 @@ int NParseSz(CONST char *szEntry, int pm)
 
 real RParseSz(CONST char *szEntry, int pm)
 {
-  char szLocal[cchSzMax], *sz, *pch, ch;
-  int cch, i;
-  flag f = fFalse, fPeriod;
+  char szLocal[cchSzMax], *sz, *pch, ch, chT;
+  int cch, i, cColon = 0;
+  flag fNeg = fFalse;
   real r;
 
   /* First strip off any leading or trailing spaces. */
@@ -419,15 +414,9 @@ real RParseSz(CONST char *szEntry, int pm)
     szLocal[--cch] = chNull;
   for (sz = szLocal; *sz && *sz <= ' '; sz++, cch--);
     ;
-  /* Capitalize all letters and make colons be periods to be like numbers. */
-  for (pch = sz; *pch; pch++) {
-    ch = *pch;
-    if (ch == ':')
-      ch = '.';
-    else
-      ch = ChCap(ch);
-    *pch = ch;
-  }
+  /* Capitalize all letters. */
+  for (pch = sz; *pch; pch++)
+    *pch = ChCap(*pch);
   ch = sz[0];
 
   if (pm == pmTim) {
@@ -445,20 +434,8 @@ real RParseSz(CONST char *szEntry, int pm)
     else if (ch == 'S' || ch == 'N' || ch == 'F')
       return 0.0;
     /* Check for "Autodetect" Daylight time. */
-    if (ch == 'A') {
-#ifdef WIN
-      SYSTEMTIME st0, st1;
-
-      GetSystemTime(&st0);
-      GetLocalTime(&st1);
-      i = abs(st0.wHour - st1.wHour);
-      if (i > 12)
-        i = 24-i;
-      return i == us.zonDef-1 ? 1.0 : 0.0;
-#else
-      return 0.0;
-#endif
-    }
+    else if (ch == 'A')
+      return 24.0;
   } else if (pm == pmZon) {
     /* For time zones, see if the abbrev is in a table, e.g. "EST" -> 5. */
     for (i = 0; i < cZone; i++)
@@ -468,33 +445,31 @@ real RParseSz(CONST char *szEntry, int pm)
     /* For locations, negate the value for an "E" or "S" in the middle    */
     /* somewhere (e.g. "105E30" or "27:40S") for eastern/southern values. */
     for (i = 0; i < cch; i++) {
-      ch = sz[i];
-      if (FCapCh(ch)) {
-        if (ch == 'E' || ch == 'S')
-          f = fTrue;
-        sz[i] = '.';
-        i = cch;
+      chT = sz[i];
+      if (FCapCh(chT)) {
+        if (chT == 'E' || chT == 'S')
+          fNeg = fTrue;
+        sz[i] = ':';
+        break;
       }
     }
-    ch = sz[0];
   }
 
   /* Anything still at this point should be in a numeric format. */
   if (!FNumCh(ch) && ch != '+' && ch != '-' && ch != '.')
     return rLarge;
   r = atof(sz);
-  fPeriod = fFalse;
-  for (pch = sz; FNumCh(*pch) || *pch == '-' || *pch == '+' || *pch == '.';
-    pch++) {
-    if (*pch == '.') {
-      if (fPeriod) {
-        r += (atof(pch+1) / (100.0*60.0));
-        break;
-      }
-      fPeriod = fTrue;
-    }
+  for (pch = sz; *pch && *pch != ':'; pch++)
+    ;
+  if (*pch == ':') {
+    pch++;
+    r += atof(pch) / 60.0;
+    while (*pch && *pch != ':')
+      pch++;
+    if (*pch == ':')
+      r += atof(pch+1) / (60.0*60.0);
   }
-  if (f)
+  if (fNeg)
     neg(r);
 
   if (pm == pmTim) {
@@ -507,10 +482,10 @@ real RParseSz(CONST char *szEntry, int pm)
     if (i && sz[i] == '.')
       i--;
     if (i) {
-      ch = sz[i];
-      if (ch == 'A')                   /* Adjust value appropriately */
+      chT = sz[i];
+      if (chT == 'A')                  /* Adjust value appropriately */
         r = r >= 12.0 ? r-12.0 : r;    /* if AM or PM suffix.        */
-      else if (ch == 'P')
+      else if (chT == 'P')
         r = r >= 12.0 ? r : r+12.0;
     }
   } else if (pm == pmZon) {
@@ -523,6 +498,11 @@ real RParseSz(CONST char *szEntry, int pm)
     i = Max(cch-1, 0);
     if (sz[i] == 'F' || sz[i] == 'T')
       r *= rFtToM;
+  } else if (pm == pmLength) {
+    /* Check for "cent" or "cm" suffix for centimeters instead of inches. */
+    i = Max(cch-1, 0);
+    if (sz[i] == 'C' || sz[i] == 'M')
+      r /= rInToCm;
   }
   return r;
 }
@@ -624,6 +604,30 @@ flag FInputData(CONST char *szFile)
     return fTrue;
   }
 
+  /* If we are to read from the virtual file "__1" through "__4" then that */
+  /* means copy the chart information from the specified chart slot.       */
+
+  if (NCompareSz(szFile, "__1") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciMain;
+    return fTrue;
+  }
+  if (NCompareSz(szFile, "__2") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciTwin;
+    return fTrue;
+  }
+  if (NCompareSz(szFile, "__3") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciThre;
+    return fTrue;
+  }
+  if (NCompareSz(szFile, "__4") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciFour;
+    return fTrue;
+  }
+
 #ifdef TIME
   /* If we are to read from the file "now" then that means use the time */
   /* functions to calculate the present date and time.                  */
@@ -631,7 +635,7 @@ flag FInputData(CONST char *szFile)
   if (NCompareSz(szFile, szNowCore) == 0) {
     is.fHaveInfo = fTrue;
     SS = us.dstDef; ZZ = us.zonDef; OO = us.lonDef; AA = us.latDef;
-    GetTimeNow(&MM, &DD, &YY, &TT, ZZ-SS);
+    GetTimeNow(&MM, &DD, &YY, &TT, SS, ZZ);
     ciCore.nam = us.namDef; ciCore.loc = us.locDef;
     return fTrue;
   }
@@ -660,7 +664,7 @@ flag FInputData(CONST char *szFile)
       1, 12, pmMon);
     DD = NInputRange("Enter day   for chart (e.g. '1' '31') ",
       1, DayInMonth(MM, 0), pmDay);
-    YY = NInputRange("Enter year  for chart (e.g. '2016')   ",
+    YY = NInputRange("Enter year  for chart (e.g. '2017')   ",
       -32000, 32000, pmYea);
     if (FBetween(YY, 0, 99)) {
       sprintf(sz,
@@ -719,6 +723,8 @@ flag FInputData(CONST char *szFile)
     SS = 0.0;
     fscanf(file, "%d%d%d", &MM, &DD, &YY);
     fscanf(file, "%lf%lf%lf%lf", &TT, &ZZ, &OO, &AA);
+    TT = DecToDeg(TT); ZZ = DecToDeg(ZZ);
+    OO = DecToDeg(OO); AA = DecToDeg(AA);
     if (!FValidMon(MM) || !FValidDay(DD, MM, YY) || !FValidYea(YY) ||
       !FValidTim(TT) || !FValidZon(ZZ) || !FValidLon(OO) || !FValidLat(AA)) {
       PrintWarning("Values in old style chart info file are out of range.");
@@ -742,9 +748,9 @@ flag FInputData(CONST char *szFile)
       if ((m = k+l/60.0) > rDegHalf)
         m = rDegMax - m;
       planetalt[i] = m;
-      ret[i] = RFromD(sz[1] == 'D' ? 1.0 : -1.0);
+      ret[i] = sz[1] == 'D' ? 1.0 : -1.0;
 
-      /* -o0 files from versions 3.05 and before don't have the uranians in  */
+      /* -o0 files from versions 3.05 and before don't have the Uranians in  */
       /* them. Be prepared to skip over them in old files for compatibility. */
 
       if (i == oVtx) {

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: general.cpp
+** Astrolog (Version 6.20) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -70,7 +70,7 @@ void SwapR(real *d1, real *d2)
 
 int CchSz(CONST char *sz)
 {
-  char *pch = (char *)sz;
+  CONST char *pch = sz;
 
   while (*pch)
     pch++;
@@ -81,11 +81,24 @@ int CchSz(CONST char *sz)
 /* Compare two strings. Return 0 if they are equal, a positive value if  */
 /* the first string is greater, and a negative if the second is greater. */
 
-int NCompareSz(CONST char *s1, CONST char *s2)
+int NCompareSz(CONST char *sz1, CONST char *sz2)
 {
-  while (*s1 && *s1 == *s2)
-    s1++, s2++;
-  return *s1 - *s2;
+  while (*sz1 && *sz1 == *sz2)
+    sz1++, sz2++;
+  return (uchar)*sz1 - (uchar)*sz2;
+}
+
+
+/* Return whether the first string matches the second, case insensitively.  */
+/* The first string may be truncated, but the first three chars must match. */
+
+int FMatchSz(CONST char *sz1, CONST char *sz2)
+{
+  CONST char *szStart = sz1;
+
+  while (*sz1 && ChCap(*sz1) == ChCap(*sz2))
+    sz1++, sz2++;
+  return *sz2 == chNull || (*sz1 == chNull && sz1 - szStart >= 3);
 }
 
 
@@ -293,25 +306,33 @@ char *Dignify(int obj, int sign)
     goto LExit;
 
   /* Check standard rulerships. */
-  if (ruler1[obj] == sign || ruler2[obj] == sign)
-    szDignify[1] = 'R';
-  else if (ruler1[obj] == sign2 || ruler2[obj] == sign2)
-    szDignify[1] = 'd';
-  if (exalt[obj] == sign)
-    szDignify[4] = 'X';
-  else if (exalt[obj] == sign2)
-    szDignify[4] = 'f';
+  if (!ignore7[0]) {
+    if (ruler1[obj] == sign || ruler2[obj] == sign)
+      szDignify[1] = 'R';
+    else if (ruler1[obj] == sign2 || ruler2[obj] == sign2)
+      szDignify[1] = 'd';
+  }
+  if (!ignore7[3]) {
+    if (exalt[obj] == sign)
+      szDignify[4] = 'X';
+    else if (exalt[obj] == sign2)
+      szDignify[4] = 'f';
+  }
 
   /* Check esoteric rulerships. */
-  if (us.fListingEso) {
+  if (!ignore7[1]) {
     if (rgObjEso1[obj] == sign || rgObjEso2[obj] == sign)
       szDignify[2] = 'S';
     else if (rgObjEso1[obj] == sign2 || rgObjEso2[obj] == sign2)
       szDignify[2] = 's';
+  }
+  if (!ignore7[2]) {
     if (rgObjHie1[obj] == sign || rgObjHie2[obj] == sign)
       szDignify[3] = 'H';
     else if (rgObjHie1[obj] == sign2 || rgObjHie2[obj] == sign2)
       szDignify[3] = 'h';
+  }
+  if (!ignore7[4]) {
     ray = rgObjRay[obj];
     if (ray > 0) {
       if (rgSignRay2[sign][ray] > 0)
@@ -320,6 +341,7 @@ char *Dignify(int obj, int sign)
         szDignify[5] = 'z';
     }
   }
+
 LExit:
   for (ich = 1; ich <= 5; ich += ich == 1 ? 3 :
     (ich == 4 ? -2 : (ich == 3 ? 2 : 1))) {
@@ -434,12 +456,12 @@ real GetOrb(int obj1, int obj2, int asp)
   real orb, r;
 
   orb = rAspOrb[asp];
-  r = rObjOrb[Min(obj1, oNorm+1)];
+  r = rObjOrb[Min(obj1, oNorm1)];
   orb = Min(orb, r);
-  r = rObjOrb[Min(obj2, oNorm+1)];
+  r = rObjOrb[Min(obj2, oNorm1)];
   orb = Min(orb, r);
-  orb += rObjAdd[Min(obj1, oNorm+1)];
-  orb += rObjAdd[Min(obj2, oNorm+1)];
+  orb += rObjAdd[Min(obj1, oNorm1)];
+  orb += rObjAdd[Min(obj2, oNorm1)];
   return orb;
 }
 
@@ -863,14 +885,21 @@ char *SzDegree(real deg)
   real s;
 
   deg = RAbs(deg);
-  if (us.fRound)
-    deg += (is.fSeconds ? rRound/60.0/60.0 : rRound/60.0);
-  d = (int)deg;
-  m = (int)(RFract(deg)*60.0);
-  sprintf(szPos, "%3d%c%02d'", d, chDeg1, m);
-  if (is.fSeconds) {
-    s = RFract(deg)*60.0; s = RFract(s)*60.0;
-    sprintf(&szPos[7], "%02d\"", (int)s);
+  if (us.nDegForm != 2) {
+    if (us.fRound)
+      deg += (is.fSeconds ? rRound/60.0/60.0 : rRound/60.0);
+    d = (int)deg;
+    m = (int)(RFract(deg)*60.0);
+    sprintf(szPos, "%3d%c%02d'", d, chDeg1, m);
+    if (is.fSeconds) {
+      s = RFract(deg)*60.0; s = RFract(s)*60.0;
+      sprintf(&szPos[7], "%02d\"", (int)s);
+    }
+  } else {
+    if (!is.fSeconds)
+      sprintf(szPos, "%7.3f", deg);
+    else
+      sprintf(szPos, "%10.6f", deg);
   }
   return szPos;
 }
@@ -889,7 +918,7 @@ char *SzDate(int mon, int day, int yea, int nFormat)
     switch (nFormat) {
     case  2: sprintf(szDat, "%2d %.3s%5d", day, szMonth[mon], yea);  break;
     case  1: sprintf(szDat, "%d %s %d", day, szMonth[mon], yea);     break;
-    case -1: sprintf(szDat, "%2d-%2d-%2d", day, mon, abs(yea)%100);  break;
+    case -1: sprintf(szDat, "%2d-%2d-%2d", day, mon, NAbs(yea)%100); break;
     default: sprintf(szDat, "%2d-%2d-%4d", day, mon, yea);           break;
     }
   } else {
@@ -897,7 +926,7 @@ char *SzDate(int mon, int day, int yea, int nFormat)
     case  3: sprintf(szDat, "%.3s %2d, %d", szMonth[mon], day, yea); break;
     case  2: sprintf(szDat, "%.3s %2d%5d", szMonth[mon], day, yea);  break;
     case  1: sprintf(szDat, "%s %d, %d", szMonth[mon], day, yea);    break;
-    case -1: sprintf(szDat, "%2d/%2d/%2d", mon, day, abs(yea)%100);  break;
+    case -1: sprintf(szDat, "%2d/%2d/%2d", mon, day, NAbs(yea)%100); break;
     default: sprintf(szDat, "%2d/%2d/%4d", mon, day, yea);           break;
     }
   }
@@ -942,8 +971,8 @@ char *SzTime(int hr, int min, int sec)
 char *SzTim(real tim)
 {
   tim += rSmall;
-  return SzTime(NFloor(tim), (int)(RFract(RAbs(tim))*100.0),
-    is.fSeconds ? (int)(RFract(RAbs(tim))*6000.0) % 60 : -1);
+  return SzTime(NFloor(tim), (int)(RFract(RAbs(tim))*60.0),
+    is.fSeconds ? (int)(RFract(RAbs(tim))*3600.0) % 60 : -1);
 }
 
 
@@ -954,7 +983,7 @@ char *SzZone(real zon)
 {
   static char szZon[7];
 
-  sprintf(szZon, "%d:%02d%c", (int)RAbs(zon), (int)(RFract(RAbs(zon))*100.0+
+  sprintf(szZon, "%d:%02d%c", (int)RAbs(zon), (int)(RFract(RAbs(zon))*60.0+
     rRound/60.0), zon < 0.0 ? 'E' : 'W');
   return szZon;
 }
@@ -968,7 +997,7 @@ char *SzLocation(real lon, real lat)
 {
   static char szLoc[21];
   int i, j, i2, j2;
-  char ch;
+  char chDeg, chLon, chLat;
 
   if (us.fRound) {
     lon = RSgn(lon) *
@@ -979,31 +1008,51 @@ char *SzLocation(real lon, real lat)
     lon = RSgn(lon) * (RAbs(lon) + rSmall);
     lat = RSgn(lat) * (RAbs(lat) + rSmall);
   }
-  i = (int)(RFract(RAbs(lon))*100.0);
-  j = (int)(RFract(RAbs(lat))*100.0);
+  i = (int)(RFract(RAbs(lon))*60.0);
+  j = (int)(RFract(RAbs(lat))*60.0);
   if (is.fSeconds) {
-    i2 = (int)(RFract(RAbs(lon))*6000.0) % 60;
-    j2 = (int)(RFract(RAbs(lat))*6000.0) % 60;
+    i2 = (int)(RFract(RAbs(lon))*3600.0) % 60;
+    j2 = (int)(RFract(RAbs(lat))*3600.0) % 60;
   }
-  ch = us.fAnsiChar > 1 ? 176 : chDeg1;
+  chLon = (lon < 0.0 ? 'E' : 'W');
+  chLat = (lat < 0.0 ? 'S' : 'N');
   if (us.fAnsiChar != 3) {
-    if (!is.fSeconds)
-      sprintf(szLoc, "%3.0f%c%02d%c%3.0f%c%02d%c",
-        RFloor(RAbs(lon)), ch, i, lon < 0.0 ? 'E' : 'W',
-        RFloor(RAbs(lat)), ch, j, lat < 0.0 ? 'S' : 'N');
-    else
-      sprintf(szLoc, "%3.0f%c%02d:%02d%c%3.0f%c%02d:%02d%c",
-        RFloor(RAbs(lon)), ch, i, i2, lon < 0.0 ? 'E' : 'W',
-        RFloor(RAbs(lat)), ch, j, j2, lat < 0.0 ? 'S' : 'N');
+    chDeg = us.fAnsiChar > 1 ? 176 : chDeg1;
+    if (us.nDegForm != 2) {
+      if (!is.fSeconds)
+        sprintf(szLoc, "%3.0f%c%02d%c%3.0f%c%02d%c",
+          RFloor(RAbs(lon)), chDeg, i, chLon,
+          RFloor(RAbs(lat)), chDeg, j, chLat);
+      else
+        sprintf(szLoc, "%3.0f%c%02d:%02d%c%3.0f%c%02d:%02d%c",
+          RFloor(RAbs(lon)), chDeg, i, i2, chLon,
+          RFloor(RAbs(lat)), chDeg, j, j2, chLat);
+    } else {
+      if (!is.fSeconds)
+        sprintf(szLoc, "%6.2f%c%6.2f%c",
+          RAbs(lon), chLon, RAbs(lat), chLat);
+      else
+        sprintf(szLoc, "%9.5f%c%9.5f%c",
+          RAbs(lon), chLon, RAbs(lat), chLat);
+    }
   } else {
-    if (!is.fSeconds)
-      sprintf(szLoc, "%3.0f%c%02d%3.0f%c%02d",
-        RFloor(RAbs(lon)), lon < 0.0 ? 'E' : 'W', i,
-        RFloor(RAbs(lat)), lat < 0.0 ? 'S' : 'N', j);
-    else
-      sprintf(szLoc, "%3.0f%c%02d:%02d%3.0f%c%02d:%02d",
-        RFloor(RAbs(lon)), lon < 0.0 ? 'E' : 'W', i, i2,
-        RFloor(RAbs(lat)), lat < 0.0 ? 'S' : 'N', j, j2);
+    if (us.nDegForm != 2) {
+      if (!is.fSeconds)
+        sprintf(szLoc, "%3.0f%c%02d%3.0f%c%02d",
+          RFloor(RAbs(lon)), chLon, i,
+          RFloor(RAbs(lat)), chLat, j);
+      else
+        sprintf(szLoc, "%3.0f%c%02d:%02d%3.0f%c%02d:%02d",
+          RFloor(RAbs(lon)), chLon, i, i2,
+          RFloor(RAbs(lat)), chLat, j, j2);
+    } else {
+      if (!is.fSeconds)
+        sprintf(szLoc, "%5.1f%c%5.1f%c",
+          RAbs(lon), chLon, RAbs(lat), chLat);
+      else
+        sprintf(szLoc, "%8.4f%c%8.4f%c",
+          RAbs(lon), chLon, RAbs(lat), chLat);
+    }
   }
   return szLoc;
 }
@@ -1017,7 +1066,7 @@ char *SzElevation(real elv)
   static char szElev[21];
   char *pch;
 
-  sprintf(szElev, "%.2f", us.fEuroDist ? us.elvDef : us.elvDef / rFtToM);
+  sprintf(szElev, "%.2f", us.fEuroDist ? elv : elv / rFtToM);
   for (pch = szElev; *pch; pch++)
     ;
   while (*(--pch) == '0')  /* Drop off any trailing 0 digits. */
@@ -1030,24 +1079,56 @@ char *SzElevation(real elv)
 }
 
 
+/* Format and return a string containing a relatively short length,     */
+/* displayed in either inches or centimeters, as used with paper sizes. */
+
+char *SzLength(real len)
+{
+  static char szLen[21];
+  char *pch;
+
+  sprintf(szLen, "%.2f", !us.fEuroDist ? len : len * rInToCm);
+  for (pch = szLen; *pch; pch++)
+    ;
+  while (*(--pch) == '0')  /* Drop off any trailing 0 digits. */
+    ;
+  if (*pch != '.')
+    pch++;
+  *pch = chNull;
+  sprintf(pch, "%s", us.fEuroDist ? "cm" : "in");
+  return szLen;
+}
+
+
 #ifdef TIME
 /* Compute the date and time it is right now as the program is running      */
 /* using the computer's internal clock. We do this by getting the number    */
 /* of seconds which have passed since January 1, 1970 and going from there. */
 /* The time return value filled is expressed in the given zone parameter.   */
 
-void GetTimeNow(int *mon, int *day, int *yea, real *tim, real zon)
+void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
 {
 #ifdef WIN
-  SYSTEMTIME st;
+  SYSTEMTIME st, lt;
   real jd;
+  int dh;
 
   GetSystemTime(&st);
+  if (dst == 24.0) {
+    /* Daylight field of 24 means autodetect whether Daylight Saving Time. */
+
+    GetLocalTime(&lt);
+    dh = NAbs(st.wHour - lt.wHour);
+    if (dh > 12)
+      dh = 24-dh;
+    is.fDst = (dh == us.zonDef-1);
+    dst = (real)is.fDst;
+  }
   jd = MdytszToJulian(st.wMonth, st.wDay, st.wYear,
-    DegToDec((real)(((st.wHour * 60 + st.wMinute + us.lTimeAddition) * 60 +
-    st.wSecond) * 1000 + st.wMilliseconds) / (60.0 * 60.0 * 1000.0)),
-    0.0, -zon);
-  *tim = DegToDec((jd - RFloor(jd)) * 24.0);
+    (real)(((st.wHour * 60 + st.wMinute + us.lTimeAddition) * 60 +
+    st.wSecond) * 1000 + st.wMilliseconds) / (60.0 * 60.0 * 1000.0),
+    0.0, -(zon-dst));
+  *tim = (jd - RFloor(jd)) * 24.0;
   JulianToMdy(jd - 0.5, mon, day, yea);
 #else
   time_t curtimer;
@@ -1059,10 +1140,10 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real zon)
   curtimer = curtimer / 60 + us.lTimeAddition;
   min = (int)(curtimer % 60);
   curtimer /= 60;
-#ifdef MAC
+#ifdef MACOLD
   curtimer += 8;
 #endif
-  hr = (real)(curtimer % 24) - DecToDeg(zon);
+  hr = (real)(curtimer % 24) - (zon-dst);
   curtimer /= 24;
   while (hr < 0.0) {
     curtimer--;
@@ -1074,7 +1155,7 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real zon)
   }
   curtimer += ldTime;  /* Number of days between 1/1/1970 and 1/1/4713 BC. */
   JulianToMdy((real)curtimer, mon, day, yea);
-  *tim = hr + (real)min / 100.0 + (real)sec / 6000.0;
+  *tim = HMS(hr, min, sec);
 #endif /* WIN */
 }
 #endif /* TIME */

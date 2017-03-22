@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.10) File: xcharts2.cpp
+** Astrolog (Version 6.20) File: xcharts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2016 by
+** not enumerated below used in this program are Copyright (C) 1991-2017 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -17,7 +17,7 @@
 **
 ** Additional ephemeris databases and formulas are from the calculation
 ** routines in the program PLACALC and are programmed and Copyright (C)
-** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@azur.ch). The
+** 1989,1991,1993 by Astrodienst AG and Alois Treindl (alois@astro.ch). The
 ** use of that source code is subject to regulations made by Astrodienst
 ** Zurich, and the code is not in the public domain. This copyright notice
 ** must not be changed or removed by any user of this program.
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2016.
+** Last code change made 3/19/2017.
 */
 
 #include "astrolog.h"
@@ -70,7 +70,7 @@ flag FProper(int i)
   if (gi.nMode == gOrbit)
     f &= FThing(i) &&
       (us.fEphemFiles || (i != oMoo && i != oNod && i != oSou));
-  else if (gi.nMode == gHorizon || gi.nMode == gSector ||
+  else if ((gi.nMode == gHorizon && !us.fHouse3D) || gi.nMode == gSector ||
     fMap || gi.nMode == gGlobe || gi.nMode == gPolar)
     f &= FThing(i);
   else if (gi.nMode == gEphemeris)
@@ -196,15 +196,67 @@ real PlaceInX(real deg)
 /* and compacting of parts the zodiac that happen when we display a graphic */
 /* wheel chart such that all the houses appear the same size.               */
 
-real HousePlaceInX(real deg)
+real HousePlaceInX(real deg, real degalt)
 {
   int in;
+  real rIn;
 
+  if (us.fHouse3D && degalt != 0.0) {
+    rIn = HousePlaceIn3D(deg, degalt) / 30.0;
+    in = (int)rIn + 1;
+    deg = Mod(chouse[in] +
+      (rIn - RFloor(rIn)) * MinDistance(chouse[in], chouse[Mod12(in+1)]));
+  }
   if (gi.nMode == gWheel)    /* We only adjust for the -w -X combination. */
     return deg;
-  in = HousePlaceIn(deg);
+  in = HousePlaceIn2D(deg);
   return Mod(ZFromS(in)+MinDistance(chouse[in], deg)/
     MinDistance(chouse[in], chouse[Mod12(in+1)])*30.0);
+}
+
+
+/* Draw lines connecting planets between two charts that have aspects. Used */
+/* when creating bi-wheels and beyond.                                      */
+
+void DrawAspectRelation(int n1, int n2, real obj1[objMax], real obj2[objMax],
+  int cx, int cy, real rx, real ry, real rz)
+{
+  CP cpA, cpB;
+  int i, j;
+
+  if (n1 != 1) {
+    cpA = cp1;
+    switch (n1) {
+    case 2: cp1 = cp2; break;
+    case 3: cp1 = cp3; break;
+    }
+  }
+  if (n2 != 2) {
+    cpB = cp2;
+    switch (n2) {
+    case 3: cp2 = cp3; break;
+    case 4: cp2 = cp4; break;
+    }
+  }
+
+  if (!FCreateGridRelation(fFalse))
+    goto LExit;
+  for (j = cObj; j >= 0; j--)
+    for (i = cObj; i >= 0; i--)
+      if (grid->n[i][j] && FProper2(i) && FProper(j)) {
+        DrawColor(kAspB[grid->n[i][j]]);
+        DrawDash(cx+POINT1(rx, rz, PX(obj1[j])),
+          cy+POINT1(ry, rz, PY(obj1[j])),
+          cx+POINT1(rx, rz, PX(obj2[i])),
+          cy+POINT1(ry, rz, PY(obj2[i])),
+          abs(grid->v[i][j]/(60*60*2)));
+      }
+
+LExit:
+  if (n1 != 1)
+    cp1 = cpA;
+  if (n2 != 2)
+    cp2 = cpB;
 }
 
 
@@ -215,15 +267,15 @@ real HousePlaceInX(real deg)
 */
 
 /* Draw another wheel chart; however, this time we have two rings of planets */
-/* because we are doing a relationship chart between two sets of data. This  */
-/* chart is obtained when the -r0 is combined with the -X switch.            */
+/* because we are doing a bi-wheel relationship chart between two sets of    */
+/* data. This chart is obtained when the -r0 is combined with the -X switch. */
 
 void XChartWheelRelation()
 {
   real xsign[cSign+1], xhouse1[cSign+1], xplanet1[objMax], xplanet2[objMax],
     symbol[objMax];
   byte ignoreT[objMax];
-  int cx, cy, i, j;
+  int cx, cy, i;
   real unitx, unity, temp;
   CI ciT;
 
@@ -250,11 +302,11 @@ void XChartWheelRelation()
       xhouse1[i] = PZ(ZFromS(i));
   }
   for (i = 1; i <= cSign; i++)
-    xsign[i] = PZ(HousePlaceInX(ZFromS(i)));
+    xsign[i] = PZ(HousePlaceInX(ZFromS(i), 0.0));
   for (i = 0; i <= cObj; i++)
-    xplanet1[i] = PZ(HousePlaceInX(cp1.obj[i]));
+    xplanet1[i] = PZ(HousePlaceInX(cp1.obj[i], cp1.alt[i]));
   for (i = 0; i <= cObj; i++)
-    xplanet2[i] = PZ(HousePlaceInX(cp2.obj[i]));
+    xplanet2[i] = PZ(HousePlaceInX(cp2.obj[i], cp2.alt[i]));
 
   /* Go draw the outer sign and house rings. We are drawing only the */
   /* houses of one of the two charts in the relationship, however.   */
@@ -268,6 +320,7 @@ void XChartWheelRelation()
   /* in the outer ring, and then draw another line from this point to a    */
   /* another dot at the same position in the inner ring as well.           */
 
+  FProcessCommandLine(szWheelX[2]);
   for (i = 0; i <= cObj; i++)
     symbol[i] = xplanet2[i];
   if (us.nRel == rcTransit)
@@ -308,28 +361,18 @@ void XChartWheelRelation()
   /* this would be just like the standard non-relationship wheel chart with */
   /* only one set of planets. Again, draw glyph, and a line to true point.  */
 
+  FProcessCommandLine(szWheelX[1]);
   for (i = 0; i <= cObj; i++)
     symbol[i] = xplanet1[i];
   FillSymbolRing(symbol, 1.1);
   DrawSymbolRing(symbol, xplanet1, cp1.dir, cx, cy, unitx, unity,
     0.43, 0.45, 0.48, 0.52);
+  FProcessCommandLine(szWheelX[0]);
 
   /* Draw lines connecting planets between the two charts that have aspects. */
 
-  if (!gs.fAlt) {                      /* Don't draw aspects in bonus mode. */
-    if (!FCreateGridRelation(fFalse))
-      return;
-    for (j = cObj; j >= 0; j--)
-      for (i = cObj; i >= 0; i--)
-        if (grid->n[i][j] && FProper2(i) && FProper(j)) {
-          DrawColor(kAspB[grid->n[i][j]]);
-          DrawDash(cx+POINT1(unitx, 0.41, PX(xplanet1[j])),
-            cy+POINT1(unity, 0.41, PY(xplanet1[j])),
-            cx+POINT1(unitx, 0.41, PX(xplanet2[i])),
-            cy+POINT1(unity, 0.41, PY(xplanet2[i])),
-            abs(grid->v[i][j]/(60*60*2)));
-        }
-  }
+  if (!gs.fAlt)
+    DrawAspectRelation(1, 2, xplanet1, xplanet2, cx, cy, unitx, unity, 0.41);
 
   /* Go draw sidebar with chart information and positions if need be. */
 
@@ -350,10 +393,9 @@ void XChartWheelRelation()
 void XChartWheelThreeFour()
 {
   real xsign[cSign+1], xhouse1[cSign+1], xplanet1[objMax], xplanet2[objMax],
-    symbol[objMax];
+    xplanet3[objMax], xplanet4[objMax], symbol[objMax];
   int cx, cy, i, fQuad;
   real unitx, unity, base;
-  CP cpT;
 
   /* Set up variables and temporarily automatically decrease the horizontal */
   /* chart size to leave room for the sidebar if that mode is in effect.    */
@@ -370,7 +412,7 @@ void XChartWheelThreeFour()
   base = (fQuad ? 0.22 : 0.35);
 
   /* Fill out arrays with the degrees of the cusps and sign glyphs, and the */
-  /* positions of the outer two rings.                                      */
+  /* positions of the planet rings.                                         */
 
   if (gi.nMode == gWheel) {
     for (i = 1; i <= cSign; i++)
@@ -381,11 +423,14 @@ void XChartWheelThreeFour()
       xhouse1[i] = PZ(ZFromS(i));
   }
   for (i = 1; i <= cSign; i++)
-    xsign[i] = PZ(HousePlaceInX(ZFromS(i)));
-  for (i = 0; i <= cObj; i++)
-    xplanet1[i] = PZ(HousePlaceInX(cp1.obj[i]));
-  for (i = 0; i <= cObj; i++)
-    xplanet2[i] = PZ(HousePlaceInX(cp2.obj[i]));
+    xsign[i] = PZ(HousePlaceInX(ZFromS(i), 0.0));
+  for (i = 0; i <= cObj; i++) {
+    xplanet1[i] = PZ(HousePlaceInX(cp1.obj[i], cp1.alt[i]));
+    xplanet2[i] = PZ(HousePlaceInX(cp2.obj[i], cp2.alt[i]));
+    xplanet3[i] = PZ(HousePlaceInX(cp3.obj[i], cp3.alt[i]));
+    if (fQuad)
+      xplanet4[i] = PZ(HousePlaceInX(cp4.obj[i], cp4.alt[i]));
+  }
 
   /* Go draw the outer sign and house rings. We are drawing the houses */
   /* of only the outermost ring of the wheel, however.                 */
@@ -398,6 +443,7 @@ void XChartWheelThreeFour()
   /* outer ring, and then draw another line from this point to a another    */
   /* dot at the same position on the innermost ring as well.                */
 
+  FProcessCommandLine(szWheelX[1]);
   for (i = 0; i <= cObj; i++)
     symbol[i] = xplanet1[i];
   FillSymbolRing(symbol, 0.9);
@@ -419,6 +465,7 @@ void XChartWheelThreeFour()
   /* Now draw the second to outermost ring of planets. Again, draw each */
   /* glyph, a line to its true point, and a line to the innermost ring. */
 
+  FProcessCommandLine(szWheelX[2]);
   for (i = 0; i <= cObj; i++)
     symbol[i] = xplanet2[i];
   FillSymbolRing(symbol, 1.1);
@@ -437,19 +484,14 @@ void XChartWheelThreeFour()
     }
   }
 
-  /* The third ring (either the innermost or second to innermost) is next.   */
-  /* Cast the chart on the fly, and draw the glyphs and lines to true point. */
+  /* The third ring (either the innermost or second to innermost) is next. */
+  /* Chart was cast earlier, and draw the glyphs and lines to true point.  */
 
-  ciCore = ciThre;
-  cpT = cp0;
-  CastChart(fTrue);
+  FProcessCommandLine(szWheelX[3]);
   for (i = 0; i <= cObj; i++)
-    xplanet1[i] = PZ(HousePlaceInX(planet[i]));
-  cp0 = cpT;
-  for (i = 0; i <= cObj; i++)
-    symbol[i] = xplanet1[i];
+    symbol[i] = xplanet3[i];
   FillSymbolRing(symbol, 1.4);
-  DrawSymbolRing(symbol, xplanet1, ret, cx, cy, unitx, unity,
+  DrawSymbolRing(symbol, xplanet3, ret, cx, cy, unitx, unity,
     0.35, 0.37, 0.40, 0.44);
 
   if (fQuad) {
@@ -459,31 +501,43 @@ void XChartWheelThreeFour()
 
     for (i = cObj; i >= 0; i--) if (FProper(i)) {
       DrawColor(kObjB[i]);
-      DrawPoint(cx+POINT1(unitx, base, PX(xplanet1[i])),
-        cy+POINT1(unity, base, PY(xplanet1[i])));
+      DrawPoint(cx+POINT1(unitx, base, PX(xplanet3[i])),
+        cy+POINT1(unity, base, PY(xplanet3[i])));
       if (gs.fAlt) {
         DrawColor(ret[i] < 0.0 ? gi.kiGray : gi.kiOn);
-        DrawDash(cx+POINT1(unitx, base+0.02, PX(xplanet1[i])),
-          cy+POINT1(unity, base+0.02, PY(xplanet1[i])),
-          cx+POINT2(unitx, 0.33, PX(xplanet1[i])),
-          cy+POINT2(unity, 0.33, PY(xplanet1[i])), 2-gs.fColor);
+        DrawDash(cx+POINT1(unitx, base+0.02, PX(xplanet3[i])),
+          cy+POINT1(unity, base+0.02, PY(xplanet3[i])),
+          cx+POINT2(unitx, 0.33, PX(xplanet3[i])),
+          cy+POINT2(unity, 0.33, PY(xplanet3[i])), 2-gs.fColor);
       }
     }
 
-    /* If the fourth (innermost) ring is being done, cast the chart on the */
-    /* fly, and draw the glyphs and lines to the true positions.           */
+    /* If the fourth (innermost) ring is being done, take the chart that  */
+    /* was cast earlier, and draw glyphs and lines to the true positions. */
 
-    ciCore = ciFour;
-    cpT = cp0;
-    CastChart(fTrue);
+    FProcessCommandLine(szWheelX[4]);
     for (i = 0; i <= cObj; i++)
-      xplanet2[i] = PZ(HousePlaceInX(planet[i]));
-    cp0 = cpT;
+      xplanet4[i] = PZ(HousePlaceInX(cp4.obj[i], cp4.alt[i]));
     for (i = 0; i <= cObj; i++)
-      symbol[i] = xplanet2[i];
+      symbol[i] = xplanet4[i];
     FillSymbolRing(symbol, 1.8);
-    DrawSymbolRing(symbol, xplanet2, ret, cx, cy, unitx, unity,
+    DrawSymbolRing(symbol, xplanet4, ret, cx, cy, unitx, unity,
       0.22, 0.24, 0.27, 0.31);
+  }
+  FProcessCommandLine(szWheelX[0]);
+
+  /* Draw lines connecting planets between the two charts that have aspects. */
+
+  if (!gs.fAlt) {
+    base -= 0.02;
+    DrawAspectRelation(1, 2, xplanet1, xplanet2, cx, cy, unitx, unity, base);
+    DrawAspectRelation(1, 3, xplanet1, xplanet3, cx, cy, unitx, unity, base);
+    DrawAspectRelation(2, 3, xplanet2, xplanet3, cx, cy, unitx, unity, base);
+    if (fQuad) {
+      DrawAspectRelation(1, 4, xplanet1, xplanet4, cx, cy, unitx, unity, base);
+      DrawAspectRelation(2, 4, xplanet2, xplanet4, cx, cy, unitx, unity, base);
+      DrawAspectRelation(3, 4, xplanet3, xplanet4, cx, cy, unitx, unity, base);
+    }
   }
 
   /* Go draw sidebar with chart information and positions if need be. */
@@ -500,11 +554,13 @@ void XChartWheelThreeFour()
 
 void XChartGridRelation()
 {
-  char sz[cchSzDef];
-  int unit, siz, x, y, i, j, k, l;
+  char sz[cchSzDef], szT[cchSzDef];
+  int nScale, unit, siz, x, y, i, j, k, l;
   KI c;
 
+  nScale = gi.nScale/gi.nScaleT;
   unit = CELLSIZE*gi.nScale; siz = (gs.nGridCell+1)*unit;
+  sprintf(szT, "");
   i = us.fSmartCusp; us.fSmartCusp = fFalse;
   if (!FCreateGridRelation(gs.fAlt != us.fGridConfig))
     return;
@@ -532,8 +588,7 @@ void XChartGridRelation()
 
       if (i <= cObj) {
         gi.xTurtle = x*unit+unit/2;
-        gi.yTurtle = y*unit+unit/2 -
-          (gi.nScale/gi.nScaleT > 2 ? 5*gi.nScaleT : 0);
+        gi.yTurtle = y*unit+unit/2 - (nScale > 2 ? 5*gi.nScaleT : 0);
         k = i >= 0 && j >= 0 ? grid->n[i][j] : 0;
 
         /* If current cell is on top row or left hand column, draw glyph */
@@ -560,7 +615,7 @@ void XChartGridRelation()
 
         /* Again, when scale size is 300+, print some text in current cell: */
 
-        if (gi.nScale/gi.nScaleT > 2 && gs.fLabel) {
+        if (nScale > 2 && gs.fLabel) {
 
           /* For top and left edges, print sign and degree of the planet. */
 
@@ -569,7 +624,10 @@ void XChartGridRelation()
               k = SFromZ(y == 0 ? cp2.obj[i] : cp1.obj[j]);
               l = (int)((y == 0 ? cp2.obj[i] : cp1.obj[j])-ZFromS(k));
               c = kSignB(k);
-              sprintf(sz, "%.3s %02d", szSignName[k], l);
+              if (nScale > 3 && is.fSeconds)
+                sprintf(szT, "%c%02d", chDeg2,
+                  (int)((y == 0 ? cp2.obj[i] : cp1.obj[j])*60.0)%60);
+              sprintf(sz, "%.3s %02d%s", szSignName[k], l, szT);
 
               /* For extreme upper left corner, print some little arrows */
               /* pointing out chart1's planets and chart2's planets.     */
@@ -579,22 +637,24 @@ void XChartGridRelation()
               sprintf(sz, "1v 2->");
             }
           } else {
-            k = abs(grid->v[i][j]) / 60;
+            l = abs(grid->v[i][j]); k = l / 60; l %= 60;
+            if (nScale > 3 && is.fSeconds)
+              sprintf(szT, "%02d", l);
 
             /* For aspect cells, print the orb in degrees and minutes. */
 
             if (gs.fAlt == us.fGridConfig) {
               if (grid->n[i][j])
-                sprintf(sz, "%c%d%c%02d'", k != grid->v[i][j] ?
+                sprintf(sz, "%c%d%c%02d'%s", grid->v[i][j] < 0 ?
                   (us.fAppSep ? 'a' : '-') : (us.fAppSep ? 's' : '+'),
-                  k/60, chDeg2, k%60);
+                  k/60, chDeg2, k%60, szT);
               else
                 sprintf(sz, "");
 
             /* For midpoint cells, print degree and minute. */
 
             } else
-              sprintf(sz, "%2d%c%02d'", k/60, chDeg2, k%60);
+              sprintf(sz, "%2d%c%02d'%s", k/60, chDeg2, k%60, szT);
           }
           DrawColor(c);
           DrawSz(sz, x*unit+unit/2, (y+1)*unit-3*gi.nScaleT, dtBottom);
@@ -611,10 +671,11 @@ void XChartGridRelation()
 
 void XChartEphemeris()
 {
-  real symbol[cObj*2+2], objSav[objMax];
+  real symbol[cObj*2+2], objSav[objMax], rT;
   char sz[cchSzDef];
   int yea, unit = 6*gi.nScale, daytot, d = 1, day, mon, monsiz,
     x1, y1, x2, y2, xs, ys, m, n, u, v = 0, i, j, dx;
+  flag fSav;
 
   yea = us.nEphemYears;    /* Is this -Ey -X or just -E -X? */
   if (yea) {
@@ -656,6 +717,11 @@ void XChartEphemeris()
 
   while (d <= daytot + 1) {
     n = v;
+    if (gs.fLabel && yea && mon == Mon && day == 1) {
+      v = y1 + NMultDiv(ys, d-2+Day, daytot);
+      DrawColor(kMainA[5]);
+      DrawLine(x1, v, x2, v);       /* Marker line for specific day. */
+    }
     v = y1 + NMultDiv(ys, d-1, daytot);
     if (!yea || day == 1) {
       DrawColor(gi.kiGray);
@@ -673,9 +739,10 @@ void XChartEphemeris()
     CastChart(fTrue);
     if (us.fParallel)
       for (i = 0; i <= cObj; i++) {
-        planet[i] = (planetalt[i] * 90.0 / (real)dx) + 180.0;
-        planet[i] = Min(planet[i], rDegMax);
-        planet[i] = Max(planet[i], 0.0);
+        rT = (planetalt[i] * rDegQuad / (real)dx) + rDegHalf;
+        rT = Min(rT, rDegMax);
+        rT = Max(rT, 0.0);
+        planet[i] = rT;
       }
 
     /* Draw planet glyphs along top of chart. */
@@ -687,11 +754,13 @@ void XChartEphemeris()
         symbol[i*2+1] = (j ? -rLarge : planet[i]);
       }
       FillSymbolLine(symbol);
+      fSav = gs.fLabel; gs.fLabel = fTrue;
       for (i = cObj*2+1; i >= 0; i--) {
         j = i >> 1;
         if (symbol[i] >= 0.0)
           DrawObject(j, x1 + (int)((real)xs * symbol[i] / rDegMax), unit);
       }
+      gs.fLabel = fSav;
       if (us.nRel <= rcDual) {
         for (i = cObj; i >= 0; i--) {
           if (!FProper(i))
@@ -719,10 +788,10 @@ void XChartEphemeris()
     if (d <= daytot && (!yea || day == 1)) {
       if (yea) {
         sprintf(sz, "%.3s", szMonth[mon]);
-        i = (mon == Mon);
+        i = (mon == Mon && gs.fLabel);
       } else {
         sprintf(sz, "%2d", d);
-        i = (d == Day);
+        i = (d == Day && gs.fLabel);
       }
       DrawColor(i ? gi.kiOn : gi.kiLite);
       DrawSz(sz,     xFont   *gi.nScaleT, v + (yFont-2)*gi.nScaleT,

@@ -1,9 +1,9 @@
-@0309  ; Astrolog (6.10) default settings file astrolog.as
+@0309  ; Astrolog (6.20) default settings file astrolog.as
 
 -z 8:00W                ; Default time zone     [hours W or E of GMT   ]
 -z0 Autodetect          ; Default Daylight time [0 standard, 1 daylight]
 -zl 122W19:59 47N36:35  ; Default location      [longitude and latitude]
--zv 161ft               ; Default elevation     [in feet or meters     ]
+-zv 167ft               ; Default elevation     [in feet or meters     ]
 -zj "Current moment now" "Seattle, WA" ; Default name and location
 
 -Yz 0   ; Time minute addition to be used when "now" charts are off.
@@ -18,15 +18,15 @@ _k      ; Ansi color text           ["=k" is color, "_k" is normal     ]
 _b0     ; Print zodiac seconds      ["_b0" to minute, "=b0" to second  ]
 =b      ; Use ephemeris files       ["=b" uses them, "_b" doesn't      ]
 =C      ; Show house cusp objects   ["_C" hides them, "=C" shows them  ]
-_v7     ; Show esoteric rulerships  ["=v7" shows them, "_v7" hides them]
 :w 4    ; Wheel chart text rows     [Change "4" to desired wheel rows  ]
 :I 80   ; Text screen columns       [Change "80" to desired columns    ]
--YQ 24  ; Text screen scroll limit  [Change "24" or set to "0" for none]
+-YQ 0   ; Text screen scroll limit  [Change "24" or set to "0" for none]
 _Yd     ; European date format      ["_Yd" is MDY, "=Yd" is DMY        ]
 _Yt     ; European time format      ["_Yt" is AM/PM, "=Yt" is 24 hour  ]
 _Yv     ; European length units     ["_Yv" is imperial, "=Yv" is metric]
 _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 =YC     ; Smart cusp displays       ["=YC" is smart, "_YC" is normal   ]
+=YO     ; Smart copy and printing   ["=YO" does it smart, "_YO" doesn't]
 =Y8     ; Clip text to end of line  ["=Y8" clips, "_Y8" doesn't clip   ]
 
 
@@ -45,6 +45,8 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 -YRT 34 42   0 0 0 0 0 0 0 0 0        ; Uranians
 
 -YR0 0 0  ; Restrict sign, direction changes
+
+-YR7 0 1 1 0 1  ; Restrict rulerships: std, esoteric, hierarch, exalt, ray
 
 
 ; DEFAULT ASPECT ORBS:
@@ -121,16 +123,16 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 
 ; GRAPHICS DEFAULTS:
 
-_X              ; Graphics chart flag ["_X" is text, "=X" is graphics]
-:Xw 480 480     ; Default X and Y resolution
-:Xs 200         ; Character scale [100-400]
-:XS 100         ; Graphics text scale [100-400]
-:Xbb            ; Bitmap file type
-:YXG 1111       ; Glyph selections [Capricorn, Uranus, Pluto, Lilith]
-:YXg 20         ; Aspect grid cells
-:YX7 600        ; Esoteric ray column influence width
-:YXf 2          ; Use actual fonts
-:YXp 0          ; PostScript paper orientation
-:YXp0 8.5 11.0  ; PostScript paper X and Y inch sizes
+_X               ; Graphics chart flag ["_X" is text, "=X" is graphics]
+:Xw 480 480      ; Default X and Y resolution
+:Xs 200          ; Character scale [100-400]
+:XS 100          ; Graphics text scale [100-400]
+:Xbb             ; Bitmap file type
+:YXG 1111        ; Glyph selections [Capricorn, Uranus, Pluto, Lilith]
+:YXg 20          ; Aspect grid cells
+:YX7 600         ; Esoteric ray column influence width
+:YXf 2           ; Use actual fonts
+:YXp 0           ; PostScript paper orientation ["-1" portrait, "1" landscape]
+:YXp0 8.5in 11in ; PostScript paper X and Y sizes
 
 ; astrolog.as

@@ -1,7 +1,7 @@
-# Astrolog (Version 6.10) File: Makefile (Unix version)
+# Astrolog (Version 6.20) File: Makefile (Unix version)
 #
 # IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-# not enumerated elsewhere in this program are Copyright (C) 1991-2016 by
+# not enumerated elsewhere in this program are Copyright (C) 1991-2017 by
 # Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 # Permission is granted to freely use, modify, and distribute these
 # routines provided these credits and notices remain unmodified with any
@@ -26,7 +26,7 @@ OBJ = astrolog.o data.o data2.o general.o io.o\
 
 # If you don't have X windows, delete the "-lX11" part from the line below:
 LIBS = -lm -lX11
-CFLAGS = -O
+CPPFLAGS = -O -Wno-write-strings
 
 astrolog:: $(OBJ)
 	cc -o $(NAME) $(OBJ) $(LIBS)
