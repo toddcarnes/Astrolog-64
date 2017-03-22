@@ -13,13 +13,11 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-#endif //_WIN32
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -55,16 +53,20 @@ END
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 icon                    ICON                    "astrlog1.ico"
+
 icon2                   ICON                    "astrlog2.ico"
+
 icon3                   ICON                    "astrlog3.ico"
+
 icon4                   ICON                    "astrlog4.ico"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Menu
 //
 
-menu MENU 
+menu MENU
 BEGIN
     POPUP "&File"
     BEGIN
@@ -264,7 +266,7 @@ BEGIN
         MENUITEM "&Transit Restrictions...\tAlt+F", cmdResTransit
         MENUITEM SEPARATOR
         MENUITEM "Calculation Settin&gs...\tAlt+S", cmdSettingMore
-        MENUITEM "&Display Settings...\tAlt+B",  cmdDisplay
+        MENUITEM "&Display Settings...\tAlt+B", cmdDisplay
     END
     POPUP "&Chart"
     BEGIN
@@ -458,7 +460,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,120,55,20,20
 END
 
-dlgAbout DIALOG  32, 32, 268, 242
+dlgAbout DIALOG 32, 32, 268, 242
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "About Astrolog"
 FONT 8, "MS Sans Serif"
@@ -491,7 +493,7 @@ BEGIN
     ICON            icon4,IDC_STATIC,235,5,18,20
 END
 
-dlgCommand DIALOG  32, 32, 143, 50
+dlgCommand DIALOG 32, 32, 143, 50
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Enter Command Line"
 FONT 8, "MS Sans Serif"
@@ -503,7 +505,7 @@ BEGIN
     ICON            icon3,IDC_STATIC,5,15,18,20
 END
 
-dlgAspect DIALOG  32, 32, 322, 167
+dlgAspect DIALOG 32, 32, 322, 167
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Aspect Settings"
 FONT 8, "MS Sans Serif"
@@ -594,7 +596,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,180,145,18,20
 END
 
-dlgColor DIALOG  32, 32, 351, 193
+dlgColor DIALOG 32, 32, 351, 193
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Customize Colors"
 FONT 8, "MS Sans Serif"
@@ -683,7 +685,7 @@ BEGIN
     ICON            icon3,IDC_STATIC,190,170,18,20
 END
 
-dlgRestrict DIALOG  32, 32, 311, 148
+dlgRestrict DIALOG 32, 32, 311, 148
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Object Restrictions"
 FONT 8, "MS Sans Serif"
@@ -866,7 +868,7 @@ BEGIN
     ICON            icon3,IDC_STATIC,160,95,21,20
 END
 
-dlgChart DIALOG  32, 32, 266, 173
+dlgChart DIALOG 32, 32, 266, 173
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Chart Setting Details"
 FONT 8, "MS Sans Serif"
@@ -1020,7 +1022,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,135,155,21,20
 END
 
-dlgStar DIALOG  32, 32, 297, 130
+dlgStar DIALOG 32, 32, 297, 130
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Fixed Star Restrictions"
 FONT 8, "MS Sans Serif"
@@ -1079,7 +1081,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,255,55,18,20
 END
 
-dlgObject DIALOG  32, 32, 281, 203
+dlgObject DIALOG 32, 32, 281, 203
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Object Settings"
 FONT 8, "MS Sans Serif"
@@ -1287,7 +1289,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,147,175,21,20
 END
 
-dlgAbort DIALOG  32, 32, 125, 38
+dlgAbort DIALOG 32, 32, 125, 38
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Print Progress"
 FONT 8, "MS Sans Serif"
@@ -1297,7 +1299,7 @@ BEGIN
     ICON            icon3,IDC_STATIC,5,15,18,20
 END
 
-dlgInfoAll DIALOG  32, 32, 143, 151
+dlgInfoAll DIALOG 32, 32, 143, 151
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Charts #3 And #4"
 FONT 8, "MS Sans Serif"
@@ -1326,7 +1328,7 @@ END
 // Accelerator
 //
 
-accelerator ACCELERATORS 
+accelerator ACCELERATORS
 BEGIN
     "!",            cmdAnimateNo1,          ASCII,  NOINVERT
     "#",            cmdAnimateNo3,          ASCII,  NOINVERT
@@ -1623,8 +1625,16 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
+    dlgInfo, DIALOG
+    BEGIN
+    END
+
+    dlgAbout, DIALOG
+    BEGIN
+    END
+
     dlgSetting, DIALOG
     BEGIN
         BOTTOMMARGIN, 142
@@ -1642,7 +1652,18 @@ BEGIN
 END
 #endif    // APSTUDIO_INVOKED
 
-#endif    // English (U.S.) resources
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+dlgInfo AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

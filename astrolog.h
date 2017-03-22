@@ -439,7 +439,7 @@
 
 #define szAppNameCore "Astrolog"
 #define szVersionCore "6.20"
-#define szArchCore    "32 bit"
+#define szArchCore    "64 bit"
 #define szDateCore    "March 2017"
 #define szAddressCore \
   "Astara@msn.com - http://www.astrolog.org/astrolog.htm"
