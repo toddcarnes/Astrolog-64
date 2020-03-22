@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: data.cpp
+** Astrolog (Version 6.30) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -63,16 +63,16 @@ extern unsigned _stklen = 0x4000;
 US us = {
 
   /* Chart types */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Chart suboptions */
-  0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
 
   /* Table chart types */
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Main flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #ifdef EPHEM
   1,
 #else
@@ -82,26 +82,20 @@ US us = {
 
   /* Main subflags */
 #ifdef SWITCHES
-  fFalse,
-#else
-  fTrue,
-#endif
-  0, 0, 0, 0,
-#ifdef EPHEM
   0,
 #else
   1,
 #endif
   0, 0, 0, 0, 0,
+#ifdef EPHEM
+  0,
+#else
+  1,
+#endif
+  0, 0, 0, 0, 0, 0,
 
   /* Rare flags */
-  0, 0,
-#ifdef TRUENODE
-  fTrue,
-#else
-  fFalse,
-#endif
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
@@ -113,6 +107,7 @@ US us = {
   0,
   1.0,
   0,
+  -1,
   0,
   0,
   DIVISIONS,
@@ -127,20 +122,20 @@ US us = {
 
   /* Value subsettings */
 
-  4, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0L, oEar, oEar, 0, BIODAYS};
+  4, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0, 0L, oEar, oEar, 0, BIODAYS};
 
 IS is = {
   fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
-  NULL, NULL, NULL, NULL, 0, 0, 0, 0.0, 0.0, 0.0,
+  NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0.0, 0.0, 0.0,
   NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
 
-CI ciCore = {11, 19, 1971, HM(11, 1),      0.0, 8.0, DEFAULT_LOC, "", ""};
-CI ciMain = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),  0.0, 0.0, DEFAULT_LOC, "", ""};
-CI ciThre = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciFour = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTran = {12, 31, 2016, HM(23, 59),     0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciSave = {3,  20, 2017, HMS(2, 28, 39), 0.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciCore = {11, 19, 1971, HM(11, 1),       0.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciMain = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),   0.0, 0.0, DEFAULT_LOC, "", ""};
+CI ciThre = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciFour = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTran = {12, 31, 2016, HM(23, 59),      0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciSave = {10, 22, 2017, HMS(22, 26, 42), 1.0, 8.0, DEFAULT_LOC, "", ""};
 CP cp0, cp1, cp2, cp3, cp4;
 
 
@@ -158,31 +153,31 @@ char *szMacro[48], *szWheel[4+1] = {"", "", "", "", ""};
 /* Restriction status of each object, as specified with -R switch. */
 
 byte ignore[objMax] = {1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                   /* Planets  */
-  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,                /* Minors   */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,             /* Cusps    */
-  0, 0, 0, 0, 0, 0, 0, 0,                         /* Uranians */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /* Stars    */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     /* Planets  */
+  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,                  /* Minors   */
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               /* Cusps    */
+  1, 1, 1, 1, 1, 1, 1, 1, 1,                        /* Uranians */
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  /* Stars    */
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 /* Restriction of objects when transiting, as specified with -RT switch. */
 
 byte ignore2[objMax] = {1,
-  0, 1, 0, 0, 0, 0, 0, 0, 0, 0,                   /* Planets  */
-  0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1,                /* Minors   */
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,             /* Cusps    */
-  0, 0, 0, 0, 0, 0, 0, 0,                         /* Uranians */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  /* Stars    */
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+  0, 1, 0, 0, 0, 0, 0, 0, 0, 0,                     /* Planets  */
+  0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1,                  /* Minors   */
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               /* Cusps    */
+  1, 1, 1, 1, 1, 1, 1, 1, 1,                        /* Uranians */
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  /* Stars    */
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 /* Restriction status of each aspect, as specified with -RA switch. */
 
 byte ignorea[cAspect+1] = {0,
   0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
-byte ignorez[4] = {0, 0, 0, 0};     /* Restrictions for -Zd chart events. */
+byte ignorez[arMax] = {0, 0, 0, 0}; /* Restrictions for -Zd chart events. */
 
-byte ignore7[5] = {0, 1, 1, 0, 1};  /* Restrictions for rulership types. */
+byte ignore7[rrMax] = {0, 1, 1, 0, 1}; /* Restrictions for rulership types. */
 
 /* Gauquelin sector plus zones, as specified with -Yl switch. */
 
@@ -238,7 +233,8 @@ CONST char *szObjName[objMax] = {
   "Kaus Austr.", "Vega", "Altair", "Peacock", "Deneb",
   "Alnair", "Fomalhaut", "Andromeda"};
 CONST StrLook rgObjName[] = {{"Node", oNod}, {"Nod:", oNod},
-  {"Star", starLo}, {"Orion", oOri}, {"M31", oAnd}, {"", -1}};
+  {"Star", starLo}, {"Alnilam", oOri}, {"M31", oAnd}, {"", -1}};
+CONST char *szObjDisp[objMax];
 
 CONST char *szSystem[cSystem] = {
   "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
@@ -282,7 +278,7 @@ CONST int rgAspConfig[cAspConfig] = {
 
 CONST char *szElem[cElem] = {"Fire", "Earth", "Air", "Water"};
 
-CONST char *szMode[3] = {"Cardinal", "Fixed", "Mutuable"};
+CONST char *szMode[3] = {"Cardinal", "Fixed", "Mutable"};
 
 CONST char *szMonth[cSign+1] = {"",
   "January", "February", "March", "April", "May", "June",
@@ -296,7 +292,7 @@ CONST char *szZon[cZone] = {
   "PST", "PT", "P", "PDT", "PWT", "MST", "MT", "M", "MDT", "MWT",
   "CST", "CT", "C", "CDT", "CWT", "EST", "ET", "E", "EDT", "EWT",
   "AST", "AT", "A", "ADT", "AWT", "BST", "BT", "B", "BDT", "WAT",
-  "GMT", "GT", "G", "WET", "CET", "EET", "UZ3", "UZ4",
+  "GMT", "GT", "G", "UTC", "UT", "U", "WET", "CET", "EET", "UZ3", "UZ4",
   "IST", "IT", "I", "UZ5", "NST", "SST", "CCT", "JST", "JT", "J",
   "SAS", "GST", "UZ1", "NZT", "ZT", "Z", "IDL", "LMT", "LT", "L"};
 
@@ -305,7 +301,7 @@ CONST real rZon[cZone] = {
   8.0, 8.0, 8.0, 7.0, 7.0, 7.0, 7.0, 7.0, 6.0, 6.0,
   6.0, 6.0, 6.0, 5.0, 5.0, 5.0, 5.0, 5.0, 4.0, 4.0,
   4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 2.0, 1.0,
-  0.0, 0.0, 0.0, 0.0, -1.0, -2.0, -4.0, -5.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -2.0, -4.0, -5.0,
   -5.30, -5.30, -5.30, -6.0, -6.30, -7.0, -8.0, -9.0, -9.0, -9.0,
   -9.30, -10.0, -11.0, -11.30, -11.30, -11.30, -12.0, 24.0, 24.0, 24.0};
 
@@ -315,7 +311,8 @@ CONST char *szSuffix[cSign+1] = {"",
   "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "th", "th"};
 
 CONST char *szEphem[cmMax] = {
-  "Swiss Ephemeris", "Placalc Ephemeris", "Matrix Formulas", "None"};
+  "Swiss Ephemeris", "Moshier Ephemeris", "Placalc Ephemeris",
+  "Matrix Formulas", "None"};
 
 real rAspAngle[cAspect+1] = {0,
   0.0, 180.0, 90.0, 120.0, 60.0, 150.0, 30.0, 45.0, 135.0, 72.0, 144.0,
@@ -365,7 +362,7 @@ int rules[cSign+1] = {0,
 int rgObjRay[oNorm+1] = {3,
   2, 4, 4, 5, 6, 2, 3, 7, 6, 1,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  1, 4, 2, 3, 1, 2, 3, 4, 5, 7, 5, 6,
   1, 0, 0, 0, 0, 0, 0, 0, 0};
 int rgSignRay[cSign+1] = {0,
   17, 4, 2, 37, 15, 26, 3, 4, 456, 137, 5, 26};
@@ -373,7 +370,7 @@ int rgSignRay2[cSign+1][cRay+1];
 int rgObjEso1[oNorm+1] = {sSag,
   sLeo, sVir, sAri, sGem, sSco, sAqu, sCap, sLib, sCan, sPis,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  sAri, sTau, sGem, sCan, sLeo, sVir, sLib, sSco, sSag, sCap, sAqu, sPis,
   sTau, 0, 0, 0, 0, 0, 0, 0, 0};
 int rgObjEso2[oNorm+1] = {0,
   0, 0, 0, 0, 0, 0, 0, 0, sLeo, 0,
@@ -383,7 +380,7 @@ int rgObjEso2[oNorm+1] = {0,
 int rgObjHie1[oNorm+1] = {sGem,
   sLeo, sAqu, sSco, sCap, sSag, sVir, sLib, sAri, sCan, sPis,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  sAri, sTau, sGem, sCan, sLeo, sVir, sLib, sSco, sSag, sCap, sAqu, sPis,
   sTau, 0, 0, 0, 0, 0, 0, 0, 0};
 int rgObjHie2[oNorm+1] = {0,
   0, 0, 0, 0, 0, 0, 0, sLeo, 0, 0,
@@ -435,7 +432,7 @@ int kObjU[oNorm+1] = {kYellow,
 /* a planet in its ruling or exalting sign or house is tacked onto the last */
 /* two positions of the object and house influence array, respectively.     */
 
-  /* The inherent strength of each planet - */
+  /* The inherent strength of each planet */
 real rObjInf[oNorm1+6] = {30,
   30, 25, 10, 10, 10, 10, 10, 10, 10, 10,
   5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
@@ -444,25 +441,25 @@ real rObjInf[oNorm1+6] = {30,
   2,
   20, 10, 10, 10, 10};
 
-  /* The inherent strength of each house - */
+  /* The inherent strength of each house */
 real rHouseInf[cSign+6]  = {0,
   20, 0, 0, 10, 0, 0, 5, 0, 0, 15, 0, 0,
   15, 5, 5, 5, 5};
 
-  /* The inherent strength of each aspect - */
+  /* The inherent strength of each aspect */
 real rAspInf[cAspect+1] = {0.0,
   1.0, 0.8, 0.8, 0.6, 0.6, 0.4, 0.4, 0.2, 0.2,
   0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1};
 
-  /* The inherent strength of each planet when transiting - */
-real rTransitInf[oNorm1] = {10,
+  /* The inherent strength of each planet when transiting */
+real rTransitInf[oNorm1+1] = {10,
   10, 4, 8, 9, 20, 30, 35, 40, 45, 50,
   30, 15, 15, 15, 15, 30,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   50, 50, 50, 50, 50, 50, 50, 50,
   80};
 
-  /* Informational astronomical data for planets - */
+  /* Informational astronomical data for planets */
 CONST real rObjDist[oNorm+1] = {rEarthDist, 0.0, 0.3844,
   57.91, 108.2, 227.94, 778.33, 1426.98, 2870.99, 4497.07, 5913.52,
   13.670*rEarthDist, 2.767*rEarthDist, 2.770*rEarthDist, 2.669*rEarthDist,

@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: matrix.cpp
+** Astrolog (Version 6.30) File: matrix.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -105,6 +105,8 @@ long MdyToJulian(int mon, int day, int yea)
 
 real MdytszToJulian(int mon, int day, int yea, real tim, real dst, real zon)
 {
+  if (dst == dstAuto)
+    dst = (real)is.fDst;
   return (real)MdyToJulian(mon, day, yea) + (tim + zon - dst) / 24.0;
 }
 
@@ -180,7 +182,7 @@ real ProcessInput(flag fDate)
     real Ln, Off;
 
     /* Compute angle that the ecliptic is inclined to the Celestial Equator */
-    is.OB = RFromD(23.452294-0.0130125*is.T);
+    is.OB = 23.452294 - 0.0130125*is.T;
 
     Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0); /* Mean lunar node */
     Off = (259205536.0*is.T+2013816.0)/3600.0;            /* Mean Sun        */
@@ -195,6 +197,7 @@ real ProcessInput(flag fDate)
 }
 
 
+#ifdef MATRIX
 /* Convert polar to rectangular coordinates. */
 
 void PolToRec(real a, real r, real *x, real *y)
@@ -206,18 +209,6 @@ void PolToRec(real a, real r, real *x, real *y)
 }
 
 
-/* Convert rectangular to polar coordinates. */
-
-void RecToPol(real x, real y, real *a, real *r)
-{
-  if (y == 0.0)
-    y = rSmall;
-  *r = RSqr(x*x + y*y);
-  *a = Angle(x, y);
-}
-
-
-#ifdef MATRIX
 /* Convert rectangular to spherical coordinates. */
 
 real RecToSph(real B, real L, real O)
@@ -230,7 +221,7 @@ real RecToSph(real B, real L, real O)
   PolToRec(A, R, &X, &Y);
   G = X; X = Y; Y = Q;
   RecToPol(X, Y, &A, &R);
-  A += O;
+  A += RFromD(O);
   PolToRec(A, R, &X, &Y);
   Q = RAsin(Y);
   Y = X; X = G;
@@ -255,18 +246,16 @@ void CoorXform(real *azi, real *alt, real tilt)
   real x, y, a1, l1;
   real sinalt, cosalt, sinazi, sintilt, costilt;
 
+  *azi = RFromD(*azi); *alt = RFromD(*alt); tilt = RFromD(tilt);
   sinalt = RSin(*alt); cosalt = RCos(*alt); sinazi = RSin(*azi);
   sintilt = RSin(tilt); costilt = RCos(tilt);
 
-  x = cosalt * sinazi * costilt;
-  y = sinalt * sintilt;
-  x -= y;
-  a1 = cosalt;
+  x = cosalt * sinazi * costilt - sinalt * sintilt;
   y = cosalt * RCos(*azi);
   l1 = Angle(y, x);
-  a1 = a1 * sinazi * sintilt + sinalt * costilt;
+  a1 = cosalt * sinazi * sintilt + sinalt * costilt;
   a1 = RAsin(a1);
-  *azi = l1; *alt = a1;
+  *azi = DFromR(l1); *alt = DFromR(a1);
 }
 
 
@@ -309,7 +298,7 @@ real CuspMidheaven(void)
 {
   real MC;
 
-  MC = RAtn(RTan(is.RA)/RCos(is.OB));
+  MC = RAtn(RTan(is.RA)/RCosD(is.OB));
   if (MC < 0.0)
     MC += rPi;
   if (is.RA > rPi)
@@ -321,7 +310,7 @@ real CuspAscendant(void)
 {
   real Asc;
 
-  Asc = Angle(-RSin(is.RA)*RCos(is.OB)-RTan(AA)*RSin(is.OB), RCos(is.RA));
+  Asc = Angle(-RSin(is.RA)*RCosD(is.OB)-RTan(AA)*RSinD(is.OB), RCos(is.RA));
   return Mod(DFromR(Asc)+is.rSid);
 }
 
@@ -329,7 +318,7 @@ real CuspEastPoint(void)
 {
   real EP;
 
-  EP = Angle(-RSin(is.RA)*RCos(is.OB), RCos(is.RA));
+  EP = Angle(-RSin(is.RA)*RCosD(is.OB), RCos(is.RA));
   return Mod(DFromR(EP)+is.rSid);
 }
 
@@ -348,13 +337,13 @@ real CuspPlacidus(real deg, real FF, flag fNeg)
 
     /* This formula works except at 0 latitude (AA == 0.0). */
 
-    XS = X*RSin(R1)*RTan(is.OB)*RTan(AA == 0.0 ? 0.0001 : AA);
+    XS = X*RSin(R1)*RTanD(is.OB)*RTan(AA == 0.0 ? 0.0001 : AA);
     XS = RAcos(XS);
     if (XS < 0.0)
       XS += rPi;
     R1 = is.RA + (fNeg ? rPi-(XS/FF) : (XS/FF));
   }
-  LO = RAtn(RTan(R1)/RCos(is.OB));
+  LO = RAtn(RTan(R1)/RCosD(is.OB));
   if (LO < 0.0)
     LO += rPi;
   if (RSin(R1) < 0.0)
@@ -385,7 +374,7 @@ void HouseKoch(void)
   real A1, A2, A3, KN, D, X;
   int i;
 
-  A1 = RSin(is.RA)*RTan(AA)*RTan(is.OB);
+  A1 = RSin(is.RA)*RTan(AA)*RTanD(is.OB);
   A1 = RAsin(A1);
   for (i = 1; i <= cSign; i++) {
     D = Mod(60.0+30.0*(real)i);
@@ -395,7 +384,7 @@ void HouseKoch(void)
       A2 = D/rDegQuad-3.0;
     }
     A3 = RFromD(Mod(DFromR(is.RA)+D+A2*DFromR(A1)));
-    X = Angle(RCos(A3)*RCos(is.OB)-KN*RTan(AA)*RSin(is.OB), RSin(A3));
+    X = Angle(RCos(A3)*RCosD(is.OB)-KN*RTan(AA)*RSinD(is.OB), RSin(A3));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
 }
@@ -420,7 +409,7 @@ void HouseCampanus(void)
       DN += rPi;
     if (RSin(KO) < 0.0)
       DN += rPi;
-    X = Angle(RCos(is.RA+DN)*RCos(is.OB)-RSin(DN)*RTan(AA)*RSin(is.OB),
+    X = Angle(RCos(is.RA+DN)*RCosD(is.OB)-RSin(DN)*RTan(AA)*RSinD(is.OB),
       RSin(is.RA+DN));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
@@ -433,7 +422,7 @@ void HouseMeridian(void)
 
   for (i = 1; i <= cSign; i++) {
     D = RFromD(60.0+30.0*(real)i);
-    X = Angle(RCos(is.RA+D)*RCos(is.OB), RSin(is.RA+D));
+    X = Angle(RCos(is.RA+D)*RCosD(is.OB), RSin(is.RA+D));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
 }
@@ -445,7 +434,7 @@ void HouseRegiomontanus(void)
 
   for (i = 1; i <= cSign; i++) {
     D = RFromD(60.0+30.0*(real)i);
-    X = Angle(RCos(is.RA+D)*RCos(is.OB)-RSin(D)*RTan(AA)*RSin(is.OB),
+    X = Angle(RCos(is.RA+D)*RCosD(is.OB)-RSin(D)*RTan(AA)*RSinD(is.OB),
       RSin(is.RA+D));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
@@ -480,7 +469,7 @@ void HouseMorinus(void)
 
   for (i = 1; i <= cSign; i++) {
     D = RFromD(60.0+30.0*(real)i);
-    X = Angle(RCos(is.RA+D), RSin(is.RA+D)*RCos(is.OB));
+    X = Angle(RCos(is.RA+D), RSin(is.RA+D)*RCosD(is.OB));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
 }
@@ -491,7 +480,7 @@ real CuspTopocentric(real deg)
 
   OA = ModRad(is.RA+RFromD(deg));
   X = RAtn(RTan(AA)/RCos(OA));
-  LO = RAtn(RCos(X)*RTan(OA)/RCos(X+is.OB));
+  LO = RAtn(RCos(X)*RTan(OA)/RCos(X+RFromD(is.OB)));
   if (LO < 0.0)
     LO += rPi;
   if (RSin(OA) < 0.0)

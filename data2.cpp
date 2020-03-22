@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: data2.cpp
+** Astrolog (Version 6.30) File: data2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -220,9 +220,8 @@ OE rgoe[oVes+cUran-2] = {
 {55.9826, 54.2986, 0,0,0,0,77.445895,0,0,0,0,0,0,0,0,0}, /* Vulkanus */
 {165.3595,48.6486, 0,0,0,0,83.493733,0,0,0,0,0,0,0,0,0}  /* Poseidon */
 };
-#endif /* MATRIX */
 
-CONST real rStarBright[cStar+1] = {0,
+CONST real rStarBrightMatrix[cStar+1] = {0,
   0.46, 2.02, 5.24, 5.09, 0.85, 0.08, 0.12, 1.64, 1.65, 1.70,
   0.50, 1.90, 1.98,-0.72, 1.93,-1.46, 1.50, 1.84, 1.59, 0.38,
   1.14, 1.78, 1.86, 1.68, 1.98, 1.35, 1.79, 1.58, 1.63, 1.25,
@@ -246,6 +245,10 @@ CONST real rStarData[cStar*6] = {
 18,24,10.3,-34,23, 5,  18,36,56.2, 38,47, 1,  19,50,46.9,  8,52, 6,
 20,25,38.8,-56,44, 7,  20,41,25.8, 45,16,49,  22, 8,13.9,-46,57,40,
 22,57,39.0,-29,37,20,   0,42, 7.0, 41,16, 0};
+#endif /* MATRIX */
+
+real rStarBright[cStar+1] = {-1.0};
+char *szStarCustom[cStar+1];
 
 #ifdef INTERPRET
 /*

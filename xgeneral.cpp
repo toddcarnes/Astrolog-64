@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: xgeneral.cpp
+** Astrolog (Version 6.30) File: xgeneral.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -61,7 +61,7 @@
 
 void DrawColor(KI col)
 {
-#ifdef WIN
+#ifdef WINANY
   HPEN hpenT;
 #endif
 #ifdef MACG
@@ -88,7 +88,7 @@ void DrawColor(KI col)
   else
     XSetForeground(gi.disp, gi.gc, rgbind[col]);
 #endif
-#ifdef WIN
+#ifdef WINANY
   else {
     if (gi.kiCur != col) {
       hpenT = wi.hpen;
@@ -130,11 +130,6 @@ void DrawPoint(int x, int y)
         y = 0;
       else if (y >= gs.yWin)
         y = gs.yWin-1;
-      if (gi.yBand) {
-        y -= gi.yOffset;
-        if (y < 0 || y >= gi.yBand)
-          return;
-      }
       BmSet(gi.bm, x, y, gi.kiCur);
     }
 #ifdef PS
@@ -172,6 +167,10 @@ void DrawPoint(int x, int y)
   else {
     MoveTo(x, y); LineTo(x, y);
   }
+#endif
+#ifdef WCLI
+  else
+    SetPixel(wi.hdc, x, y, (COLORREF)rgbbmp[gi.kiCur]);
 #endif
 }
 
@@ -221,14 +220,6 @@ void DrawBlock(int x1, int y1, int x2, int y2)
         x1 = 0;
       if (x2 >= gs.xWin)
         x2 = gs.xWin-1;
-      if (gi.yBand) {
-        y1 -= gi.yOffset;
-        if (y1 < 0)
-          y1 = 0;
-        y2 -= gi.yOffset;
-        if (y2 >= gi.yBand)
-          y2 = gi.yBand-1;
-      }
       for (y = y1; y <= y2; y++)           /* For bitmap, we have to  */
         for (x = x1; x <= x2; x++)         /* just fill in the array. */
           BmSet(gi.bm, x, y, gi.kiCur);
@@ -254,7 +245,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
   else
     XFillRectangle(gi.disp, gi.pmap, gi.gc, x1, y1, x2-x1, y2-y1);
 #endif
-#ifdef WIN
+#ifdef WINANY
   else {
     wi.hbrush = CreateSolidBrush((COLORREF)rgbbmp[gi.kiCur]);
     SelectObject(wi.hdc, wi.hbrush);
@@ -334,7 +325,7 @@ void DrawClearScreen()
     return;
 
   DrawColor(gi.kiOff);
-#ifdef WIN
+#ifdef WINANY
   /* For Windows charts clear entire window, not just the chart area. */
   if (!gi.fFile) {
     wi.hbrush = CreateSolidBrush((COLORREF)rgbbmp[gi.kiCur]);
@@ -365,7 +356,7 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
 
       XDrawLine(gi.disp, gi.pmap, gi.gc, x1, y1, x2, y2);
 #endif
-#ifdef WIN
+#ifdef WINANY
       /* For Windows lines, we have to manually draw the last pixel. */
 
       MoveTo(wi.hdc, x1, y1);
@@ -600,7 +591,7 @@ void DrawEllipse(int x1, int y1, int x2, int y2)
   else
     XDrawArc(gi.disp, gi.pmap, gi.gc, x1, y1, x2-x1, y2-y1, 0, nDegMax*64);
 #endif
-#ifdef WIN
+#ifdef WINANY
   else
     Ellipse(wi.hdc, x1, y1, x2+1, y2+1);
 #endif
@@ -744,15 +735,20 @@ void DrawHouse(int i, int x, int y)
 void DrawObject(int obj, int x, int y)
 {
   char szGlyph[4];
-#ifdef STROKE
+  flag fNoText = fFalse;
+#ifdef VECTOR
   int ich;
 #endif
 
   if (!gs.fLabel)    /* If we are inhibiting labels, then do nothing. */
     return;
+  if (obj < 0) {
+    obj = -obj-1;
+    fNoText = fTrue;
+  }
   DrawColor(kObjB[obj]);
   if (obj <= oNorm) {
-#ifdef STROKE
+#ifdef VECTOR
     ich = obj;
 #endif
 #ifdef PS
@@ -774,42 +770,52 @@ void DrawObject(int obj, int x, int y)
       return;
     }
 #endif
-    if (obj == oUra) {
-      if ((gs.nGlyphs/100)%10 > 1)
-        obj = oNorm + 1;
-    } else if (obj == oPlu) {
-      if ((gs.nGlyphs/10)%10 > 1)
-        obj = oNorm + (((gs.nGlyphs/10)%10 > 2) ? 4 : 2);
-    } else if (obj == oLil) {
-      if (gs.nGlyphs%10 > 1)
-        obj = oNorm + 3;
+    if (szDrawObject[obj] == szDrawObjectDef[obj]) {
+      if (obj == oUra) {
+        if ((gs.nGlyphs/100)%10 > 1)
+          obj = oNorm + 1;
+      } else if (obj == oPlu) {
+        if ((gs.nGlyphs/10)%10 > 1)
+          obj = oNorm + (((gs.nGlyphs/10)%10 > 2) ? 4 : 2);
+      } else if (obj == oLil) {
+        if (gs.nGlyphs%10 > 1)
+          obj = oNorm + 3;
+      }
     }
-    if (FOdd(gi.nScale) || !szDrawObject2[obj][0])
-      DrawTurtle(szDrawObject[obj], x, y);
-    else {
-      gi.nScale >>= 1;
-      DrawTurtle(szDrawObject2[obj], x, y); /* Special hi-res object glyphs. */
-      gi.nScale <<= 1;
+    if (FOdd(gi.nScale) || !szDrawObject2[obj][0]) {
+      if (ChCap(szDrawObject[obj][0]) != 'T') {
+        DrawTurtle(szDrawObject[obj], x, y);
+        return;
+      }
+    } else {
+      if (ChCap(szDrawObject2[obj][0]) != 'T') {
+        /* Draw special hi-res object glyphs. */
+        gi.nScale >>= 1;
+        DrawTurtle(szDrawObject2[obj], x, y);
+        gi.nScale <<= 1;
+        return;
+      }
     }
+  }
 
   /* Normally we can just go draw the glyph; however, stars don't have */
   /* glyphs, so for these draw their three letter abbreviation.        */
 
-  } else {
-    sprintf(szGlyph, "%.3s", szObjName[obj]);
+  if (fNoText)
+    return;
+  sprintf(szGlyph, "%.3s", szObjDisp[obj]);
 #ifdef CONSTEL
-    /* If doing constellations, give a couple stars more correct */
-    /* astronomical names.                                       */
+  /* If doing constellations, give a couple stars more correct */
+  /* astronomical names.                                       */
 
-    if (gs.fConstel) {
-      if (obj == oOri)
-        sprintf(szGlyph, "Aln");    /* Alnilam, normally "Orion" */
-      else if (obj == oAnd)
-        sprintf(szGlyph, "M31");    /* M31, normally "Andromeda" */
-    }
-#endif
-    DrawSz(szGlyph, x, y, dtCent);
+  if (gs.fConstel) {
+    if (obj == oOri && szObjDisp[oOri] == szObjName[oOri])
+      sprintf(szGlyph, "Aln");    /* Alnilam, normally "Orion" */
+    else if (obj == oAnd && szObjDisp[oAnd] == szObjName[oAnd])
+      sprintf(szGlyph, "M31");    /* M31, normally "Andromeda" */
   }
+#endif
+  DrawSz(szGlyph, x, y, dtCent);
 }
 
 
@@ -910,7 +916,7 @@ void DrawTurtle(CONST char *sz, int x0, int y0)
     case 'F': deltax =  1; deltay =  1; break;      /* SouthEast */
     case 'G': deltax = -1; deltay =  1; break;      /* SouthWest */
     case 'H': deltax = -1; deltay = -1; break;      /* NorthWest */
-    default: PrintError("Bad draw.");       /* Shouldn't happen. */
+    default: deltax = deltay = 0; PrintError("Bad turtle action.");
     }
     x = gi.xTurtle;
     y = gi.yTurtle;

@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: wdriver.cpp
+** Astrolog (Version 6.30) File: wdriver.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -116,6 +116,10 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
     break;
 
   case 'o':
+    if (ch1 == '0') {
+      SwitchF(wi.fAutoSaveNum);
+      wi.nAutoSaveNum = 0;
+    }
     SwitchF(wi.fAutoSave);
     break;
 
@@ -138,46 +142,6 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
   }
   /* 'darg' contains the value to be added to argc when we return. */
   return darg;
-}
-
-
-/* Change the pixel size of the window so its internal drawable area is the */
-/* dimensions of the current graphics chart. Both the upper left and lower  */
-/* right corners of the window may change depending on the scroll position. */
-
-void ResizeWindowToChart()
-{
-  HDC hdc;
-  RECT rcOld, rcCli, rcNew;
-  POINT pt;
-  int xScr, yScr;
-
-  if (!us.fGraphics || gs.xWin == 0 || gs.yWin == 0)
-    return;
-  hdc = GetDC(wi.hwnd);
-  xScr = GetDeviceCaps(hdc, HORZRES);
-  yScr = GetDeviceCaps(hdc, VERTRES);
-  ReleaseDC(wi.hwnd, hdc);
-  GetWindowRect(wi.hwnd, &rcOld);
-  GetClientRect(wi.hwnd, &rcCli);
-  pt.x = pt.y = 0;
-  ClientToScreen(wi.hwnd, &pt);
-  rcNew.left = rcOld.left + gi.xOffset;
-  rcNew.top  = rcOld.top  + gi.yOffset;
-  rcNew.right = rcNew.left + gs.xWin + (gi.nMode == 0 ? SIDESIZE : 0) +
-    (rcOld.right - rcOld.left - rcCli.right);
-  rcNew.bottom = rcNew.top + gs.yWin +
-    (rcOld.bottom - rcOld.top - rcCli.bottom);
-  if (rcNew.right > xScr)
-    OffsetRect(&rcNew, xScr - rcNew.right, 0);
-  if (rcNew.bottom > yScr)
-    OffsetRect(&rcNew, 0, yScr - rcNew.bottom);
-  if (rcNew.left < 0)
-    OffsetRect(&rcNew, -rcNew.left, 0);
-  if (rcNew.top < 0)
-    OffsetRect(&rcNew, 0, -rcNew.top);
-  MoveWindow(wi.hwnd, rcNew.left, rcNew.top,
-    rcNew.right - rcNew.left, rcNew.bottom - rcNew.top, fTrue);
 }
 
 
@@ -282,8 +246,8 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     WS_HSCROLL |
     WS_CLIPCHILDREN |
     WS_OVERLAPPED,
-    CW_USEDEFAULT, 0,
-    CW_USEDEFAULT, 0,
+    CW_USEDEFAULT, CW_USEDEFAULT,
+    CW_USEDEFAULT, CW_USEDEFAULT,
     (HWND)NULL,
     wi.hmenu,
     wi.hinst,
@@ -296,7 +260,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   /* Set up some globals that can't be initialized at compile time. */
 
   CoInitialize(NULL);
-  is.S = stdout;
+  InitProgram();
   ofn.hwndOwner = wi.hwndMain;
   ofn.lpstrFile = szFileName;
   ofn.lpstrFileTitle = szFileTitle;
@@ -405,7 +369,6 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         FRedraw();
       break;
 
-#ifdef MOUSE
     /* The mouse has been left clicked or dragged over the window. */
 
     case WM_LBUTTONDOWN:
@@ -435,7 +398,9 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
           else if (Lat > rDegQuad)
             Lat = rDegQuad;
           wi.xMouse = -1;
+          ciCore = ciMain;
           wi.fCast = fTrue;
+          ProcessState();
         }
         break;
       }
@@ -477,8 +442,8 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
     case WM_RBUTTONDOWN:
       x = WLo(lParam);
       y = WHi(lParam);
-      if (us.fGraphics && (us.fAstroGraph || gi.nMode == gWorldMap) &&
-        gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
+      if (us.fGraphics &&
+        fMap && gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
         Lon = rDegHalf - (real)(x-gi.xOffset) / (real)gs.xWin*rDegMax;
         if (Lon < -rDegHalf)
           Lon = -rDegHalf;
@@ -494,7 +459,6 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         ProcessState();
       }
       break;
-#endif
 
     /* A timer message is received at a defined regular interval. */
 
@@ -638,6 +602,7 @@ void ProcessState()
       case gSector:     us.fSector     = fTrue; break;
       case gAstroGraph: us.fAstroGraph = fTrue; break;
       case gEphemeris:  us.fEphemeris  = fTrue; break;
+      case gSphere:     gi.nMode = gSphere;   break;
       case gWorldMap:   gi.nMode = gWorldMap; break;
       case gGlobe:      gi.nMode = gGlobe;    break;
       case gPolar:      gi.nMode = gPolar;    break;
@@ -659,10 +624,12 @@ void ProcessState()
       case gKeystroke:  us.fKeyGraph   = fTrue; break;
       case gCredit:     us.fCredit     = fTrue; break;
       case gRising:     us.fHorizon = us.fHorizonSearch = fTrue; break;
-      case gTraTraHit:  us.fInDay      = fTrue; break;
+      case gTraTraTim:  us.fInDay      = fTrue; break;
       case gTraTraInf:  us.fInDayInf   = fTrue; break;
-      case gTraNatHit:  us.fTransit    = fTrue; break;
+      case gTraTraGra:  us.fInDayGra   = fTrue; break;
+      case gTraNatTim:  us.fTransit    = fTrue; break;
       case gTraNatInf:  us.fTransitInf = fTrue; break;
+      case gTraNatGra:  us.fTransitGra = fTrue; break;
     }
     wi.nMode = 0;
     wi.fRedraw = fTrue;
@@ -1077,8 +1044,8 @@ int NWmCommand(WORD wCmd)
     WiDoDialog(DlgStar, dlgStar);
     break;
 
-  case cmdSettingMore:
-    WiDoDialog(DlgSetting, dlgSetting);
+  case cmdSettingCalc:
+    WiDoDialog(DlgCalc, dlgCalc);
     break;
 
   case cmdDisplay:
@@ -1167,6 +1134,11 @@ int NWmCommand(WORD wCmd)
 
   /* Graphics Menu */
 
+  case cmdChartSphere:
+    wi.nMode = gSphere;
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+
   case cmdChartMap:
     wi.nMode = gWorldMap;
     us.fGraphics = wi.fRedraw = fTrue;
@@ -1184,7 +1156,7 @@ int NWmCommand(WORD wCmd)
 
 #ifdef CONSTEL
   case cmdConstellation:
-    if (!fMap && gi.nMode != gGlobe && gi.nMode != gPolar)
+    if (gi.nMode != gGlobe && gi.nMode != gPolar)
       wi.nMode = gWorldMap;
     inv(gs.fConstel);
     WiCheckMenu(cmdConstellation, gs.fConstel);
@@ -1223,7 +1195,9 @@ int NWmCommand(WORD wCmd)
       WiCheckMenu(cmdGraphicsText, fTrue);
     }
     WiCheckMenu(cmdGraphicsSidebar, !us.fVelocity);
-    wi.nMode = gWheel;
+    if (wi.nMode != gWheel && gi.nMode != gHouse && gi.nMode != gSector &&
+      gi.nMode != gSphere)
+      wi.nMode = gWheel;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
 
@@ -1269,7 +1243,7 @@ LScale:
     break;
 
   case cmdTiltZero:
-    if (gi.nMode != gGlobe)
+    if (gi.nMode != gSphere && gi.nMode != gGlobe)
       wi.nMode = gGlobe;
     if (gs.rTilt != 0.0) {
       gs.rTilt = 0.0;
@@ -1278,24 +1252,48 @@ LScale:
     us.fGraphics = fTrue;
     break;
 
-  case cmdTiltDecrease:
-    if (gi.nMode != gGlobe)
+  case cmdTiltNorth:
+    if (gi.nMode != gSphere && gi.nMode != gGlobe)
       wi.nMode = gGlobe;
     if (gs.rTilt > -rDegQuad) {
-      gs.rTilt = gs.rTilt > -rDegQuad ? gs.rTilt-TILTSTEP : -rDegQuad;
+      gs.rTilt -= (real)NAbs(wi.nDir);
+      if (gs.rTilt < -rDegQuad)
+        gs.rTilt = -rDegQuad;
       wi.fRedraw = fTrue;
     }
     us.fGraphics = fTrue;
     break;
 
-  case cmdTiltIncrease:
-    if (gi.nMode != gGlobe)
+  case cmdTiltSouth:
+    if (gi.nMode != gSphere && gi.nMode != gGlobe)
       wi.nMode = gGlobe;
     if (gs.rTilt < rDegQuad) {
-      gs.rTilt = gs.rTilt < rDegQuad ? gs.rTilt+TILTSTEP : rDegQuad;
+      gs.rTilt += (real)NAbs(wi.nDir);
+      if (gs.rTilt > rDegQuad)
+        gs.rTilt = rDegQuad;
       wi.fRedraw = fTrue;
     }
     us.fGraphics = fTrue;
+    break;
+
+  case cmdRotateWest:
+    if (gi.nMode != gAstroGraph && gi.nMode != gSphere &&
+      gi.nMode != gWorldMap && gi.nMode != gGlobe && gi.nMode != gPolar)
+      wi.nMode = gGlobe;
+    gs.nRot += NAbs(wi.nDir);
+    if (gs.nRot >= nDegMax)
+      gs.nRot -= nDegMax;
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+
+  case cmdRotateEast:
+    if (gi.nMode != gAstroGraph && gi.nMode != gSphere &&
+      gi.nMode != gWorldMap && gi.nMode != gGlobe && gi.nMode != gPolar)
+      wi.nMode = gGlobe;
+    gs.nRot -= NAbs(wi.nDir);
+    if (gs.nRot < 0)
+      gs.nRot += nDegMax;
+    us.fGraphics = wi.fRedraw = fTrue;
     break;
 
   case cmdGraphicsModify:
@@ -1305,9 +1303,12 @@ LScale:
     break;
 
   case cmdChartModify:
+    inv(us.fGridMidpoint);
     inv(us.fPrimeVert);
     inv(us.fCalendarYear);
     inv(us.nEphemYears);
+    inv(us.fGraphAll);
+    inv(gs.fSouth);
     inv(gs.fMollewide);
     gi.nMode = (gi.nMode == gWheel ? gHouse :
       (gi.nMode == gHouse ? gWheel : gi.nMode));
@@ -1374,7 +1375,7 @@ LScale:
   case cmdAnimateF7:
   case cmdAnimateF8:
   case cmdAnimateF9:
-    WiCheckMenu(cmdAnimateF1 + abs(wi.nDir) - 1, fFalse);
+    WiCheckMenu(cmdAnimateF1 + NAbs(wi.nDir) - 1, fFalse);
     wi.nDir = (wi.nDir > 0 ? 1 : -1)*(int)(wCmd - cmdAnimateF1) + 1;
     WiCheckMenu(wCmd, fTrue);
     break;
@@ -1403,12 +1404,12 @@ LScale:
     break;
 
   case cmdStepForward:
-    Animate(NAbs(gs.nAnim) >= 10 ? 4 : gs.nAnim, abs(wi.nDir));
+    Animate(NAbs(gs.nAnim) >= 10 ? 4 : gs.nAnim, NAbs(wi.nDir));
     wi.fCast = fTrue;
     break;
 
   case cmdStepBackward:
-    Animate(NAbs(gs.nAnim) >= 10 ? 4 : gs.nAnim, -abs(wi.nDir));
+    Animate(NAbs(gs.nAnim) >= 10 ? 4 : gs.nAnim, -NAbs(wi.nDir));
     wi.fCast = fTrue;
     break;
 
@@ -1634,6 +1635,7 @@ flag API FRedraw(void)
   HCURSOR hcurOld;
   HBITMAP hbmp, hbmpOld;
   HFONT hfontOld;
+  char szFile[cchSzDef];
   int nScrollRow, i;
   flag fSmartSave, fAnsiColor, fAnsiChar;
 
@@ -1701,10 +1703,18 @@ flag API FRedraw(void)
 
   Action();    /* Actually go and create the chart here. */
 
+  /* Create the chart again if also autosaving to bitmap file. */
+
   if (wi.fAutoSave && us.fGraphics && !gs.fBitmap) {
     gs.fBitmap = fTrue;
     gs.fMeta = gs.fPS = fFalse;
-    gi.szFileOut = szFileAutoCore;
+    if (!wi.fAutoSaveNum)
+      gi.szFileOut = szFileAutoCore;
+    else {
+      gi.szFileOut = szFile;
+      sprintf(szFile, "ast%05d.bmp", wi.nAutoSaveNum);
+      wi.nAutoSaveNum++;
+    }
     Action();
     gi.szFileOut = NULL;
     gs.fBitmap = fFalse;
@@ -1934,6 +1944,7 @@ flag FCreateProgramGroup(flag fAll)
   /* Delete old previous version shortcuts from folder */
   DeleteShortcut(szDir, "Astrolog 6.00");
   DeleteShortcut(szDir, "Astrolog 6.10");
+  DeleteShortcut(szDir, "Astrolog 6.20");
 
   /* Add main shortcuts in folder */
   sprintf(szName, "%s %s", szAppName, szVersionCore);
@@ -1956,6 +1967,8 @@ LError:
 
 
 /* Add info about Astrolog specific file extensions to the Windows registry. */
+/* Could edit HKCR\ instead of HKCU\Software\Classes\ to affect all users,   */
+/* but that would require Administrator priviledges on modern systems.       */
 
 flag FRegisterExtensions()
 {
@@ -1969,14 +1982,16 @@ flag FRegisterExtensions()
   sprintf(pch, "%s", " %1");
 
   /* Define .as extension and point it to Astrolog File Type */
-  if (RegCreateKey(HKEY_CLASSES_ROOT, ".as", &hkey) != ERROR_SUCCESS)
+  if (RegCreateKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\.as", &hkey) != ERROR_SUCCESS)
     goto LError;
   if (RegSetValue(hkey, NULL, REG_SZ, "Astrolog.as", 11) != ERROR_SUCCESS)
     goto LError;
   RegCloseKey(hkey);
 
   /* Set File Type name for .as extensions */
-  if (RegCreateKey(HKEY_CLASSES_ROOT, "Astrolog.as", &hkey) != ERROR_SUCCESS)
+  if (RegCreateKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\Astrolog.as", &hkey) != ERROR_SUCCESS)
     goto LError;
   if (RegSetValue(hkey, NULL, REG_SZ, "Astrolog Settings", 17) !=
     ERROR_SUCCESS)
@@ -1984,7 +1999,8 @@ flag FRegisterExtensions()
   RegCloseKey(hkey);
 
   /* Make .as extension files be opened by Astrolog */
-  if (RegCreateKey(HKEY_CLASSES_ROOT, "Astrolog.as\\shell\\open\\command",
+  if (RegCreateKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\Astrolog.as\\shell\\open\\command",
     &hkey) != ERROR_SUCCESS)
     goto LError;
   if (RegSetValue(hkey, NULL, REG_SZ, szExe, CchSz(szExe)) != ERROR_SUCCESS)
@@ -1992,7 +2008,8 @@ flag FRegisterExtensions()
   RegCloseKey(hkey);
 
   /* Make .as extension files be edited by Windows Notepad */
-  if (RegCreateKey(HKEY_CLASSES_ROOT, "Astrolog.as\\shell\\edit\\command",
+  if (RegCreateKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\Astrolog.as\\shell\\edit\\command",
     &hkey) != ERROR_SUCCESS)
     goto LError;
   if (RegSetValue(hkey, NULL, REG_SZ, "Notepad %1", 10) != ERROR_SUCCESS)
@@ -2000,8 +2017,8 @@ flag FRegisterExtensions()
   RegCloseKey(hkey);
 
   /* Set icon for .as extension files */
-  if (RegCreateKey(HKEY_CLASSES_ROOT, "Astrolog.as\\DefaultIcon", &hkey) !=
-    ERROR_SUCCESS)
+  if (RegCreateKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\Astrolog.as\\DefaultIcon", &hkey) != ERROR_SUCCESS)
     goto LError;
   if (RegSetValue(hkey, NULL, REG_SZ, szIco, CchSz(szIco)) != ERROR_SUCCESS)
     goto LError;
@@ -2010,9 +2027,7 @@ flag FRegisterExtensions()
   return fTrue;
 LError:
   PrintError("Failed to register Astrolog file extensions.\n"
-    "You may need to run Astrolog as Administrator for registering to "
-    "succeed.\nThis error is ignorable and all features of Astrolog will "
-    "still work.");
+    "This error is ignorable and all features of Astrolog will still work.");
   return fFalse;
 }
 
@@ -2022,18 +2037,18 @@ LError:
 flag FUnregisterExtensions()
 {
   /* Delete .as extension pointing to Astrolog File Type */
-  if (SHDeleteKey(HKEY_CLASSES_ROOT, ".as") != ERROR_SUCCESS)
+  if (SHDeleteKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\.as") != ERROR_SUCCESS)
     goto LError;
 
   /* Delete icon for .as extension files */
-  if (SHDeleteKey(HKEY_CLASSES_ROOT, "Astrolog.as") != ERROR_SUCCESS)
+  if (SHDeleteKey(HKEY_CURRENT_USER,
+    "Software\\Classes\\Astrolog.as") != ERROR_SUCCESS)
     goto LError;
 
   return fTrue;
 LError:
-  PrintError("Failed to unregister Astrolog file extensions.\n"
-    "You may need to run Astrolog as Administrator for unregistering to "
-    "succeed.");
+  PrintError("Failed to unregister Astrolog file extensions.");
   return fFalse;
 }
 #endif /* WIN */

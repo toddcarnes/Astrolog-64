@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: intrpret.cpp
+** Astrolog (Version 6.30) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -128,7 +128,7 @@ void InterpretGeneral(void)
     if (i <= oMoo || (FBetween(i, oNod, oCore) && i != oLil))
       FieldWord("The");
     sprintf(sz, "%s%s%s represents one's", i == oFor ? "Part of " : "",
-      szObjName[i], i == oPal ? " Athena" : ""); FieldWord(sz);
+      szObjDisp[i], i == oPal ? " Athena" : ""); FieldWord(sz);
     sprintf(sz, "%s.", szMindPart[i]); FieldWord(sz);
     FieldWord(NULL);
   }
@@ -177,7 +177,7 @@ void InterpretLocation(void)
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
     sprintf(sz, "%s%s%s%s in %s", ret[i] < 0.0 ? "Retrograde " : "",
-      i == oFor ? "Part of " : "", szObjName[i],
+      i == oFor ? "Part of " : "", szObjDisp[i],
       i == oPal ? " Athena" : "", szSignName[j]);
     FieldWord(sz);
     sprintf(sz, "and %d%s House:", inhouse[i], szSuffix[inhouse[i]]);
@@ -222,11 +222,11 @@ void InterpretAspect(int x, int y)
   if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
-  sprintf(sz, "%s %s %s: %s's", szObjName[x],
-    szAspectName[n], szObjName[y], szPerson);
+  sprintf(sz, "%s %s %s: %s's", szObjDisp[x],
+    szAspectName[n], szObjDisp[y], szPerson);
   FieldWord(sz); FieldWord(szMindPart[x]);
   sprintf(sz, szInteract[n],
-    szModify[Min(abs(grid->v[x][y])/(150*60), 2)][n-1]);
+    szModify[Min(NAbs(grid->v[x][y])/(150*60), 2)][n-1]);
   FieldWord(sz);
   sprintf(sz, "their %s.", szMindPart[y]); FieldWord(sz);
   if (szTherefore[n][0]) {
@@ -263,7 +263,7 @@ void InterpretMidpoint(int x, int y)
   n = grid->n[y][x];
   AnsiColor(kSignA(n));
   sprintf(sz, "%s midpoint %s in %s: The merging of %s's",
-    szObjName[x], szObjName[y], szSignName[n], szPerson0);
+    szObjDisp[x], szObjDisp[y], szSignName[n], szPerson0);
   FieldWord(sz); FieldWord(szMindPart[x]);
   FieldWord("with their"); FieldWord(szMindPart[y]);
   FieldWord("is");
@@ -378,8 +378,8 @@ void InterpretSynastry(void)
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
     sprintf(sz, "%s%s%s%s in %s,", ret[i] < 0.0 ? "Retrograde " : "",
-      i == oNod ? "North " : (i == oFor ? "Part of " : ""), szObjName[i],
-      i == 13 ? " Athena" : "", szSignName[j]);
+      i == oFor ? "Part of " : "", szObjDisp[i],
+      i == oPal ? " Athena" : "", szSignName[j]);
     FieldWord(sz);
     sprintf(sz, "in their %d%s House:", inhouse[i], szSuffix[inhouse[i]]);
     FieldWord(sz);
@@ -430,11 +430,11 @@ void InterpretAspectRelation(int x, int y)
   if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
-  sprintf(sz, "%s %s %s: %s's", szObjName[x],
-    szAspectName[n], szObjName[y], szPerson1);
+  sprintf(sz, "%s %s %s: %s's", szObjDisp[x],
+    szAspectName[n], szObjDisp[y], szPerson1);
   FieldWord(sz); FieldWord(szMindPart[x]);
   sprintf(sz, szInteract[n],
-    szModify[Min(abs(grid->v[y][x])/(150*60), 2)][n-1]);
+    szModify[Min(NAbs(grid->v[y][x])/(150*60), 2)][n-1]);
   FieldWord(sz);
   sprintf(sz, "%s's %s.", szPerson2, szMindPart[y]); FieldWord(sz);
   if (szTherefore[n][0]) {
@@ -473,7 +473,7 @@ void InterpretMidpointRelation(int x, int y)
   n = grid->n[y][x];
   AnsiColor(kSignA(n));
   sprintf(sz, "%s midpoint %s in %s: The merging of %s's",
-    szObjName[x], szObjName[y], szSignName[n], szPerson1);
+    szObjDisp[x], szObjDisp[y], szSignName[n], szPerson1);
   FieldWord(sz); FieldWord(szMindPart[x]);
   sprintf(sz, "with %s's", szPerson2); FieldWord(sz);
   FieldWord(szMindPart[y]); FieldWord("is");
@@ -551,30 +551,32 @@ void ComputeInfluence(real power1[objMax], real power2[objMax])
     power1[i] += rHouseInf[inhouse[i]];    /* Influence of house it's in. */
     x = 0.0;
     c = Dignify(i, j);
-    if (c[1] == 'R') x += rObjInf[oNorm1+1]; /* Planets in signs they rule */
-    if (c[4] == 'X') x += rObjInf[oNorm1+2]; /* or exalted have influence. */
-    if (c[2] == 'S') x += rObjInf[oNorm1+3];
-    if (c[3] == 'H') x += rObjInf[oNorm1+4];
-    if (c[5] == 'Y') x += rObjInf[oNorm1+5];
+    if (c[rrStd+1] == 'R') x += rObjInf[oNorm1+1]; /* Planets in signs they */
+    if (c[rrExa+1] == 'X') x += rObjInf[oNorm1+2]; /* rule or are exalted   */
+    if (c[rrEso+1] == 'S') x += rObjInf[oNorm1+3]; /* in have influence.    */
+    if (c[rrHie+1] == 'H') x += rObjInf[oNorm1+4];
+    if (c[rrRay+1] == 'Y') x += rObjInf[oNorm1+5];
     c = Dignify(i, inhouse[i]);
-    if (c[1] == 'R') x += rHouseInf[cSign+1]; /* Planets in houses aligned  */
-    if (c[4] == 'X') x += rHouseInf[cSign+2]; /* with sign ruled or exalted */
-    if (c[2] == 'S') x += rHouseInf[cSign+3]; /* in have influence.         */
-    if (c[3] == 'H') x += rHouseInf[cSign+4];
-    if (c[5] == 'Y') x += rHouseInf[cSign+5];
+    if (c[rrStd+1] == 'R') x += rHouseInf[cSign+1]; /* Planets in houses  */
+    if (c[rrExa+1] == 'X') x += rHouseInf[cSign+2]; /* aligned with sign  */
+    if (c[rrEso+1] == 'S') x += rHouseInf[cSign+3]; /* ruled or exalted   */
+    if (c[rrHie+1] == 'H') x += rHouseInf[cSign+4]; /* in have influence. */
+    if (c[rrRay+1] == 'Y') x += rHouseInf[cSign+5];
     power1[i] += x;
     x = RObjInf(i)/2.0;
-    if (i != rules[j])                       /* The planet ruling the sign */
-      power1[rules[j]] += x;                 /* and the house that the     */
-    if (i != (j = rules[inhouse[i]]))        /* current planet is in, gets */
-      power1[j] += x;                        /* extra influence.           */
-    if (!ignore7[1]) {
+    if (!ignore7[rrStd]) {
+      if (i != rules[j])                      /* The planet ruling the sign */
+        power1[rules[j]] += x;                /* and the house that the     */
+      if (i != (j = rules[inhouse[i]]))       /* current planet is in, gets */
+        power1[j] += x;                       /* extra influence.           */
+    }
+    if (!ignore7[rrEso]) {
       k = rgSignEso1[j];          if (k > 0 && i != k) power1[k] += x;
       k = rgSignEso2[j];          if (k > 0 && i != k) power1[k] += x;
       k = rgSignEso1[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
       k = rgSignEso2[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
     }
-    if (!ignore7[2]) {
+    if (!ignore7[rrHie]) {
       k = rgSignHie1[j];          if (k > 0 && i != k) power1[k] += x;
       k = rgSignHie2[j];          if (k > 0 && i != k) power1[k] += x;
       k = rgSignHie1[inhouse[i]]; if (k > 0 && i != k) power1[k] += x;
@@ -584,11 +586,11 @@ void ComputeInfluence(real power1[objMax], real power2[objMax])
   for (i = 1; i <= cSign; i++) {         /* Various planets get influence */
     j = SFromZ(chouse[i]);               /* if house cusps fall in signs  */
     power1[rules[j]] += rHouseInf[i];    /* they rule.                    */
-    if (!ignore7[1]) {
+    if (!ignore7[rrEso]) {
       k = rgSignEso1[j]; if (k) power1[k] += rHouseInf[i];
       k = rgSignEso2[j]; if (k) power1[k] += rHouseInf[i];
     }
-    if (!ignore7[2]) {
+    if (!ignore7[rrHie]) {
       k = rgSignHie1[j]; if (k) power1[k] += rHouseInf[i];
       k = rgSignHie2[j]; if (k) power1[k] += rHouseInf[i];
     }
@@ -638,7 +640,7 @@ void ChartInfluence(void)
   PrintSz("  Planet:    Position      Aspects    Total Rank  Percent\n");
   for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     AnsiColor(kObjA[i]);
-    sprintf(sz, "%8.8s: ", szObjName[i]); PrintSz(sz);
+    sprintf(sz, "%8.8s: ", szObjDisp[i]); PrintSz(sz);
     sprintf(sz, "%6.1f (%2d) +%6.1f (%2d) =%7.1f (%2d) /%6.1f%%\n",
       power1[i], rank1[i], power2[i], rank2[i], power[i], rank[i],
       total > 0.0 ? power[i]/total*100.0 : 0.0); PrintSz(sz);

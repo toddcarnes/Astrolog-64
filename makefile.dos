@@ -1,4 +1,4 @@
-# Astrolog (Version 6.20) File: makefile (DOS version)
+# Astrolog (Version 6.30) File: makefile (DOS version)
 #
 # IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 # not enumerated elsewhere in this program are Copyright (C) 1991-2017 by
@@ -26,8 +26,8 @@ objs = astrolog.obj data.obj data2.obj general.obj io.obj\
  charts0.obj charts1.obj charts2.obj charts3.obj intrpret.obj\
  xdata.obj xgeneral.obj xdevice.obj\
  xcharts0.obj xcharts1.obj xcharts2.obj xscreen.obj\
- swedate.obj swehouse.obj swejpl.obj swemmoon.obj swemplan.obj swemptab.obj\
- sweph.obj swephlib.obj
+ swecl.obj swedate.obj swehouse.obj swejpl.obj swemmoon.obj swemplan.obj\
+ swemptab.obj sweph.obj swephlib.obj
 
 $(name).exe : $(objs)
 # We are compiling in Large memory model with 16,384 bytes for stack storage.

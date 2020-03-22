@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: xdata.cpp
+** Astrolog (Version 6.30) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -64,20 +64,20 @@ GS gs = {
   fTrue,
 #endif
   fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse,
-  fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse,
+  fTrue, fTrue, fFalse, fFalse, fFalse, fFalse, fFalse, fTrue, fTrue,
   DEFAULTX, DEFAULTY,
 #ifdef WIN
   -10,
 #else
   0,
 #endif
-  200, 100, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL, oCore, 600, 1111
-  };
+  200, 100, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
+  0, 25, 11, oCore, 600, 1111, fFalse, fFalse};
 
 GI gi = {
   0, fFalse, -1,
-  NULL, 0, NULL, NULL, 0, 0.0, fFalse,
-  2, 1, 1, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1
+  NULL, 0, NULL, NULL, 0.0, fFalse,
+  2, 1, 1, 20, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1
 #ifdef X11
   , NULL, 0, 0, 0, 0, 0, 0, 0, 0
 #endif
@@ -95,17 +95,20 @@ WI wi = {
   hdcNil, hdcNil, (HWND)NULL, (HPEN)NULL, (HBRUSH)NULL, (HFONT)NULL,
   0, 0, 0, 0, 0, 0, 0, -1, -1,
   0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
-  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, kBlack, 1, 1000};
+
+  /* Window user settings. */
+  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse,
+  0, kBlack, 1, 1000};
 
 OPENFILENAME ofn = {
   sizeof(OPENFILENAME), (HWND)NULL, (HINSTANCE)NULL, NULL, NULL, 0, 1, NULL,
   cchSzMaxFile, NULL, cchSzMaxFile, NULL, NULL, OFN_OVERWRITEPROMPT, 0, 0,
-  NULL, 0L, NULL, NULL};
+  NULL, 0, NULL, NULL};
 
 PRINTDLG prd = {
   sizeof(PRINTDLG), (HWND)NULL, (HGLOBAL)NULL, (HGLOBAL)NULL, hdcNil,
   PD_NOPAGENUMS | PD_NOSELECTION | PD_RETURNDC | PD_USEDEVMODECOPIES,
-  0, 0, 0, 0, 1, (HINSTANCE)NULL, 0L, NULL, NULL, (LPCSTR)NULL, (LPCSTR)NULL,
+  0, 0, 0, 0, 1, (HINSTANCE)NULL, 0, NULL, NULL, (LPCSTR)NULL, (LPCSTR)NULL,
   (HGLOBAL)NULL, (HGLOBAL)NULL};
 
 char szFileName[cchSzMaxFile];
@@ -113,13 +116,19 @@ char szFileTitle[cchSzMaxFile];
 char *szFileTemp = szFileTempCore;
 #endif
 
+#ifdef WCLI
+WI wi = {
+  (HINSTANCE)NULL, (HWND)NULL, (HWND)NULL, hdcNil, (HPEN)NULL, (HBRUSH)NULL,
+  0, 0, fFalse, fFalse, fFalse};
+#endif
+
 /* Color tables for Astrolog's graphics palette. */
 
 CONST KV rgbbmp[cColor] = {
-  0x000000L, 0x00007FL, 0x007F00L, 0x007F7FL,
-  0x7F0000L, 0x7F007FL, 0x7F7F00L, 0xBFBFBFL,
-  0x7F7F7FL, 0x0000FFL, 0x00FF00L, 0x00FFFFL,
-  0xFF0000L, 0xFF00FFL, 0xFFFF00L, 0xFFFFFFL};
+  0x000000, 0x00007F, 0x007F00, 0x007F7F,
+  0x7F0000, 0x7F007F, 0x7F7F00, 0xBFBFBF,
+  0x7F7F7F, 0x0000FF, 0x00FF00, 0x00FFFF,
+  0xFF0000, 0xFF00FF, 0xFFFF00, 0xFFFFFF};
 #ifdef X11
 CONST char *szColorX[cColor] = {
   "black", "orangered3", "green4", "darkorange2",
@@ -155,7 +164,7 @@ char xkey[10];
 ******************************************************************************
 */
 
-#ifdef STROKE
+#ifdef VECTOR
 //                                  ESMMVMJSUNPccpjvnslpveA23I56789M12
 CONST char szObjectFont[oNorm+1] = ";QRSTUVWXYZ     <>    a  c     b  ";
 //                                    C OSTSisssqbssnbbts
@@ -193,7 +202,7 @@ CONST char *szDrawSign2[cSign+2] = {"",
   "NL8NR8BH8F3DFD6GDG3BR16H3UHU6EUE3",             /* Pisces */
   "BH8RFRFR4ER2ER4G5DGD2GDGD2F2R4E2U4H2L6G4DGDG"}; /* Capricorn #2 */
 
-CONST char *szDrawObject[oNorm+5] = {
+CONST char *szDrawObjectDef[oNorm+5] = {
   "ND4NL4NR4U4LGLDGD2FDRFR2ERUEU2HULHL",    /* Earth   */
   "U0BH3DGD2FDRFR2ERUEU2HULHL2GL",          /* Sun     */
   "BG3E2U2H2ER2FRDFD2GDLGL2H",              /* Moon    */
@@ -242,8 +251,9 @@ CONST char *szDrawObject[oNorm+5] = {
   "UERHL2G2D2F2R2ELHU",                     /* Lilith #2 */
   "ND4U4NG3F3",                             /* Pluto  #3 */
   };
+CONST char *szDrawObject[oNorm+5];
 
-CONST char *szDrawObject2[oNorm+5] = {
+CONST char *szDrawObjectDef2[oNorm+5] = {
   "ND8NL8NR8U8L2GLG3DGD4FDF3RFR4ERE3UEU4HUH3LHL2", /* Earth */
   "U0BU8L2GLG3DGD4FDF3RFR4ERE3UEU4HUH3LHL2",       /* Sun   */
   "BG6E3UEU2HUH3E2R4FRF3DFD4GDG3LGL4H2",           /* Moon  */
@@ -292,6 +302,7 @@ CONST char *szDrawObject2[oNorm+5] = {
   "", /* Lilith #2 */
   "", /* Pluto  #3 */
   };
+CONST char *szDrawObject2[oNorm+5];
 
 CONST char *szDrawHouse[cSign+1] = {"",
   "BD2NLNRU4L", "BHBUR2D2L2D2R2", "BHBUR2D2NL2D2L2",

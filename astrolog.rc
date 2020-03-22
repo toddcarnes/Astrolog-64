@@ -13,11 +13,13 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (United States) resources
+// English (U.S.) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
+#endif //_WIN32
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -53,20 +55,16 @@ END
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 icon                    ICON                    "astrlog1.ico"
-
 icon2                   ICON                    "astrlog2.ico"
-
 icon3                   ICON                    "astrlog3.ico"
-
 icon4                   ICON                    "astrlog4.ico"
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Menu
 //
 
-menu MENU
+menu MENU 
 BEGIN
     POPUP "&File"
     BEGIN
@@ -265,7 +263,7 @@ BEGIN
         MENUITEM "Star R&estrictions...\tAlt+R", cmdStar
         MENUITEM "&Transit Restrictions...\tAlt+F", cmdResTransit
         MENUITEM SEPARATOR
-        MENUITEM "Calculation Settin&gs...\tAlt+S", cmdSettingMore
+        MENUITEM "Calculation Settin&gs...\tAlt+S", cmdSettingCalc
         MENUITEM "&Display Settings...\tAlt+B", cmdDisplay
     END
     POPUP "&Chart"
@@ -293,6 +291,7 @@ BEGIN
     END
     POPUP "&Graphics"
     BEGIN
+        MENUITEM "Show Chart Sp&here\tX",       cmdChartSphere
         MENUITEM "Show World &Map\tW",          cmdChartMap
         MENUITEM "Show &Globe\tG",              cmdChartGlobe
         MENUITEM "Show &Polar Globe\tP",        cmdChartPolar
@@ -317,10 +316,13 @@ BEGIN
         END
         POPUP "Globe &Tilt"
         BEGIN
-            MENUITEM "Set to &Zero\tAlt+E",         cmdTiltZero
+            MENUITEM "Set Tilt to &Zero\tAlt+E",    cmdTiltZero
             MENUITEM SEPARATOR
-            MENUITEM "&Decrease\t[",                cmdTiltDecrease
-            MENUITEM "&Increase\t]",                cmdTiltIncrease
+            MENUITEM "Tilt &North\t[",              cmdTiltNorth
+            MENUITEM "Tilt &South\t]",              cmdTiltSouth
+            MENUITEM SEPARATOR
+            MENUITEM "Rotate &West\t{",             cmdRotateWest
+            MENUITEM "Rotate &East\t}",             cmdRotateEast
         END
         MENUITEM SEPARATOR
         MENUITEM "Modify &Display\ti",          cmdGraphicsModify
@@ -460,7 +462,7 @@ BEGIN
     ICON            icon2,IDC_STATIC,120,55,20,20
 END
 
-dlgAbout DIALOG 32, 32, 268, 242
+dlgAbout DIALOG  32, 32, 268, 242
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "About Astrolog"
 FONT 8, "MS Sans Serif"
@@ -493,7 +495,7 @@ BEGIN
     ICON            icon4,IDC_STATIC,235,5,18,20
 END
 
-dlgCommand DIALOG 32, 32, 143, 50
+dlgCommand DIALOG  32, 32, 143, 50
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Enter Command Line"
 FONT 8, "MS Sans Serif"
@@ -505,70 +507,13 @@ BEGIN
     ICON            icon3,IDC_STATIC,5,15,18,20
 END
 
-dlgAspect DIALOG 32, 32, 322, 167
+dlgAspect DIALOGEX 32, 32, 422, 166
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Aspect Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,265,150,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,210,150,50,14
-    EDITTEXT        deo01,70,15,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo02,70,30,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo03,70,45,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo04,70,60,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo05,70,75,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo06,70,90,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo07,70,105,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo08,70,120,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo09,70,135,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo10,225,15,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo11,225,30,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo12,225,45,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo13,225,60,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo14,225,75,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo15,225,90,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo16,225,105,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo17,225,120,25,12,ES_AUTOHSCROLL
-    EDITTEXT        deo18,225,135,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dea01,100,15,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea02,100,30,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea03,100,45,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea04,100,60,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea05,100,75,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea06,100,90,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea07,100,105,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea08,100,120,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea09,100,135,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea10,255,15,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea11,255,30,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea12,255,45,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea13,255,60,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea14,255,75,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea15,255,90,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea16,255,105,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea17,255,120,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dea18,255,135,30,12,ES_AUTOHSCROLL
-    EDITTEXT        dei01,135,15,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei02,135,30,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei03,135,45,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei04,135,60,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei05,135,75,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei06,135,90,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei07,135,105,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei08,135,120,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei09,135,135,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei10,290,15,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei11,290,30,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei12,290,45,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei13,290,60,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei14,290,75,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei15,290,90,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei16,290,105,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei17,290,120,25,12,ES_AUTOHSCROLL
-    EDITTEXT        dei18,290,135,25,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "&Restrict All",dbAs_RA0,5,150,50,14
-    PUSHBUTTON      "&Unrestrict All",dbAs_RA1,60,150,50,14
-    PUSHBUTTON      "Toggle &Majors",dbAs_RA,115,150,50,14
+    DEFPUSHBUTTON   "OK",IDOK,370,150,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,315,150,50,14
     CONTROL         "&Conjunction",dxa01,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,15,63,10
     CONTROL         "&Opposition",dxa02,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,30,63,10
     CONTROL         "&Square",dxa03,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,45,63,10
@@ -578,35 +523,108 @@ BEGIN
     CONTROL         "S&emisextile",dxa07,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,105,63,10
     CONTROL         "Semisquare",dxa08,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,120,63,10
     CONTROL         "Sesquiquadrate",dxa09,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,135,63,10
-    CONTROL         "&Quintile",dxa10,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,15,55,10
-    CONTROL         "&Biquintile",dxa11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,30,55,10
-    CONTROL         "Semiquintile",dxa12,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,45,55,10
-    CONTROL         "Se&ptile",dxa13,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,60,55,10
-    CONTROL         "&Novile",dxa14,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,75,55,10
-    CONTROL         "Binovile",dxa15,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,90,55,10
-    CONTROL         "Biseptile",dxa16,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,105,55,10
-    CONTROL         "Triseptile",dxa17,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,120,55,10
-    CONTROL         "Quatronovile",dxa18,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,170,135,55,10
+    CONTROL         "&Quintile",dxa10,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,15,55,10
+    CONTROL         "&Biquintile",dxa11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,30,55,10
+    CONTROL         "Semiquintile",dxa12,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,45,55,10
+    CONTROL         "Se&ptile",dxa13,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,60,55,10
+    CONTROL         "&Novile",dxa14,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,75,55,10
+    CONTROL         "Binovile",dxa15,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,90,55,10
+    CONTROL         "Biseptile",dxa16,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,105,55,10
+    CONTROL         "Triseptile",dxa17,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,120,55,10
+    CONTROL         "Quatronovile",dxa18,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,220,135,55,10
+    EDITTEXT        deo01,70,15,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo02,70,30,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo03,70,45,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo04,70,60,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo05,70,75,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo06,70,90,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo07,70,105,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo08,70,120,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo09,70,135,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo10,275,15,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo11,275,30,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo12,275,45,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo13,275,60,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo14,275,75,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo15,275,90,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo16,275,105,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo17,275,120,25,12,ES_AUTOHSCROLL
+    EDITTEXT        deo18,275,135,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dea01,100,15,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea02,100,30,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea03,100,45,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea04,100,60,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea05,100,75,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea06,100,90,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea07,100,105,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea08,100,120,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea09,100,135,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea10,305,15,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea11,305,30,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea12,305,45,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea13,305,60,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea14,305,75,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea15,305,90,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea16,305,105,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea17,305,120,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dea18,305,135,30,12,ES_AUTOHSCROLL
+    EDITTEXT        dei01,135,15,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei02,135,30,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei03,135,45,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei04,135,60,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei05,135,75,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei06,135,90,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei07,135,105,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei08,135,120,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei09,135,135,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei10,340,15,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei11,340,30,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei12,340,45,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei13,340,60,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei14,340,75,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei15,340,90,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei16,340,105,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei17,340,120,25,12,ES_AUTOHSCROLL
+    EDITTEXT        dei18,340,135,25,12,ES_AUTOHSCROLL
+    COMBOBOX        dck01,165,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck02,165,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck03,165,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck04,165,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck05,165,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck06,165,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck07,165,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck08,165,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck09,165,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck10,370,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck11,370,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck12,370,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck13,370,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck14,370,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck15,370,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck16,370,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck17,370,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck18,370,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "&Restrict All",dbAs_RA0,5,150,50,14
+    PUSHBUTTON      "&Unrestrict All",dbAs_RA1,60,150,50,14
+    PUSHBUTTON      "Toggle &Majors",dbAs_RA,115,150,50,14
     LTEXT           "Angle",IDC_STATIC,101,5,24,8
     LTEXT           "Orb",IDC_STATIC,70,5,25,8
     LTEXT           "Influence",IDC_STATIC,130,5,35,8
-    LTEXT           "Angle",IDC_STATIC,257,5,23,8
-    LTEXT           "Orb",IDC_STATIC,225,5,25,8
-    LTEXT           "Influence",IDC_STATIC,285,5,35,8
-    ICON            icon2,IDC_STATIC,180,145,18,20
+    LTEXT           "Color",IDC_STATIC,165,5,35,8
+    LTEXT           "Angle",IDC_STATIC,307,5,23,8
+    LTEXT           "Orb",IDC_STATIC,275,5,25,8
+    LTEXT           "Influence",IDC_STATIC,335,5,35,8
+    LTEXT           "Color",IDC_STATIC,370,5,35,8
+    ICON            icon2,IDC_STATIC,235,145,21,20
 END
 
-dlgColor DIALOG 32, 32, 351, 193
+dlgColor DIALOGEX 32, 32, 351, 156
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Customize Colors"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,295,175,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,240,175,50,14
-    COMBOBOX        dce0,30,155,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dce1,30,170,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dce2,110,155,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dce3,110,170,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,295,135,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,240,135,50,14
     COMBOBOX        dck00,40,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dck01,40,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dck02,40,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
@@ -623,28 +641,17 @@ BEGIN
     COMBOBOX        dck13,130,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dck14,130,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dck15,130,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca01,215,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca02,215,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca03,215,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca04,215,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca05,215,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca06,215,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca07,215,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca08,215,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca09,215,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca10,290,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca11,290,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca12,290,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca13,290,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca14,290,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca15,290,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca16,290,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca17,290,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dca18,290,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Fire",IDC_STATIC,10,155,20,8
-    LTEXT           "Earth",IDC_STATIC,10,170,20,8
-    LTEXT           "Air",IDC_STATIC,85,155,20,8
-    LTEXT           "Water",IDC_STATIC,85,170,20,8
+    COMBOBOX        dce0,215,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dce1,215,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dce2,295,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dce3,295,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr1,215,65,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr2,215,80,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr3,215,95,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr4,295,65,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr5,295,80,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr6,295,95,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcr7,295,110,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Black",IDC_STATIC,10,15,25,8
     LTEXT           "White",IDC_STATIC,10,30,25,8
     LTEXT           "Red",IDC_STATIC,10,45,25,8
@@ -661,31 +668,24 @@ BEGIN
     LTEXT           "Orange",IDC_STATIC,95,90,25,8
     LTEXT           "Purple",IDC_STATIC,95,105,25,8
     LTEXT           "Dk. Cyan",IDC_STATIC,95,120,30,8
-    LTEXT           "Con.",IDC_STATIC,195,15,20,8
-    LTEXT           "Opp.",IDC_STATIC,195,30,20,8
-    LTEXT           "Squ.",IDC_STATIC,195,45,20,8
-    LTEXT           "Tri.",IDC_STATIC,195,60,20,8
-    LTEXT           "Sex.",IDC_STATIC,195,75,20,8
-    LTEXT           "Inc.",IDC_STATIC,195,90,20,8
-    LTEXT           "S.Sx.",IDC_STATIC,195,105,20,8
-    LTEXT           "S.Sq.",IDC_STATIC,195,120,20,8
-    LTEXT           "Ses.",IDC_STATIC,195,135,20,8
-    LTEXT           "Qui.",IDC_STATIC,270,15,20,8
-    LTEXT           "B.Qn.",IDC_STATIC,270,30,20,8
-    LTEXT           "S.Qn.",IDC_STATIC,270,45,20,8
-    LTEXT           "Sep.",IDC_STATIC,270,60,20,8
-    LTEXT           "Nov.",IDC_STATIC,270,75,20,8
-    LTEXT           "B.Nv.",IDC_STATIC,270,90,20,8
-    LTEXT           "B.Sp.",IDC_STATIC,270,105,20,8
-    LTEXT           "T.Sp.",IDC_STATIC,270,120,20,8
-    LTEXT           "Q.Nv.",IDC_STATIC,270,135,20,8
-    GROUPBOX        "Elements",IDC_STATIC,5,140,160,50
-    GROUPBOX        "Standard Color Palette",IDC_STATIC,5,0,180,140
-    GROUPBOX        "Aspects",IDC_STATIC,190,0,155,155
-    ICON            icon3,IDC_STATIC,190,170,18,20
+    LTEXT           "Fire",IDC_STATIC,195,15,20,8
+    LTEXT           "Earth",IDC_STATIC,195,30,20,8
+    LTEXT           "Air",IDC_STATIC,270,15,20,8
+    LTEXT           "Water",IDC_STATIC,270,30,20,8
+    LTEXT           "1st",IDC_STATIC,195,65,20,8
+    LTEXT           "2nd",IDC_STATIC,195,80,20,8
+    LTEXT           "3rd",IDC_STATIC,195,95,20,8
+    LTEXT           "4th",IDC_STATIC,275,65,15,8
+    LTEXT           "5th",IDC_STATIC,275,80,15,8
+    LTEXT           "6th",IDC_STATIC,275,95,15,8
+    LTEXT           "7th",IDC_STATIC,275,110,15,8
+    GROUPBOX        "Standard Color Palette",IDC_STATIC,5,5,180,135
+    GROUPBOX        "Elements",IDC_STATIC,190,5,160,45
+    GROUPBOX        "Seven Rays",IDC_STATIC,190,55,160,75
+    ICON            icon3,IDC_STATIC,200,135,21,20
 END
 
-dlgRestrict DIALOG 32, 32, 311, 148
+dlgRestrict DIALOG  32, 32, 311, 148
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Object Restrictions"
 FONT 8, "MS Sans Serif"
@@ -800,51 +800,53 @@ BEGIN
     ICON            icon2,IDC_STATIC,145,55,20,20
 END
 
-dlgTransit DIALOGEX 32, 32, 229, 175
+dlgTransit DIALOGEX 32, 32, 229, 186
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Transits"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,170,155,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,170,135,50,14
+    DEFPUSHBUTTON   "OK",IDOK,170,165,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,170,145,50,14
     CONTROL         "N&one",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,10,15,105,10
-    CONTROL         "Transit To Transit &Hits",dr02,"Button",BS_AUTORADIOBUTTON,10,25,105,10
-    CONTROL         "Transit To &Transit Influence",dr03,"Button",BS_AUTORADIOBUTTON,10,35,105,10
-    CONTROL         "Transit To N&atal Hits",dr04,"Button",BS_AUTORADIOBUTTON,10,45,105,10
-    CONTROL         "Transit To Natal &Influence",dr05,"Button",BS_AUTORADIOBUTTON,10,55,105,10
-    CONTROL         "&Progress Instead Of Transit",dxTr_p,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,75,105,10
-    CONTROL         "Display R&eturns Only",dxTr_r,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,75,100,10
-    COMBOBOX        dcTrMon,50,105,55,115,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dcTrDay,50,120,55,35,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dcTrYea,50,135,55,100,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        dcTrTim,50,150,55,50,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Given &Day",dr06,"Button",BS_AUTORADIOBUTTON | WS_GROUP,135,15,65,10
-    CONTROL         "Given &Month",dr07,"Button",BS_AUTORADIOBUTTON,135,25,65,10
-    CONTROL         "Given &Year",dr08,"Button",BS_AUTORADIOBUTTON,135,35,65,10
-    CONTROL         "&Range Of Years",dr09,"Button",BS_AUTORADIOBUTTON,135,45,65,10
+    CONTROL         "Transit To Transit &Times",dr02,"Button",BS_AUTORADIOBUTTON,10,27,105,10
+    CONTROL         "Transit To Transit &Influence",dr03,"Button",BS_AUTORADIOBUTTON,10,37,105,10
+    CONTROL         "Transit To Transit &Graph",dr04,"Button",BS_AUTORADIOBUTTON,10,47,105,10
+    CONTROL         "Transit To N&atal Times",dr05,"Button",BS_AUTORADIOBUTTON,10,60,105,10
+    CONTROL         "Transit To Natal In&fluence",dr06,"Button",BS_AUTORADIOBUTTON,10,70,105,10
+    CONTROL         "Transit To Nata&l Graph",dr07,"Button",BS_AUTORADIOBUTTON,10,80,105,10
+    CONTROL         "&Progress Instead Of Transit",dxTr_p,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,125,75,100,10
+    CONTROL         "Display R&eturns Only",dxTr_r,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,125,85,95,10
+    COMBOBOX        dcTrMon,50,115,55,115,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcTrDay,50,130,55,35,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcTrYea,50,145,55,100,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcTrTim,50,160,55,50,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Given &Day",dr08,"Button",BS_AUTORADIOBUTTON | WS_GROUP,135,15,65,10
+    CONTROL         "Given &Month",dr09,"Button",BS_AUTORADIOBUTTON,135,25,65,10
+    CONTROL         "Given &Year",dr10,"Button",BS_AUTORADIOBUTTON,135,35,65,10
+    CONTROL         "&Range Of Years",dr11,"Button",BS_AUTORADIOBUTTON,135,45,65,10
     EDITTEXT        deTr_tY,190,55,25,13,ES_AUTOHSCROLL
-    EDITTEXT        deTr_d,190,95,30,13,ES_AUTOHSCROLL
-    PUSHBUTTON      "&Now",dbTr_tn,170,115,50,14
-    LTEXT           "Month",IDC_STATIC,10,105,35,8
-    LTEXT           "Day",IDC_STATIC,10,120,35,8
-    LTEXT           "Year",IDC_STATIC,10,135,35,8
-    LTEXT           "Time",IDC_STATIC,10,150,35,8
+    EDITTEXT        deTr_d,190,100,30,13,ES_AUTOHSCROLL
+    PUSHBUTTON      "&Now",dbTr_tn,170,125,50,14
+    LTEXT           "Month",IDC_STATIC,10,115,35,8
+    LTEXT           "Day",IDC_STATIC,10,130,35,8
+    LTEXT           "Year",IDC_STATIC,10,145,35,8
+    LTEXT           "Time",IDC_STATIC,10,160,35,8
     LTEXT           "Years To Span:",IDC_STATIC,135,55,50,8
-    LTEXT           "Searching Divisions:",IDC_STATIC,120,95,70,8
-    GROUPBOX        "Transit Type",IDC_STATIC,5,5,115,65
-    GROUPBOX        "Do Transits For",IDC_STATIC,5,90,105,80
-    GROUPBOX        "Search For Hits Over",IDC_STATIC,130,5,90,65
-    ICON            icon2,IDC_STATIC,130,130,20,20
+    LTEXT           "Searching Divisions:",IDC_STATIC,120,100,70,8
+    GROUPBOX        "Transit Type",IDC_STATIC,5,5,115,90
+    GROUPBOX        "Transit To Natal Info",IDC_STATIC,5,100,105,80
+    GROUPBOX        "Times And Graph Cover",IDC_STATIC,130,5,90,65
+    ICON            icon2,IDC_STATIC,130,135,20,20
 END
 
-dlgSetting DIALOGEX 32, 32, 202, 161
+dlgCalc DIALOGEX 32, 32, 202, 161
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Calculation Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,145,140,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,145,120,50,14
-    COMBOBOX        dcSe_b,85,5,110,50,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dcSe_b,85,5,110,60,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dcSe_s,120,20,56,60,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     EDITTEXT        deSe_h,65,35,40,13,ES_AUTOHSCROLL
     EDITTEXT        deSe_x,85,50,20,13,ES_AUTOHSCROLL
@@ -859,46 +861,51 @@ BEGIN
     CONTROL         "&Equatorial Positions",dxSe_sr,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,35,80,10
     CONTROL         "&True Space Positions",dxSe_yt,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,45,80,10
     CONTROL         "To&pocentric Positions",dxSe_yv,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,55,80,10
+    CONTROL         "&3D Houses",dxSe_c3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,90,75,10
+    CONTROL         "3&D Aspects",dxSe_A3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,100,75,10
     LTEXT           "Calculation Method:",IDC_STATIC,5,5,70,8
     LTEXT           "Zodiac Degree Offset / Ayanamsa:",IDC_STATIC,5,20,110,8
     LTEXT           "Harmonic Chart Factor:",IDC_STATIC,5,50,80,8
     LTEXT           "Central Planet:",IDC_STATIC,5,35,60,8
     LTEXT           "Use This Planet:",IDC_STATIC,10,125,55,8
     GROUPBOX        "Solar Chart Setting",IDC_STATIC,5,85,105,70
-    ICON            icon3,IDC_STATIC,160,95,21,20
+    ICON            icon3,IDC_STATIC,116,126,21,20
 END
 
-dlgChart DIALOG 32, 32, 266, 173
+dlgChart DIALOGEX 32, 32, 266, 196
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Chart Setting Details"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,210,155,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,210,135,50,14
+    DEFPUSHBUTTON   "OK",IDOK,210,175,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,210,155,50,14
     CONTROL         "Text Listing &Velocities Relative To Average Speed",dxCh_v0,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,5,180,10
-    EDITTEXT        deCh_w,90,15,15,13,ES_AUTOHSCROLL
+    EDITTEXT        deCh_w,90,15,25,13,ES_AUTOHSCROLL
     CONTROL         "Text House &Wheel Reverses Object Order",dxCh_w0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,30,175,10
     CONTROL         "Text Aspect &Grid Shows Aspect Configurations",dxCh_g0,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,40,175,10
-    CONTROL         "Text &Aspect List Shows Aspect Summary",dxCh_a0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,50,175,10
+    CONTROL         "&Relationship Aspect Grid Shows Midpoints Instead",dxCh_gm,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,50,175,10
+    CONTROL         "Text &Aspect List Shows Aspect Summary",dxCh_a0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,60,175,10
     CONTROL         "Text &Midpoint List Shows Midpoint Summary",dxCh_m0,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,60,175,10
-    CONTROL         "Text Midpoint List Includes Aspects &To Midpoints",dxCh_ma,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,70,175,10
-    CONTROL         "Hori&zon Chart Displays With Polar Center",dxCh_Z0,
+    CONTROL         "Text Midpoint List Includes Aspects &To Midpoints",dxCh_ma,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,80,175,10
-    CONTROL         "&Sector Chart Approximated With Placidus Cusps",dxCh_l,
+    CONTROL         "Hori&zon Chart Displays With Polar Center",dxCh_Z0,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,90,175,10
-    CONTROL         "Text &Influence Chart Shows Sign Influences Too",dxCh_j0,
+    CONTROL         "&Sector Chart Approximated With Placidus Cusps",dxCh_l,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,100,175,10
-    EDITTEXT        deCh_L,125,111,20,13,ES_AUTOHSCROLL
+    CONTROL         "Text &Influence Chart Shows Sign Influences Too",dxCh_j0,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,111,175,10
+    EDITTEXT        deCh_L,125,121,25,13,ES_AUTOHSCROLL
     CONTROL         "Text Astro-Graph Shows &Latitude Crossings",dxCh_L0,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,126,175,10
-    CONTROL         "Text &Calendar Is For Entire Year",dxCh_Ky,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,135,175,10
-    EDITTEXT        deCh_P,125,145,20,13,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,135,175,10
+    CONTROL         "Text &Calendar Is For Entire Year",dxCh_Ky,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,145,175,10
+    EDITTEXT        deCh_P,125,156,25,13,ES_AUTOHSCROLL
     CONTROL         "Display Arabic &Part Formulas With Terms Reversed",dxCh_P0,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,161,175,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,170,175,10
+    EDITTEXT        deCh_Yb,140,180,25,13,ES_AUTOHSCROLL
     CONTROL         "Default",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,190,15,60,10
     CONTROL         "By Azimuth",dr02,"Button",BS_AUTORADIOBUTTON,190,25,60,10
     CONTROL         "By Altitude",dr03,"Button",BS_AUTORADIOBUTTON,190,35,60,10
@@ -909,20 +916,21 @@ BEGIN
     CONTROL         "By Name",dr08,"Button",BS_AUTORADIOBUTTON,190,105,50,10
     CONTROL         "By Formula",dr09,"Button",BS_AUTORADIOBUTTON,190,115,50,10
     LTEXT           "Text House Wheel Rows:",IDC_STATIC,5,15,82,8
-    LTEXT           "Text Astro-Graph Degree Step Rate:",IDC_STATIC,5,111,120,8
-    LTEXT           "Number of Arabic Parts To Display:",IDC_STATIC,5,145,120,8
+    LTEXT           "Text Astro-Graph Degree Step Rate:",IDC_STATIC,5,121,120,8
+    LTEXT           "Number of Arabic Parts To Display:",IDC_STATIC,5,155,120,8
+    LTEXT           "Number Of Days Biorhythm Chart Covers:",IDC_STATIC,5,180,130,8
     GROUPBOX        "Fixed Star Ordering",IDC_STATIC,185,5,75,65
     GROUPBOX        "Arabic Part Ordering",IDC_STATIC,185,75,75,55
-    ICON            icon3,IDC_STATIC,185,145,18,20
+    ICON            icon3,IDC_STATIC,170,140,20,20
 END
 
-dlgDisplay DIALOGEX 32, 32, 272, 206
+dlgDisplay DIALOGEX 32, 32, 272, 215
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Display Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,215,185,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,160,185,50,14
+    DEFPUSHBUTTON   "OK",IDOK,215,195,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,160,195,50,14
     CONTROL         "Round Positions To &Nearest Unit Instead Of Crop",dxOb_Yr,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,5,175,10
     CONTROL         "Display &Dates In D/M/Y Instead Of M/D/Y Format",dxOb_Yd,
@@ -939,17 +947,18 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,65,175,10
     CONTROL         "Restrict Di&rection Change Events In Searches",dxOb_YR0_d,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,75,175,10
+    EDITTEXT        deOb_RO,115,85,45,13,ES_AUTOHSCROLL
     CONTROL         "&Export Text And Print In Intuitive Manner",dxOb_YO,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,85,175,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,100,155,10
     CONTROL         "&Output Chart Data Files In Old Style Format",1288,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,95,175,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,110,155,10
     CONTROL         "Use Real System &Fonts In Graphic Files",dxOb_YXf,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,105,175,10
-    EDITTEXT        deOb_YXp0_x,115,115,25,13,ES_AUTOHSCROLL
-    EDITTEXT        deOb_YXp0_y,115,131,25,13,ES_AUTOHSCROLL
-    CONTROL         "&Portrait",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,10,155,105,10
-    CONTROL         "&Landscape",dr02,"Button",BS_AUTORADIOBUTTON,10,165,105,10
-    CONTROL         "&Based On Chart Dimensions",dr03,"Button",BS_AUTORADIOBUTTON,10,175,105,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,121,155,10
+    EDITTEXT        deOb_YXp0_x,115,135,25,13,ES_AUTOHSCROLL
+    EDITTEXT        deOb_YXp0_y,115,151,25,13,ES_AUTOHSCROLL
+    CONTROL         "&Portrait",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,10,175,105,10
+    CONTROL         "&Landscape",dr02,"Button",BS_AUTORADIOBUTTON,10,185,105,10
+    CONTROL         "&Based On Chart Dimensions",dr03,"Button",BS_AUTORADIOBUTTON,10,194,105,10
     CONTROL         "&Zodiac Position",dr04,"Button",BS_AUTORADIOBUTTON | WS_GROUP,191,10,65,10
     CONTROL         "&Hours && Minutes",dr05,"Button",BS_AUTORADIOBUTTON,191,20,65,10
     CONTROL         "&360 Degrees",dr06,"Button",BS_AUTORADIOBUTTON,191,30,65,10
@@ -958,53 +967,49 @@ BEGIN
     CONTROL         "Hierarchical",dxOb_r2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,75,65,10
     CONTROL         "Exaltations",dxOb_r3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,85,65,10
     CONTROL         "Ray Rulerships",dxOb_r4,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,190,95,65,10
-    CONTROL         "Rising",dxOb_z0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,120,35,10
-    CONTROL         "Setting",dxOb_z2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,130,35,10
-    CONTROL         "Zenith Crossing",dxOb_z1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,120,65,10
-    CONTROL         "Nadir Crossing",dxOb_z3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,130,65,10
-    EDITTEXT        deOb_A,200,150,20,13,ES_AUTOHSCROLL
-    EDITTEXT        deOb_I,200,165,20,13,ES_AUTOHSCROLL
-    LTEXT           "Horizontal PostScript Paper Size:",IDC_STATIC,5,115,110,8
-    LTEXT           "Vertical PostScript Paper Size:",IDC_STATIC,5,131,110,8
-    LTEXT           "Aspects To Consider:",IDC_STATIC,125,150,70,8
-    LTEXT           "Text Columns:",IDC_STATIC,125,166,70,8
-    GROUPBOX        "PostScript Paper Orientation",IDC_STATIC,5,145,115,45
+    CONTROL         "Rising",dxOb_z0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,155,35,10
+    CONTROL         "Setting",dxOb_z2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,155,165,35,10
+    CONTROL         "Zenith Crossing",dxOb_z1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,155,65,10
+    CONTROL         "Nadir Crossing",dxOb_z3,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,195,165,65,10
+    EDITTEXT        deOb_A,245,115,20,13,ES_AUTOHSCROLL
+    EDITTEXT        deOb_I,245,130,20,13,ES_AUTOHSCROLL
+    LTEXT           "Required Object For Aspects:",IDC_STATIC,5,85,100,8
+    LTEXT           "Horizontal PostScript Paper Size:",IDC_STATIC,5,135,110,8
+    LTEXT           "Vertical PostScript Paper Size:",IDC_STATIC,5,151,110,8
+    LTEXT           "Aspects To Consider:",IDC_STATIC,170,115,70,8
+    LTEXT           "Text Columns:",IDC_STATIC,170,131,70,8
+    GROUPBOX        "PostScript Paper Orientation",IDC_STATIC,5,165,115,45
     GROUPBOX        "Display Format",IDC_STATIC,185,0,80,45
     GROUPBOX        "Rulership Restrictions",IDC_STATIC,185,45,80,65
-    GROUPBOX        "Rising And Setting Restrictions",IDC_STATIC,150,110,115,35
-    ICON            icon3,IDC_STATIC,235,155,20,20
+    GROUPBOX        "Rising And Setting Restrictions",IDC_STATIC,150,145,115,35
+    ICON            icon3,IDC_STATIC,130,185,20,20
 END
 
-dlgGraphics DIALOGEX 32, 32, 237, 196
+dlgGraphics DIALOGEX 32, 32, 237, 226
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Graphics Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,185,175,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,185,155,50,14
+    DEFPUSHBUTTON   "OK",IDOK,185,205,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,185,185,50,14
     EDITTEXT        deGr_Xw_x,80,5,30,13,ES_AUTOHSCROLL
     EDITTEXT        deGr_Xw_y,80,20,30,13,ES_AUTOHSCROLL
     COMBOBOX        1052,60,35,30,50,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        dcGr_XS,135,35,30,50,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        deGr_YXg,140,50,25,13,ES_AUTOHSCROLL
-    EDITTEXT        deGr_XW,115,65,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deGr_XG,115,81,30,13,ES_AUTOHSCROLL
-    CONTROL         "&World Map In Mollewide Projection",dxGr_XW0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,95,125,10
-    EDITTEXT        deGr_WN,90,105,30,13,ES_AUTOHSCROLL
-    CONTROL         "Don't &Automatically Update Screen",dxGr_Wn,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,120,125,10
-    CONTROL         "&None",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,10,140,35,10
-    CONTROL         "Object At &Left Edge",dr02,"Button",BS_AUTORADIOBUTTON,10,150,85,10
-    CONTROL         "Object At &Top Edge",dr03,"Button",BS_AUTORADIOBUTTON,10,161,85,10
-    EDITTEXT        deGr_X1,65,171,40,13,ES_AUTOHSCROLL
-    LTEXT           "Horizontal Chart Size:",IDC_STATIC,5,5,70,8
-    LTEXT           "Vertical Chart Size:",IDC_STATIC,5,20,70,8
-    LTEXT           "Character Scale:",IDC_STATIC,5,35,53,8
-    LTEXT           "Text Scale:",IDC_STATIC,95,35,40,8
-    LTEXT           "Number Of Cells In Graphics Aspect Grid:",IDC_STATIC,5,50,130,8
-    LTEXT           "Horizontal Map Degree Rotation:",IDC_STATIC,5,65,108,8
-    LTEXT           "Vertical Globe Degree Tilt:",IDC_STATIC,5,81,105,8
-    LTEXT           "Animation Delay In Msec:",IDC_STATIC,5,105,80,8
-    LTEXT           "Use This Planet:",IDC_STATIC,10,171,55,8
+    CONTROL         "Ensure S&quare Charts Remain Square",dxGr_XQ,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,50,140,10
+    EDITTEXT        deGr_YXg,140,60,25,13,ES_AUTOHSCROLL
+    EDITTEXT        deGr_XW,115,75,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deGr_XG,115,90,30,13,ES_AUTOHSCROLL
+    CONTROL         "Globe Halves Focus On &South Hemisphere",dxGr_XP0,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,105,160,10
+    CONTROL         "&World Map In Mollewide Projection",dxGr_XW0,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,115,125,10
+    EDITTEXT        deGr_WN,90,125,30,13,ES_AUTOHSCROLL
+    CONTROL         "Animate &Map Instead Of Time",dxGr_XN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,140,125,10
+    CONTROL         "Don't &Automatically Update Screen",dxGr_Wn,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,150,125,10
+    CONTROL         "&None",dr01,"Button",BS_AUTORADIOBUTTON | WS_GROUP,10,170,35,10
+    CONTROL         "Object At &Left Edge",dr02,"Button",BS_AUTORADIOBUTTON,10,180,85,10
+    CONTROL         "Object At &Top Edge",dr03,"Button",BS_AUTORADIOBUTTON,10,190,85,10
+    EDITTEXT        deGr_X1,65,200,35,13,ES_AUTOHSCROLL
     CONTROL         "American",dr04,"Button",BS_AUTORADIOBUTTON | WS_GROUP,175,10,50,10
     CONTROL         "European",dr05,"Button",BS_AUTORADIOBUTTON,175,20,50,10
     CONTROL         "Herschel's",dr06,"Button",BS_AUTORADIOBUTTON | WS_GROUP,175,45,50,10
@@ -1014,15 +1019,30 @@ BEGIN
     CONTROL         "Esoteric",dr10,"Button",BS_AUTORADIOBUTTON,175,100,53,10
     CONTROL         "American",dr11,"Button",BS_AUTORADIOBUTTON | WS_GROUP,175,125,50,10
     CONTROL         "European",dr12,"Button",BS_AUTORADIOBUTTON,175,135,50,10
-    GROUPBOX        "Wheel Chart Rotation",IDC_STATIC,5,130,105,60
+    CONTROL         "None",dr13,"Button",BS_AUTORADIOBUTTON | WS_GROUP,115,170,55,10
+    CONTROL         "Spider Web",dr14,"Button",BS_AUTORADIOBUTTON,115,180,55,10
+    CONTROL         "Moire Pattern",dr15,"Button",BS_AUTORADIOBUTTON,115,190,55,10
+    EDITTEXT        deGr_YXv,150,200,25,13,ES_AUTOHSCROLL
+    LTEXT           "Horizontal Chart Size:",IDC_STATIC,5,5,70,8
+    LTEXT           "Vertical Chart Size:",IDC_STATIC,5,20,70,8
+    LTEXT           "Character Scale:",IDC_STATIC,5,35,53,8
+    LTEXT           "Text Scale:",IDC_STATIC,95,35,40,8
+    LTEXT           "Number Of Cells In Graphics Aspect Grid:",IDC_STATIC,5,60,130,8
+    LTEXT           "Horizontal Map Degree Rotation:",IDC_STATIC,5,75,108,8
+    LTEXT           "Vertical Globe Degree Tilt:",IDC_STATIC,5,90,105,8
+    LTEXT           "Animation Delay In Msec:",IDC_STATIC,5,125,80,8
+    LTEXT           "Use This Planet:",IDC_STATIC,10,200,55,8
+    LTEXT           "Coverage:",IDC_STATIC,115,200,33,8
+    GROUPBOX        "Wheel Chart Rotation",IDC_STATIC,5,160,100,60
     GROUPBOX        "Capricorn Glyph",IDC_STATIC,170,0,65,35
     GROUPBOX        "Uranus Glyph",IDC_STATIC,170,35,65,35
     GROUPBOX        "Pluto Glyph",IDC_STATIC,170,70,65,45
     GROUPBOX        "Lilith Glyph",IDC_STATIC,170,115,65,35
-    ICON            icon2,IDC_STATIC,135,155,21,20
+    GROUPBOX        "Wheel Corners",IDC_STATIC,110,160,70,60
+    ICON            icon2,IDC_STATIC,200,160,21,20
 END
 
-dlgStar DIALOG 32, 32, 297, 130
+dlgStar DIALOG  32, 32, 297, 130
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Fixed Star Restrictions"
 FONT 8, "MS Sans Serif"
@@ -1081,13 +1101,13 @@ BEGIN
     ICON            icon2,IDC_STATIC,255,55,18,20
 END
 
-dlgObject DIALOG 32, 32, 281, 203
+dlgObject DIALOGEX 32, 32, 387, 202
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Object Settings"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,225,185,50,14
-    PUSHBUTTON      "Cancel",IDCANCEL,170,185,50,14
+    DEFPUSHBUTTON   "OK",IDOK,335,185,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,280,185,50,14
     EDITTEXT        deo01,40,15,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo02,40,30,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo03,40,45,30,13,ES_AUTOHSCROLL
@@ -1099,17 +1119,17 @@ BEGIN
     EDITTEXT        deo09,40,135,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo10,40,150,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo11,40,165,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo12,185,15,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo13,185,30,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo14,185,45,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo15,185,60,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo16,185,75,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo17,185,90,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo18,185,105,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo19,185,120,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo20,185,135,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo21,185,150,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo22,185,165,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo12,240,15,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo13,240,30,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo14,240,45,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo15,240,60,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo16,240,75,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo17,240,90,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo18,240,105,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo19,240,120,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo20,240,135,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo21,240,150,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo22,240,165,30,13,ES_AUTOHSCROLL
     EDITTEXT        dea01,75,15,20,13,ES_AUTOHSCROLL
     EDITTEXT        dea02,75,30,20,13,ES_AUTOHSCROLL
     EDITTEXT        dea03,75,45,20,13,ES_AUTOHSCROLL
@@ -1121,17 +1141,17 @@ BEGIN
     EDITTEXT        dea09,75,135,20,13,ES_AUTOHSCROLL
     EDITTEXT        dea10,75,150,20,13,ES_AUTOHSCROLL
     EDITTEXT        dea11,75,165,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea12,220,15,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea13,220,30,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea14,220,45,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea15,220,60,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea16,220,75,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea17,220,90,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea18,220,105,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea19,220,120,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea20,220,135,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea21,220,150,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea22,220,165,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea12,275,15,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea13,275,30,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea14,275,45,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea15,275,60,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea16,275,75,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea17,275,90,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea18,275,105,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea19,275,120,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea20,275,135,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea21,275,150,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea22,275,165,20,13,ES_AUTOHSCROLL
     EDITTEXT        dei01,100,15,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei02,100,30,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei03,100,45,30,13,ES_AUTOHSCROLL
@@ -1143,17 +1163,39 @@ BEGIN
     EDITTEXT        dei09,100,135,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei10,100,150,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei11,100,165,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei12,245,15,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei13,245,30,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei14,245,45,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei15,245,60,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei16,245,75,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei17,245,90,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei18,245,105,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei19,245,120,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei20,245,135,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei21,245,150,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei22,245,165,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei12,300,15,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei13,300,30,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei14,300,45,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei15,300,60,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei16,300,75,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei17,300,90,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei18,300,105,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei19,300,120,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei20,300,135,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei21,300,150,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei22,300,165,30,13,ES_AUTOHSCROLL
+    COMBOBOX        dck00,135,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck01,135,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck02,135,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck03,135,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck04,135,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck05,135,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck06,135,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck07,135,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck08,135,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck09,135,150,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck10,135,165,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck11,335,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck12,335,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck13,335,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck14,335,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck15,335,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck16,335,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck17,335,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck18,335,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck19,335,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck20,335,150,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck21,335,165,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Earth",IDC_STATIC,5,15,30,8
     LTEXT           "Sun",IDC_STATIC,5,30,30,8
     LTEXT           "Moon",IDC_STATIC,5,45,30,8
@@ -1165,33 +1207,35 @@ BEGIN
     LTEXT           "Uranus",IDC_STATIC,5,135,30,8
     LTEXT           "Neptune",IDC_STATIC,5,150,30,8
     LTEXT           "Pluto",IDC_STATIC,5,165,30,8
-    LTEXT           "Chiron",IDC_STATIC,135,15,50,8
-    LTEXT           "Ceres",IDC_STATIC,135,30,50,8
-    LTEXT           "Pallas Athena",IDC_STATIC,135,45,50,8
-    LTEXT           "Juno",IDC_STATIC,135,60,50,8
-    LTEXT           "Vesta",IDC_STATIC,135,75,50,8
-    LTEXT           "North Node",IDC_STATIC,135,90,50,8
-    LTEXT           "South Node",IDC_STATIC,135,105,50,8
-    LTEXT           "Lilith",IDC_STATIC,135,120,50,8
-    LTEXT           "Part of Fortune",IDC_STATIC,135,135,50,8
-    LTEXT           "Vertex",IDC_STATIC,135,150,50,8
-    LTEXT           "East Point",IDC_STATIC,135,165,50,8
+    LTEXT           "Chiron",IDC_STATIC,190,15,50,8
+    LTEXT           "Ceres",IDC_STATIC,190,30,50,8
+    LTEXT           "Pallas Athena",IDC_STATIC,190,45,50,8
+    LTEXT           "Juno",IDC_STATIC,190,60,50,8
+    LTEXT           "Vesta",IDC_STATIC,190,75,50,8
+    LTEXT           "North Node",IDC_STATIC,190,90,50,8
+    LTEXT           "South Node",IDC_STATIC,190,105,50,8
+    LTEXT           "Lilith",IDC_STATIC,190,120,50,8
+    LTEXT           "Part of Fortune",IDC_STATIC,190,135,50,8
+    LTEXT           "Vertex",IDC_STATIC,190,150,50,8
+    LTEXT           "East Point",IDC_STATIC,190,165,50,8
     LTEXT           "Max Orb",IDC_STATIC,40,5,30,8
     LTEXT           "Add",IDC_STATIC,75,5,20,8
     LTEXT           "Influence",IDC_STATIC,100,5,30,8
-    LTEXT           "Max Orb",IDC_STATIC,185,5,30,8
-    LTEXT           "Add",IDC_STATIC,220,5,20,8
-    LTEXT           "Influence",IDC_STATIC,245,5,30,8
-    ICON            icon2,IDC_STATIC,140,180,18,20
+    LTEXT           "Color",IDC_STATIC,135,5,30,8
+    LTEXT           "Max Orb",IDC_STATIC,240,5,30,8
+    LTEXT           "Add",IDC_STATIC,275,5,20,8
+    LTEXT           "Influence",IDC_STATIC,300,5,30,8
+    LTEXT           "Color",IDC_STATIC,335,5,30,8
+    ICON            icon2,IDC_STATIC,200,180,21,20
 END
 
-dlgObject2 DIALOGEX 32, 32, 277, 198
+dlgObject2 DIALOGEX 32, 32, 382, 199
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Cusp & Uranian Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,225,180,45,14
-    PUSHBUTTON      "Cancel",IDCANCEL,175,180,45,14
+    DEFPUSHBUTTON   "OK",IDOK,330,180,45,14
+    PUSHBUTTON      "Cancel",IDCANCEL,280,180,45,14
     EDITTEXT        deo01,50,15,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo02,50,30,30,13,ES_AUTOHSCROLL
     EDITTEXT        deo03,50,45,30,13,ES_AUTOHSCROLL
@@ -1228,36 +1272,57 @@ BEGIN
     EDITTEXT        dei10,110,150,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei11,110,165,30,13,ES_AUTOHSCROLL
     EDITTEXT        dei12,110,180,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo13,180,15,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo14,180,30,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo15,180,45,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo16,180,60,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo17,180,75,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo18,180,90,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo19,180,105,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo20,180,120,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo21,180,135,30,13,ES_AUTOHSCROLL
-    EDITTEXT        deo22,180,150,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dea13,215,15,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea14,215,30,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea15,215,45,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea16,215,60,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea17,215,75,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea18,215,90,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea19,215,105,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea20,215,120,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea21,215,135,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dea22,215,150,20,13,ES_AUTOHSCROLL
-    EDITTEXT        dei13,240,15,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei14,240,30,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei15,240,45,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei16,240,60,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei17,240,75,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei18,240,90,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei19,240,105,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei20,240,120,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei21,240,135,30,13,ES_AUTOHSCROLL
-    EDITTEXT        dei22,240,150,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo13,235,15,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo14,235,30,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo15,235,45,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo16,235,60,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo17,235,75,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo18,235,90,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo19,235,105,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo20,235,120,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo21,235,135,30,13,ES_AUTOHSCROLL
+    EDITTEXT        deo22,235,150,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dea13,270,15,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea14,270,30,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea15,270,45,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea16,270,60,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea17,270,75,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea18,270,90,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea19,270,105,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea20,270,120,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea21,270,135,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dea22,270,150,20,13,ES_AUTOHSCROLL
+    EDITTEXT        dei13,295,15,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei14,295,30,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei15,295,45,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei16,295,60,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei17,295,75,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei18,295,90,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei19,295,105,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei20,295,120,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei21,295,135,30,13,ES_AUTOHSCROLL
+    EDITTEXT        dei22,295,150,30,13,ES_AUTOHSCROLL
+    COMBOBOX        dck00,145,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck01,145,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck02,145,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck03,145,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck04,145,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck05,145,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck06,145,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck07,145,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck08,145,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck09,145,150,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck10,145,165,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck11,145,180,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck12,330,15,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck13,330,30,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck14,330,45,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck15,330,60,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck16,330,75,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck17,330,90,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck18,330,105,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck19,330,120,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        dck20,330,135,50,160,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Ascendant",IDC_STATIC,5,15,40,8
     LTEXT           "2nd Cusp",IDC_STATIC,5,30,40,8
     LTEXT           "3rd Cusp",IDC_STATIC,5,45,40,8
@@ -1270,26 +1335,28 @@ BEGIN
     LTEXT           "Midheaven",IDC_STATIC,5,150,40,8
     LTEXT           "11th Cusp",IDC_STATIC,5,165,40,8
     LTEXT           "12th Cusp",IDC_STATIC,5,180,40,8
-    LTEXT           "Vulcan",IDC_STATIC,145,15,30,8
-    LTEXT           "Cupido",IDC_STATIC,145,30,30,8
-    LTEXT           "Hades",IDC_STATIC,145,45,30,8
-    LTEXT           "Zeus",IDC_STATIC,145,60,30,8
-    LTEXT           "Kronos",IDC_STATIC,145,75,30,8
-    LTEXT           "Apollon",IDC_STATIC,145,90,30,8
-    LTEXT           "Admetos",IDC_STATIC,145,105,30,8
-    LTEXT           "Vulkanus",IDC_STATIC,145,120,30,8
-    LTEXT           "Poseidon",IDC_STATIC,145,135,30,8
+    LTEXT           "Vulcan",IDC_STATIC,200,15,30,8
+    LTEXT           "Cupido",IDC_STATIC,200,30,30,8
+    LTEXT           "Hades",IDC_STATIC,200,45,30,8
+    LTEXT           "Zeus",IDC_STATIC,200,60,30,8
+    LTEXT           "Kronos",IDC_STATIC,200,75,30,8
+    LTEXT           "Apollon",IDC_STATIC,200,90,30,8
+    LTEXT           "Admetos",IDC_STATIC,200,105,30,8
+    LTEXT           "Vulkanus",IDC_STATIC,200,120,30,8
+    LTEXT           "Poseidon",IDC_STATIC,200,135,30,8
     LTEXT           "Max Orb",IDC_STATIC,50,5,30,8
     LTEXT           "Add",IDC_STATIC,85,5,20,8
     LTEXT           "Influence",IDC_STATIC,110,5,30,8
-    LTEXT           "Max Orb",IDC_STATIC,180,5,30,8
-    LTEXT           "Add",IDC_STATIC,215,5,20,8
-    LTEXT           "Influence",IDC_STATIC,240,5,30,8
-    LTEXT           "All Stars",IDC_STATIC,145,150,26,8
-    ICON            icon2,IDC_STATIC,147,175,21,20
+    LTEXT           "Color",IDC_STATIC,145,5,30,8
+    LTEXT           "Max Orb",IDC_STATIC,235,5,30,8
+    LTEXT           "Add",IDC_STATIC,270,5,20,8
+    LTEXT           "Influence",IDC_STATIC,295,5,30,8
+    LTEXT           "All Stars",IDC_STATIC,200,150,26,8
+    LTEXT           "Color",IDC_STATIC,330,5,30,8
+    ICON            icon2,IDC_STATIC,205,170,21,20
 END
 
-dlgAbort DIALOG 32, 32, 125, 38
+dlgAbort DIALOG  32, 32, 125, 38
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Print Progress"
 FONT 8, "MS Sans Serif"
@@ -1299,7 +1366,7 @@ BEGIN
     ICON            icon3,IDC_STATIC,5,15,18,20
 END
 
-dlgInfoAll DIALOG 32, 32, 143, 151
+dlgInfoAll DIALOG  32, 32, 143, 151
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "Charts #3 And #4"
 FONT 8, "MS Sans Serif"
@@ -1328,7 +1395,7 @@ END
 // Accelerator
 //
 
-accelerator ACCELERATORS
+accelerator ACCELERATORS 
 BEGIN
     "!",            cmdAnimateNo1,          ASCII,  NOINVERT
     "#",            cmdAnimateNo3,          ASCII,  NOINVERT
@@ -1384,8 +1451,8 @@ BEGIN
     ">",            cmdScaleIncrease,       ASCII,  NOINVERT
     "?",            cmdHelpKeystroke,       ASCII,  NOINVERT
     "@",            cmdAnimateNo2,          ASCII,  NOINVERT
-    "[",            cmdTiltDecrease,        ASCII,  NOINVERT
-    "]",            cmdTiltIncrease,        ASCII,  NOINVERT
+    "[",            cmdTiltNorth,           ASCII,  NOINVERT
+    "]",            cmdTiltSouth,           ASCII,  NOINVERT
     94,             cmdAnimateNo6,          ASCII,  NOINVERT
     "A",            cmdHouseSet3D,          VIRTKEY, NOINVERT
     "A",            cmdPen15,               VIRTKEY, CONTROL, NOINVERT
@@ -1483,7 +1550,7 @@ BEGIN
     "S",            cmdSidereal,            VIRTKEY, NOINVERT
     "S",            cmdChartOrbit,          VIRTKEY, SHIFT, NOINVERT
     "S",            cmdHouse10,             VIRTKEY, SHIFT, CONTROL, NOINVERT
-    "S",            cmdSettingMore,         VIRTKEY, SHIFT, ALT, NOINVERT
+    "S",            cmdSettingCalc,         VIRTKEY, SHIFT, ALT, NOINVERT
     "T",            cmdGraphicsText,        VIRTKEY, NOINVERT
     "T",            cmdGraphicsSidebar,     VIRTKEY, ALT, NOINVERT
     "T",            cmdHouse08,             VIRTKEY, SHIFT, CONTROL, NOINVERT
@@ -1552,6 +1619,8 @@ BEGIN
     VK_F9,          cmdMacro21,             VIRTKEY, SHIFT, NOINVERT
     VK_HOME,        cmdScrollHome,          VIRTKEY, NOINVERT
     VK_NEXT,        cmdScrollPageDown,      VIRTKEY, NOINVERT
+    VK_OEM_4,       cmdRotateWest,          VIRTKEY, SHIFT, NOINVERT
+    VK_OEM_6,       cmdRotateEast,          VIRTKEY, SHIFT, NOINVERT
     VK_PAUSE,       cmdAnimatePause,        VIRTKEY, NOINVERT
     VK_PRIOR,       cmdScrollPageUp,        VIRTKEY, NOINVERT
     VK_RETURN,      cmdCommand,             VIRTKEY, NOINVERT
@@ -1563,6 +1632,7 @@ BEGIN
     "W",            cmdSavePositions,       VIRTKEY, SHIFT, ALT, NOINVERT
     "X",            cmdGraphicsReverse,     VIRTKEY, NOINVERT
     "X",            cmdApplying,            VIRTKEY, ALT, NOINVERT
+    "X",            cmdChartSphere,         VIRTKEY, SHIFT, NOINVERT
     "X",            cmdSaveWallTile,        VIRTKEY, SHIFT, CONTROL, NOINVERT
     "X",            cmdParallel,            VIRTKEY, SHIFT, ALT, NOINVERT
     "Y",            cmdHouseSetNavamsa,     VIRTKEY, NOINVERT
@@ -1586,8 +1656,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 6,2,0,0
- PRODUCTVERSION 6,2,0,0
+ FILEVERSION 6,3,0,0
+ PRODUCTVERSION 6,3,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1603,13 +1673,13 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "astrolog.org"
-            VALUE "FileDescription", "Astrolog 6.20 for 64 bit Windows"
-            VALUE "FileVersion", "6, 2, 0, 0"
+            VALUE "FileDescription", "Astrolog 6.30 for Windows"
+            VALUE "FileVersion", "6, 3, 0, 0"
             VALUE "InternalName", "Astrolog"
             VALUE "LegalCopyright", "Copyright (c) 2017"
             VALUE "OriginalFilename", "astrolog.exe"
             VALUE "ProductName", "Astrolog"
-            VALUE "ProductVersion", "6, 2, 0, 0"
+            VALUE "ProductVersion", "6, 3, 0, 0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1625,45 +1695,32 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO
+GUIDELINES DESIGNINFO 
 BEGIN
-    dlgInfo, DIALOG
+    dlgColor, DIALOG
     BEGIN
+        BOTTOMMARGIN, 146
     END
 
-    dlgAbout, DIALOG
-    BEGIN
-    END
-
-    dlgSetting, DIALOG
+    dlgCalc, DIALOG
     BEGIN
         BOTTOMMARGIN, 142
     END
 
     dlgDisplay, DIALOG
     BEGIN
-        BOTTOMMARGIN, 191
+        BOTTOMMARGIN, 200
     END
 
     dlgGraphics, DIALOG
     BEGIN
         RIGHTMARGIN, 170
+        BOTTOMMARGIN, 216
     END
 END
 #endif    // APSTUDIO_INVOKED
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// AFX_DIALOG_LAYOUT
-//
-
-dlgInfo AFX_DIALOG_LAYOUT
-BEGIN
-    0
-END
-
-#endif    // English (United States) resources
+#endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

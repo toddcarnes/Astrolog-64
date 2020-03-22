@@ -1,4 +1,4 @@
-@0309  ; Astrolog (6.20) default settings file astrolog.as
+@0309  ; Astrolog (6.30) default settings file astrolog.as
 
 -z 8:00W                ; Default time zone     [hours W or E of GMT   ]
 -z0 Autodetect          ; Default Daylight time [0 standard, 1 daylight]
@@ -17,7 +17,6 @@ _k      ; Ansi color text           ["=k" is color, "_k" is normal     ]
 :d 48   ; Searching divisions       [Change "48" to desired divisions  ]
 _b0     ; Print zodiac seconds      ["_b0" to minute, "=b0" to second  ]
 =b      ; Use ephemeris files       ["=b" uses them, "_b" doesn't      ]
-=C      ; Show house cusp objects   ["_C" hides them, "=C" shows them  ]
 :w 4    ; Wheel chart text rows     [Change "4" to desired wheel rows  ]
 :I 80   ; Text screen columns       [Change "80" to desired columns    ]
 -YQ 0   ; Text screen scroll limit  [Change "24" or set to "0" for none]
@@ -42,7 +41,7 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 -YRT 0 10    1 0 1 0 0 0 0 0 0 0 0    ; Planets
 -YRT 11 21   0 0 0 0 0 0 1 0 1 1 1    ; Minor planets
 -YRT 22 33   1 1 1 1 1 1 1 1 1 1 1 1  ; House cusps
--YRT 34 42   0 0 0 0 0 0 0 0 0        ; Uranians
+-YRT 34 42   1 1 1 1 1 1 1 1 1        ; Uranians
 
 -YR0 0 0  ; Restrict sign, direction changes
 
@@ -129,7 +128,7 @@ _X               ; Graphics chart flag ["_X" is text, "=X" is graphics]
 :XS 100          ; Graphics text scale [100-400]
 :Xbb             ; Bitmap file type
 :YXG 1111        ; Glyph selections [Capricorn, Uranus, Pluto, Lilith]
-:YXg 20          ; Aspect grid cells
+:YXg 0           ; Aspect grid cells ["0" for autodetect]
 :YX7 600         ; Esoteric ray column influence width
 :YXf 2           ; Use actual fonts
 :YXp 0           ; PostScript paper orientation ["-1" portrait, "1" landscape]

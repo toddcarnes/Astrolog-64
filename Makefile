@@ -1,4 +1,4 @@
-# Astrolog (Version 6.20) File: Makefile (Unix version)
+# Astrolog (Version 6.30) File: Makefile (Unix version)
 #
 # IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 # not enumerated elsewhere in this program are Copyright (C) 1991-2017 by
@@ -21,8 +21,8 @@ OBJ = astrolog.o data.o data2.o general.o io.o\
  calc.o matrix.o placalc.o placalc2.o\
  charts0.o charts1.o charts2.o charts3.o intrpret.o\
  xdata.o xgeneral.o xdevice.o xcharts0.o xcharts1.o xcharts2.o xscreen.o\
- swedate.o swehouse.o swejpl.o swemmoon.o swemplan.o swemptab.o sweph.o\
- swephlib.o
+ swecl.o swedate.o swehouse.o swejpl.o swemmoon.o swemplan.o swemptab.o\
+ sweph.o swephlib.o
 
 # If you don't have X windows, delete the "-lX11" part from the line below:
 LIBS = -lm -lX11

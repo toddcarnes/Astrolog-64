@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: xdevice.cpp
+** Astrolog (Version 6.30) File: xdevice.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -140,37 +140,31 @@ void WriteBmp(FILE *file)
   int x, y;
   dword value;
 
-  /* Note that we sometimes only write a part of the full bitmap to disk   */
-  /* during the call, as done when the bitmap is being generated in bands. */
-
-  if (gi.yBand == 0 || gi.yOffset + gi.yBand >= gs.yWin) {
-    /* BitmapFileHeader */
-    PutByte('B'); PutByte('M');
-    PutLong(14+40 + (gs.fColor ? 64 : 8) +
-      (long)4*gs.yWin*(((gs.xWin-1) >> (gs.fColor ? 3 : 5))+1));
-    PutWord(0); PutWord(0);
-    PutLong(14+40 + (gs.fColor ? 64 : 8));
-    /* BitmapInfo / BitmapInfoHeader */
-    PutLong(40);
-    PutLong(gs.xWin); PutLong(gs.yWin);
-    PutWord(1); PutWord(gs.fColor ? 4 : 1);
-    PutLong(0 /*BI_RGB*/); PutLong(0);
-    PutLong(0); PutLong(0);
-    PutLong(0); PutLong(0);
-    /* RgbQuad */
-    if (gs.fColor)
-      for (x = 0; x < 16; x++) {
-        PutByte(RGBB(rgbbmp[x])); PutByte(RGBG(rgbbmp[x]));
-        PutByte(RGBR(rgbbmp[x])); PutByte(0);
-      }
-    else {
-      PutLong(0);
-      PutByte(255); PutByte(255); PutByte(255); PutByte(0);
+  /* BitmapFileHeader */
+  PutByte('B'); PutByte('M');
+  PutLong(14+40 + (gs.fColor ? 64 : 8) +
+    (long)4*gs.yWin*(((gs.xWin-1) >> (gs.fColor ? 3 : 5))+1));
+  PutWord(0); PutWord(0);
+  PutLong(14+40 + (gs.fColor ? 64 : 8));
+  /* BitmapInfo / BitmapInfoHeader */
+  PutLong(40);
+  PutLong(gs.xWin); PutLong(gs.yWin);
+  PutWord(1); PutWord(gs.fColor ? 4 : 1);
+  PutLong(0 /*BI_RGB*/); PutLong(0);
+  PutLong(0); PutLong(0);
+  PutLong(0); PutLong(0);
+  /* RgbQuad */
+  if (gs.fColor)
+    for (x = 0; x < 16; x++) {
+      PutByte(RGBB(rgbbmp[x])); PutByte(RGBG(rgbbmp[x]));
+      PutByte(RGBR(rgbbmp[x])); PutByte(0);
     }
+  else {
+    PutLong(0);
+    PutByte(255); PutByte(255); PutByte(255); PutByte(0);
   }
   /* Data */
-  for (y = (gi.yBand ? Min(gi.yBand, gs.yWin - gi.yOffset) : gs.yWin) - 1;
-    y >= 0; y--) {
+  for (y = gs.yWin-1; y >= 0; y--) {
     value = 0;
     for (x = 0; x < gs.xWin; x++) {
       if ((x & (gs.fColor ? 7 : 31)) == 0 && x > 0) {
@@ -254,15 +248,8 @@ void BeginFileX()
 
 void EndFileX()
 {
-  char sz[cchSzDef];
-
   if (gs.fBitmap && gi.file != NULL) {
-    if (gi.yBand) {
-      sprintf(sz, "Writing part %d of chart bitmap to file.",
-        gi.yOffset / gi.yBand + 1);
-      PrintNotice(sz);
-    } else
-      PrintNotice("Writing chart bitmap to file.");
+    PrintNotice("Writing chart bitmap to file.");
     if (gs.chBmpMode == 'B')
       WriteBmp(gi.file);
     else if (gs.chBmpMode == 'A')
@@ -280,10 +267,7 @@ void EndFileX()
     WriteMeta(gi.file);
   }
 #endif
-  if (!gs.fBitmap || gi.yOffset == 0) {
-    fclose(gi.file);
-    gi.yBand = 0;
-  }
+  fclose(gi.file);
 #ifdef WIN
   if (wi.wCmd == cmdSaveWallTile || wi.wCmd == cmdSaveWallCenter ||
     wi.wCmd == cmdSaveWallStretch || wi.wCmd == cmdSaveWallFit ||
@@ -579,7 +563,7 @@ void MetaInit()
   MetaLong(14L);                          /* Bytes in string */
   MetaLong(LFromBB('A', 's', 't', 'r'));  /* "Astr" */
   MetaLong(LFromBB('o', 'l', 'o', 'g'));  /* "olog" */
-  MetaLong(LFromBB(' ', '6', '.', '2'));  /* " 6.2" */
+  MetaLong(LFromBB(' ', '6', '.', '3'));  /* " 6.3" */
   MetaWord(WFromBB('0', 0));              /* "0"    */
   MetaSaveDc();
   MetaWindowOrg(0, 0);

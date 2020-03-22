@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: general.cpp
+** Astrolog (Version 6.30) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -291,6 +291,19 @@ real Midpoint(real deg1, real deg2)
 }
 
 
+/* Return the minimum great circle distance between two sets of spherical   */
+/* coordinates. This is like MinDistance() but takes latitude into account. */
+
+real PolarDistance(real lon1, real lon2, real lat1, real lat2)
+{
+  real dLat, r;
+
+  dLat = RAbs(lon1 - lon2);
+  r = RAcos(RSinD(lat1)*RSinD(lat2) + RCosD(lat1)*RCosD(lat2)*RCosD(dLat));
+  return DFromR(r);
+}
+
+
 /* Given a planet and sign, determine whether: The planet rules the sign or */
 /* is in detriment in the sign, the planet exalts in sign or is in fall /   */
 /* debilitated in sign, the planet esoterically and hierarchically and ray  */
@@ -306,39 +319,39 @@ char *Dignify(int obj, int sign)
     goto LExit;
 
   /* Check standard rulerships. */
-  if (!ignore7[0]) {
+  if (!ignore7[rrStd]) {
     if (ruler1[obj] == sign || ruler2[obj] == sign)
-      szDignify[1] = 'R';
+      szDignify[rrStd+1] = 'R';
     else if (ruler1[obj] == sign2 || ruler2[obj] == sign2)
-      szDignify[1] = 'd';
+      szDignify[rrStd+1] = 'd';
   }
-  if (!ignore7[3]) {
+  if (!ignore7[rrExa]) {
     if (exalt[obj] == sign)
-      szDignify[4] = 'X';
+      szDignify[rrExa+1] = 'X';
     else if (exalt[obj] == sign2)
-      szDignify[4] = 'f';
+      szDignify[rrExa+1] = 'f';
   }
 
   /* Check esoteric rulerships. */
-  if (!ignore7[1]) {
+  if (!ignore7[rrEso]) {
     if (rgObjEso1[obj] == sign || rgObjEso2[obj] == sign)
-      szDignify[2] = 'S';
+      szDignify[rrEso+1] = 'S';
     else if (rgObjEso1[obj] == sign2 || rgObjEso2[obj] == sign2)
-      szDignify[2] = 's';
+      szDignify[rrEso+1] = 's';
   }
-  if (!ignore7[2]) {
+  if (!ignore7[rrHie]) {
     if (rgObjHie1[obj] == sign || rgObjHie2[obj] == sign)
-      szDignify[3] = 'H';
+      szDignify[rrHie+1] = 'H';
     else if (rgObjHie1[obj] == sign2 || rgObjHie2[obj] == sign2)
-      szDignify[3] = 'h';
+      szDignify[rrHie+1] = 'h';
   }
-  if (!ignore7[4]) {
+  if (!ignore7[rrRay]) {
     ray = rgObjRay[obj];
     if (ray > 0) {
       if (rgSignRay2[sign][ray] > 0)
-        szDignify[5] = 'Y';
+        szDignify[rrRay+1] = 'Y';
       else if (rgSignRay2[sign2][ray] > 0)
-        szDignify[5] = 'z';
+        szDignify[rrRay+1] = 'z';
     }
   }
 
@@ -376,6 +389,35 @@ void EnsureRay()
     }
     for (j = 1; j <= cRay; j++)
       rgSignRay2[i][j] *= 420 / c;
+  }
+}
+
+
+/* Initialize table of star brightnesses. Usually only called once before */
+/* first star accessed, but may be redone if computation method changes.  */
+
+void EnsureStarBright()
+{
+  int i;
+  real rMode;
+
+  rMode = FCmSwissStar() ? 1.0 : 0.0;
+  if (rStarBright[0] != rMode) {
+    rStarBright[0] = rMode;
+
+    /* Matrix formulas have star brightnesses in a simple table. */
+    for (i = 1; i <= cStar; i++)
+#ifdef MATRIX
+      rStarBright[i] = rStarBrightMatrix[i];
+#else
+      rStarBright[i] = 1.0;
+#endif
+
+#ifdef SWISS
+    /* Swiss Ephemeris reads star brightnesses from an external file. */
+    if (FCmSwissStar())
+      SwissComputeStars(0.0, fTrue);
+#endif
   }
 }
 
@@ -504,7 +546,7 @@ void Terminate(int tc)
     sprintf(sz, "%c[0m", chEscape);    /* Get out of any Ansi color mode. */
     PrintSz(sz);
   }
-  exit(abs(tc));
+  exit(NAbs(tc));
 }
 
 
@@ -1108,13 +1150,13 @@ char *SzLength(real len)
 
 void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
 {
-#ifdef WIN
+#ifdef PC
   SYSTEMTIME st, lt;
   real jd;
   int dh;
 
   GetSystemTime(&st);
-  if (dst == 24.0) {
+  if (dst == dstAuto) {
     /* Daylight field of 24 means autodetect whether Daylight Saving Time. */
 
     GetLocalTime(&lt);
@@ -1143,7 +1185,7 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
 #ifdef MACOLD
   curtimer += 8;
 #endif
-  hr = (real)(curtimer % 24) - (zon-dst);
+  hr = (real)(curtimer % 24) - (zon - (dst == dstAuto ? 0.0 : dst));
   curtimer /= 24;
   while (hr < 0.0) {
     curtimer--;
@@ -1156,7 +1198,7 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
   curtimer += ldTime;  /* Number of days between 1/1/1970 and 1/1/4713 BC. */
   JulianToMdy((real)curtimer, mon, day, yea);
   *tim = HMS(hr, min, sec);
-#endif /* WIN */
+#endif /* PC */
 }
 #endif /* TIME */
 

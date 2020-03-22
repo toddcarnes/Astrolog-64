@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: astrolog.h
+** Astrolog (Version 6.30) File: astrolog.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 /*
@@ -74,9 +74,8 @@
 /*#define MACG /* Comment out this #define if you don't have a Mac, or else  */
              /* have one and don't wish to compile in Mac screen graphics. */
 
-#define MOUSE /* Comment out this #define if you don't have a mouse, or    */
-              /* don't wish to compile in mouse tracking features. This is */
-              /* only valid if X11, WIN, or MACG above are set.            */
+/*#define WCLI /* Comment out this #define if you don't want to compile a    */
+             /* command line Windows version that can still popup windows. */
 
 #define TIME /* Comment out this #define if your compiler can't take the  */
              /* calls to the 'time' or 'localtime' functions as in time.h */
@@ -204,9 +203,8 @@
 #define MAXINDAY 150   /* Max number of aspects or transits displayable.   */
 #define MAXCROSS 750   /* Max number of latitude crossings displayable.    */
 #define CREDITWIDTH 74 /* Number of text columns in the -Hc credit screen. */
-#define MAXSWITCHES 32 /* Max number of switch parameters per input line.  */
+#define MAXSWITCHES 64 /* Max number of switch parameters per input line.  */
 #define PSGUTTER 9     /* Points of white space on PostScript page edge.   */
-
 
 #ifdef GRAPH           /* For graphics, this char affects how bitmaps are */
 #ifndef PC             /* written. 'N' is written like with the 'bitmap'  */
@@ -215,10 +213,6 @@
 #define BITMAPMODE 'B' /* 'A' means write as rectangular Ascii text file. */
 #endif                 /* 'B' means write as Windows bitmap (.bmp) file.  */
 #endif /* GRAPH */
-
-/*#define TRUENODE /* Comment out this #define if you'd prefer the 'Node'    */
-                 /* object to refer to the Mean North Node of the Moon by  */
-                 /* default as opposed to the True North Node of the Moon. */
 
 /*
 ** By the time you reach here and the above values are customized as
@@ -236,7 +230,7 @@
 #define DEFAULTX    480 /* Default window size */
 #define DEFAULTY    480
 #define SIDESIZE    160 /* Size of wheel chart information sidebar.    */
-#define MAXMETA 250000L /* Max bytes allowed in a metafile.            */
+#define MAXMETA 1000000 /* Max bytes allowed in a metafile.            */
 #define METAMUL      12 /* Metafile coordinate to chart pixel ratio.   */
 #define PSMUL        11 /* PostScript coordinate to chart pixel ratio. */
 #define CELLSIZE     14 /* Size for each cell in the aspect grid.      */
@@ -244,7 +238,6 @@
 #define DEGINC        2 /* Number of degrees per segment for circles.  */
 #define DEFORB      7.0 /* Min distance glyphs can be from each other. */
 #define MAXSCALE    400 /* Max scale factor as passed to -Xs swtich.   */
-#define TILTSTEP  11.25 /* Degrees to change when pressing '[' or ']'. */
 #endif /* GRAPH */
 
 #define chH    (char)(us.fAnsiChar ? 196 : '-')    /* Ansi and Ascii       */
@@ -281,6 +274,7 @@
 #ifdef PLACALC
 #define EPHEM
 #endif
+
 #define _CRT_SECURE_NO_DEPRECATE
 #define _CRT_NONSTDC_NO_DEPRECATE
 #include <stdio.h>
@@ -303,6 +297,7 @@
 #endif
 #ifdef WIN
 #define ISG
+#define WINANY
 #include <windows.h>
 #include <commdlg.h>
 #include <objbase.h>
@@ -316,18 +311,25 @@
 #ifdef MACG
 #define ISG
 #endif
+#ifdef WCLI
+#define ISG
+#define WINANY
+#include <windows.h>
+#endif
+#ifdef PC
+#ifdef _WIN64
+#define szArchCore "64 bit"
+#else
+#define szArchCore "32 bit"
+#endif
+#endif /* PC */
 
 #ifdef PS
-#define STROKE
+#define VECTOR
 #endif
 #ifdef META
-#define STROKE
+#define VECTOR
 #endif
-#ifdef MOUSE
-#ifdef PC
-#include <dos.h>
-#endif
-#endif /* MOUSE */
 
 
 /*
@@ -366,6 +368,9 @@
 #ifdef MACG
 #error "If 'X11' is defined 'MACG' must not be as well"
 #endif
+#ifdef WCLI
+#error "If 'X11' is defined 'WCLI' must not be as well"
+#endif
 #ifdef PC
 #error "If 'X11' is defined 'PC' must not be as well"
 #endif
@@ -380,6 +385,9 @@
 #endif
 #ifdef MACG
 #error "If 'WIN' is defined 'MACG' must not be as well"
+#endif
+#ifdef WCLI
+#error "If 'WIN' is defined 'WCLI' must not be as well"
 #endif
 #ifndef PC
 #error "If 'WIN' is defined 'PC' must be too"
@@ -396,18 +404,31 @@
 #ifdef WIN
 #error "If 'MACG' is defined 'WIN' must not be as well"
 #endif
+#ifdef WCLI
+#error "If 'MACG' is defined 'WCLI' must not be as well"
+#endif
 #ifdef PC
 #error "If 'MACG' is defined 'PC' must not be as well"
 #endif
 #endif /* MACG */
 
-#ifdef MOUSE
-#ifdef GRAPH
-#ifndef ISG
-#error "If 'MOUSE' is defined 'X11', 'WIN', or 'MACG' must be too"
+#ifdef WCLI
+#ifndef GRAPH
+#error "If 'WCLI' is defined 'GRAPH' must be too"
 #endif
-#endif /* GRAPH */
-#endif /* MOUSE */
+#ifdef X11
+#error "If 'WCLI' is defined 'X11' must not be as well"
+#endif
+#ifdef WIN
+#error "If 'WCLI' is defined 'WIN' must not be as well"
+#endif
+#ifdef MACG
+#error "If 'WCLI' is defined 'MACG' must not be as well"
+#endif
+#ifndef PC
+#error "If 'WCLI' is defined 'PC' must be too"
+#endif
+#endif /* WCLI */
 
 #ifdef PS
 #ifndef GRAPH
@@ -438,9 +459,8 @@
 #define fTrue  TRUE
 
 #define szAppNameCore "Astrolog"
-#define szVersionCore "6.20"
-#define szArchCore    "64 bit"
-#define szDateCore    "March 2017"
+#define szVersionCore "6.30"
+#define szDateCore    "October 2017"
 #define szAddressCore \
   "Astara@msn.com - http://www.astrolog.org/astrolog.htm"
 #define szNowCore     "now"
@@ -456,6 +476,7 @@
 #define monJ2G     mOct
 #define dayJ2G1    4
 #define dayJ2G2    15
+#define dstAuto    24.0
 
 #define rSqr2      1.41421356237309504880
 #define rPi        3.14159265358979323846
@@ -486,13 +507,10 @@
 
 /* Array index limits */
 
-#define cSign      12
-#define cObj       89
 #define cObjInt    uranHi
 #define objMax     (cObj+1)
-#define cAspect    18
 #define cCnstl     88
-#define cZone      69
+#define cZone      72
 #define cSector    36
 #define cPart      177
 #define cWeek      7
@@ -563,6 +581,7 @@ enum _signs {
   sCap = 10,
   sAqu = 11,
   sPis = 12,
+  cSign = 12,
 };
 
 /* Objects */
@@ -605,6 +624,7 @@ enum _objects {
   oVul = 34,
   oOri = (starLo-1+10),
   oAnd = (starLo-1+47),
+  cObj = 89,
 };
 
 /* Aspects */
@@ -630,6 +650,7 @@ enum _aspects {
   aBSp = 16,
   aTSp = 17,
   aQNv = 18,
+  cAspect = 18,
 };
 
 /* House systems */
@@ -691,6 +712,27 @@ enum _configurations {
   cAspConfig = 7,
 };
 
+/* Angle restrictions */
+
+enum _angles {
+  arAsc = 0,  // Ascendant
+  arMC  = 1,  // Midheaven
+  arDes = 2,  // Descendant
+  arIC  = 3,  // Nadir
+  arMax = 4,
+};
+
+/* Rulership restrictions */
+
+enum _rulerships {
+  rrStd = 0,  // Standard exoteric
+  rrEso = 1,  // Esoteric
+  rrHie = 2,  // Hierarchical
+  rrExa = 3,  // Exaltation
+  rrRay = 4,  // Ray rulership
+  rrMax = 5,
+};
+
 /* Graphics chart modes */
 
 enum _graphicschart {
@@ -705,30 +747,33 @@ enum _graphicschart {
   gEsoteric   = 9,
   gAstroGraph = 10,
   gEphemeris  = 11,
-  gWorldMap   = 12,
-  gGlobe      = 13,
-  gPolar      = 14,
-  gBiorhythm  = 15,
+  gTraTraGra  = 12,
+  gTraNatGra  = 13,
+  gSphere     = 14,
+  gWorldMap   = 15,
+  gGlobe      = 16,
+  gPolar      = 17,
+  gBiorhythm  = 18,
 #ifdef WIN
-  gAspect     = 16,
-  gMidpoint   = 17,
-  gArabic     = 18,
-  gSign       = 19,
-  gObject     = 20,
-  gHelpAsp    = 21,
-  gConstel    = 22,
-  gPlanet     = 23,
-  gMeaning    = 24,
-  gRay        = 25,
-  gSwitch     = 26,
-  gObscure    = 27,
-  gKeystroke  = 28,
-  gCredit     = 29,
-  gRising     = 30,
-  gTraTraHit  = 31,
-  gTraTraInf  = 32,
-  gTraNatHit  = 33,
-  gTraNatInf  = 34,
+  gAspect     = 19,
+  gMidpoint   = 20,
+  gArabic     = 21,
+  gRising     = 22,
+  gTraTraTim  = 23,
+  gTraTraInf  = 24,
+  gTraNatTim  = 25,
+  gTraNatInf  = 26,
+  gSign       = 27,
+  gObject     = 28,
+  gHelpAsp    = 29,
+  gConstel    = 30,
+  gPlanet     = 31,
+  gRay        = 32,
+  gMeaning    = 33,
+  gSwitch     = 34,
+  gObscure    = 35,
+  gKeystroke  = 36,
+  gCredit     = 37,
 #endif
 };
 
@@ -769,10 +814,11 @@ enum _arabicparts {
 
 enum _calculationmethod {
   cmSwiss   = 0,
-  cmPlacalc = 1,
-  cmMatrix  = 2,
-  cmNone    = 3,
-  cmMax     = 4,
+  cmMoshier = 1,
+  cmPlacalc = 2,
+  cmMatrix  = 3,
+  cmNone    = 4,
+  cmMax     = 5,
 };
 
 /* Draw text formatting flags */
@@ -866,6 +912,7 @@ enum _terminationcode {
 #define RAcos(r) acos(r)
 #define RSinD(r) RSin(RFromD(r))
 #define RCosD(r) RCos(RFromD(r))
+#define RTanD(r) RTan(RFromD(r))
 #define NSinD(nR, nD) ((int)((real)(nR)*RSinD((real)nD)))
 #define NCosD(nR, nD) ((int)((real)(nR)*RCosD((real)nD)))
 
@@ -885,7 +932,7 @@ enum _terminationcode {
 #define SzNumF(f)     (f ? "1 " : "0 ")
 #define ChDst(dst)    (dst == 0.0 ? 'S' : (dst == 1.0 ? 'D' : \
   (dst != 24.0 ? 'A' : (is.fDst ? 'D' : 'S'))))
-#define DayInYearHi(yea) (365-28+DayInMonth(2, yea))
+#define DayInYear(yea) (365-28+DayInMonth(2, yea))
 #define FChSwitch(ch) \
   ((ch) == '-' || (ch) == '/' || (ch) == '_' || (ch) == '=' || (ch) == ':')
 
@@ -910,14 +957,18 @@ enum _terminationcode {
 #define FValidScreen(n) FBetween(n, 20, 200)
 #define FValidMacro(n) FBetween(n, 1, 48)
 #define FValidGlyphs(n) FBetween(n, 0, 2232)
-#define FValidGrid(n) FBetween(n, 1, cObj)
+#define FValidDecaType(n) FBetween(n, 0, 2)
+#define FValidDecaSize(n) FBetween(n, 0, 100)
+#define FValidDecaLine(n) FBetween(n, 1, 1000)
+#define FValidGrid(n) FBetween(n, 0, cObj)
 #define FValidEsoteric(n) FBetween(n, 1, 32000)
 #define FValidScale(n) (FBetween(n, 100, MAXSCALE) && (n)%100 == 0)
 #define FValidGraphx(x) (FBetween(x, BITMAPX1, BITMAPX) || (x) == 0)
 #define FValidGraphy(y) (FBetween(y, BITMAPY1, BITMAPY) || (y) == 0)
 #define FValidRotation(n) FBetween(n, 0, nDegMax-1)
 #define FValidTilt(n) FBetween(n, -rDegQuad, rDegQuad)
-#define FValidColor(n) FBetween(n, 0, cColor - 1)
+#define FValidColor(n) FBetween(n, 0, cColor-1)
+#define FValidColor2(n) FBetween(n, 0, cColor-1 + 2)
 #define FValidBmpmode(ch) \
   ((ch) == 'N' || (ch) == 'C' || (ch) == 'V' || (ch) == 'A' || (ch) == 'B')
 #define FValidTimer(n) FBetween(n, 1, 32000)
@@ -941,7 +992,8 @@ enum _terminationcode {
 #define szPerson2 (ciTwin.nam[0] ? ciTwin.nam : "Person2")
 #define FIgnore(i) ignore[i]
 #define FIgnore2(i) ignore2[i]
-#define fNoTimeOrSpace (Mon == -1)
+#define FAllow(i) (us.objRequire < 0 || (i) == us.objRequire)
+#define FNoTimeOrSpace(ci) (ci.mon == -1)
 
 #define loop for (;;)
 #define inv(v) v = !(v)
@@ -976,7 +1028,7 @@ enum _terminationcode {
 #endif /* PC */
 
 #ifdef GRAPH
-#ifdef WIN
+#ifdef WINANY
 #define API FAR PASCAL
 #define hdcNil ((HDC)NULL)
 #define SetWindowOrg(hdc, x, y) SetWindowOrgEx(hdc, x, y, NULL)
@@ -1009,13 +1061,14 @@ enum _terminationcode {
 
 /* Do settings indicate the current chart should have the info sidebar? */
 #define fSidebar ((gi.nMode == gWheel || gi.nMode == gHouse || \
-  gi.nMode == gSector) && gs.fText && !us.fVelocity)
+  gi.nMode == gSector || gi.nMode == gSphere) && gs.fText && !us.fVelocity)
 
 /* Is the current chart most properly displayed as a square graphic? */
 #define fSquare \
   (gi.nMode == gWheel || gi.nMode == gHouse || gi.nMode == gGrid || \
   (gi.nMode == gHorizon && us.fPrimeVert) || gi.nMode == gDisposit || \
-  gi.nMode == gOrbit || gi.nMode == gGlobe || gi.nMode == gPolar)
+  gi.nMode == gOrbit || gi.nMode == gSector || gi.nMode == gSphere || \
+  gi.nMode == gGlobe || gi.nMode == gPolar)
 
 /* Does the current chart have to be displayed in a map rectangle? */
 #define fMap \
@@ -1023,14 +1076,16 @@ enum _terminationcode {
 
 /* Do settings indicate the current chart should have an outer border? */
 #define fDrawBorder \
-  ((gs.fBorder || gi.nMode == gGrid) && gi.nMode != gGlobe && \
-  gi.nMode != gPolar && (gi.nMode != gWorldMap || !gs.fMollewide))
+  ((gs.fBorder || gi.nMode == gGrid) && gi.nMode != gTraTraGra && \
+  gi.nMode != gTraNatGra && gi.nMode != gGlobe && gi.nMode != gPolar && \
+  (gi.nMode != gWorldMap || !gs.fMollewide))
 
 /* Do settings indicate current chart should have chart info at its bottom? */
 #define fDrawText \
   (gs.fText && gi.nMode != gCalendar && gi.nMode != gWorldMap && \
   gi.nMode != gGlobe && gi.nMode != gPolar && ((gi.nMode != gWheel && \
-  gi.nMode != gHouse && gi.nMode != gSector) || us.fVelocity))
+  gi.nMode != gHouse && gi.nMode != gSector && gi.nMode != gSphere) || \
+  us.fVelocity))
 #endif /* GRAPH */
 
 
@@ -1067,6 +1122,8 @@ typedef struct _CrossInfo {
   int obj2[MAXCROSS];
 } CrossInfo;
 
+typedef word *TransGraInfo[objMax][objMax][cAspect];
+
 #ifdef GRAPH
 typedef unsigned long KV;
 typedef int KI;
@@ -1092,11 +1149,14 @@ typedef struct _UserSettings {
   flag fEphemeris;     /* -E */
   flag fTransit;       /* -t */
   flag fTransitInf;    /* -T */
+  flag fInDayGra;      /* -B */
+  flag fTransitGra;    /* -V */
 
   /* Chart suboptions */
   flag fVelocity;      /* -v0 */
   flag fWheelReverse;  /* -w0 */
   flag fGridConfig;    /* -g0 */
+  flag fGridMidpoint;  /* -gm */
   flag fAppSep;        /* -ga */
   flag fParallel;      /* -gp */
   flag fAspSummary;    /* -a0 */
@@ -1109,6 +1169,7 @@ typedef struct _UserSettings {
   flag fLatitudeCross; /* -L0 */
   flag fCalendarYear;  /* -Ky */
   flag fInDayMonth;    /* -dm */
+  flag fGraphAll;      /* -B0 */
   flag fArabicFlip;    /* -P0 */
 
   /* Table chart types */
@@ -1132,6 +1193,7 @@ typedef struct _UserSettings {
   flag fProgress;    /* Are we doing a -p progressed chart?           */
   flag fInterpret;   /* Is -I interpretation switch in effect?        */
   flag fHouse3D;     /* -c3 */
+  flag fAspect3D;    /* -A3 */
   flag fDecan;       /* -3 */
   flag fFlip;        /* -f */
   flag fGeodetic;    /* -G */
@@ -1146,9 +1208,11 @@ typedef struct _UserSettings {
   flag fNoSwitches;
   flag fLoopInit;    /* -Q0 */
   flag fSeconds;     /* -b0 */
+  flag fSwissMosh;   /* -bs */
   flag fPlacalcAst;  /* -ba */
   flag fPlacalcPla;  /* -bp */
   flag fMatrixPla;   /* -bm */
+  flag fMatrixStar;  /* -bU */
   flag fEquator;     /* -sr */
   flag fSolarArc;    /* -p0 */
   flag fWritePos;    /* -o0 */
@@ -1187,6 +1251,7 @@ typedef struct _UserSettings {
   int   nStar;        /* -U */
   real  rHarmonic;    /* Harmonic chart value passed to -x switch.     */
   int   objOnAsc;     /* Planet value passed to -1 or -2 switch.       */
+  int   objRequire;   /* Required object passed to -RO switch.         */
   int   dayDelta;     /* -+, -- */
   int   nDegForm;     /* -s */
   int   nDivision;    /* -d */
@@ -1208,6 +1273,7 @@ typedef struct _UserSettings {
   int   nRatio1;         /* Chart ratio factors passed to -rc or -rm.     */
   int   nRatio2;
   int   nScrollRow;      /* -YQ */
+  int   cSequenceLine;   /* -Yq */
   long  lTimeAddition;   /* -Yz */
   int   objRot1;         /* -Y1 */
   int   objRot2;         /* -Y1 */
@@ -1226,6 +1292,7 @@ typedef struct _InternalSettings {
   flag fSzInteract;   /* Are we in middle of chart so some setting fixed?  */
   flag fNoEphFile;    /* Have we already had a ephem file not found error? */
   char *szProgName;   /* The name and path of the executable running.      */
+  char *rgszLine[9];  /* The command lines to run before each -Yq chart.   */
   char *szFileScreen; /* The file to send text output to as passed to -os. */
   char *szFileOut;    /* The output chart filename string as passed to -o. */
   char **rgszComment; /* Points to any comment strings after -o filename.  */
@@ -1278,10 +1345,12 @@ typedef struct _GraphicsSettings {
   flag fBorder;     /* Are we drawing borders around charts (-Xu set).  */
   flag fLabel;      /* Are we labeling objects in charts (-Xl not set). */
   flag fJetTrail;   /* Are we not clearing screen on updates (-Xj set). */
-  flag fMouse;      /* Are we not considering PC mouse inputs.          */
   flag fConstel;    /* Are we drawing maps as constellations (-XF set). */
+  flag fSouth;      /* Are we focus on south hemisphere (-XX0/XP0 set). */
   flag fMollewide;  /* Are we drawing maps scaled correctly (-XW0 set). */
-  flag fPrintMap;   /* Are we printing globe names on draw (-XP0 set).  */
+  flag fPrintMap;   /* Are we printing globe names on draw (-XPv set).  */
+  flag fKeepSquare; /* Are we preserving chart aspect ratio (-XQ set).  */
+  flag fAnimMap;    /* Are we animating map instead of time (-XN set).  */
   int xWin;         /* Current size of graphic chart (-Xw).      */
   int yWin;
   int nAnim;        /* Current animation mode jump rate (-Xn).   */
@@ -1295,9 +1364,14 @@ typedef struct _GraphicsSettings {
   real xInch;       /* PostScript horizontal paper size inches.  */
   real yInch;       /* PostScript vertical paper size inches.    */
   char *szDisplay;  /* Current X11 display name (-Xd).           */
+  int nDecaType;    /* Type of wheel chart decoration (-YXv).    */
+  int nDecaSize;    /* Size of wheel chart decoration (-YXv).    */
+  int nDecaLine;    /* Lines in wheel chart decoration (-YXv).   */
   int nGridCell;    /* Number of cells in -g grids (-YXg).       */
   int nRayWidth;    /* Column width in -7 esoteric chart (-YX7). */
   int nGlyphs;      /* Settings for what gylphs to use (-YG).    */
+  flag fColorSign;  /* More color for sign boundaries. (-YXk).   */
+  flag fColorHouse; /* More color for house boundaries. (-YXk0). */
 } GS;
 
 typedef struct _GraphicsInternal {
@@ -1308,12 +1382,12 @@ typedef struct _GraphicsInternal {
   int cbBmpRow;         /* Horizontal size of bitmap array in memory. */
   char *szFileOut;      /* Current name of bitmap file (-Xo).         */
   FILE *file;           /* Actual file handle writing graphics to.    */
-  int yBand;            /* Vertical offset to current bitmap band.    */
   real rAsc;            /* Degree to be at left edge in wheel charts. */
   flag fFile;           /* Are we making a graphics file.             */
   int nScale;           /* Scale ratio, i.e. percentage / 100.        */
   int nScaleText;       /* Text scale ratio, i.e. percentage / 100.   */
   int nScaleT;          /* Relative scale to draw chart text at.      */
+  int nGridCell;        /* Actual number of cells in -g grids.        */
   int nPenWid;          /* Pen width to use when creating metafiles.  */
   KI kiOn;              /* Foreground color. */
   KI kiOff;             /* Background color. */
@@ -1434,7 +1508,7 @@ typedef struct _WindowInternal {
   flag fAbort;     /* Did the user cancel printing in progress?  */
   int nDlgChart;   /* Which chart to set in Open or Info dialog. */
 
-  /* Window User settings. */
+  /* Window user settings. */
   flag fPause;       /* Is animation paused?                   */
   flag fBuffer;      /* Are we drawing updates off screen?     */
   flag fHourglass;   /* Bring up hourglass cursor on redraws?  */
@@ -1442,9 +1516,27 @@ typedef struct _WindowInternal {
   flag fWindowChart; /* Does window resize cause chart change? */
   flag fNoUpdate;    /* Do we not automatically update screen? */
   flag fAutoSave;    /* Are we saving bitmap after win draw?   */
+  flag fAutoSaveNum; /* Saved bitmaps are incremental files?   */
+  int nAutoSaveNum;  /* Number of incremental bitmap save.     */
   KI kiPen;          /* The current pen scribble color.        */
   int nDir;          /* Animation step factor and direction.   */
   UINT nTimerDelay;  /* Milliseconds between animation draws.  */
+} WI;
+#endif
+
+#ifdef WCLI
+typedef struct _WindowInternal {
+  HINSTANCE hinst; /* Instance of the Astrolog window class. */
+  HWND hwndMain;   /* The outer created frame window.        */
+  HWND hwnd;       /* The current window being dealt with.   */
+  HDC hdc;         /* The current DC bring drawn upon.       */
+  HPEN hpen;       /* Pen with the current line color.       */
+  HBRUSH hbrush;   /* Fill if any with the current color.    */
+  short xClient;   /* Horizontal & vertical window size.     */
+  short yClient;
+  flag fDoRedraw;
+  flag fDoResize;
+  flag fWndclass;
 } WI;
 #endif
 

@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: extern.h
+** Astrolog (Version 6.30) File: extern.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 /*
@@ -69,6 +69,7 @@ extern int NParseCommandLine P((char *, char **));
 extern int NPromptSwitches P((char *, char *[MAXSWITCHES]));
 extern int NProcessSwitchesRare P((int, char **, int, flag, flag, flag));
 extern flag FProcessSwitches P((int, char **));
+extern void InitProgram P((void));
 
 
 /* From data.cpp & data2.cpp */
@@ -108,6 +109,15 @@ extern flag FProcessSwitches P((int, char **));
 
 #define FIgnoreA(a) (ignorea[a] || rAspOrb[a] < 0.0)
 #define DEFAULT_LOC DMS(122, 19, 38), DMS(47, 36, 37)
+#define FProperGraph(o) !(!us.fGraphAll && (FCusp(o) || \
+  (us.fInDayMonth && ((o) == oMoo || (MonT == 0 && (o) <= oMar)))))
+
+#define FCmSwissAny() (us.fEphemFiles && !us.fPlacalcPla)
+#define FCmSwissEph() (us.fEphemFiles && !us.fPlacalcPla && !us.fSwissMosh)
+#define FCmSwissMosh() (us.fEphemFiles && !us.fPlacalcPla && us.fSwissMosh)
+#define FCmSwissStar() (us.fEphemFiles && !us.fPlacalcPla && !us.fMatrixStar)
+#define FCmPlacalc (us.fEphemFiles && us.fPlacalcPla)
+#define FCmMatrix (!us.fEphemFiles && us.fMatrixPla)
 
 extern US us;
 extern IS is;
@@ -118,14 +128,14 @@ extern real spacex[oNorm+1], spacey[oNorm+1], spacez[oNorm+1], force[objMax];
 extern GridInfo *grid;
 extern int starname[cStar+1], kObjA[objMax];
 
-extern byte ignore[objMax], ignore2[objMax], ignorea[cAspect+1], ignorez[4],
-  ignore7[5], pluszone[cSector+1];
+extern byte ignore[objMax], ignore2[objMax], ignorea[cAspect+1],
+  ignorez[arMax], ignore7[rrMax], pluszone[cSector+1];
 extern real rAspAngle[cAspect+1], rAspOrb[cAspect+1], rObjOrb[oNorm+2],
   rObjAdd[oNorm+2];
 extern int ruler1[oNorm+1], ruler2[oNorm+1], exalt[oNorm+1], rules[cSign+1],
   kMainA[9], kRainbowA[8], kElemA[cElem], kAspA[cAspect+1], kObjU[oNorm+1];
 extern real rObjInf[oNorm1+6], rHouseInf[cSign+6], rAspInf[cAspect+1],
-  rTransitInf[oNorm1];
+  rTransitInf[oNorm1+1];
 
 extern CONST char *szAppName, *szSignName[cSign+1], *szSignAbbrev[cSign+1],
   *szSignEnglish[cSign+1], *szHouseTradition[cSign+1], *szSystem[cSystem],
@@ -138,11 +148,14 @@ extern CONST real rZon[cZone];
 extern CONST char *szObjName[objMax], *szCnstlName[cCnstl+1],
   *szCnstlAbbrev[cCnstl+1], *szCnstlMeaning[cCnstl+1],
   *szCnstlGenitive[cCnstl+1];
-extern CONST real rStarBright[cStar+1], rStarData[cStar*6];
+extern CONST real rStarBrightMatrix[cStar+1], rStarData[cStar*6];
 extern char *szMindPart[oNorm+1], *szDesc[cSign+1], *szDesire[cSign+1],
   *szLifeArea[cSign+1], *szInteract[cAspect+1], *szTherefore[cAspect+1],
   *szModify[3][cAspect];
 extern CONST StrLook rgObjName[], rgSystem[], rgAspectName[];
+extern real rStarBright[cStar+1];
+extern char *szStarCustom[cStar+1];
+extern CONST char *szObjDisp[objMax];
 
 extern CONST real rObjDist[oNorm+1], rObjYear[oNorm+1], rObjDiam[oVes+1],
   rObjDay[oPlu+1], rObjMass[oPlu+1], rObjAxis[oPlu+1];
@@ -153,7 +166,7 @@ extern CONST int cErrorCount[oPlu-oJup+1];
 extern CONST int iErrorOffset[oPlu-oJup+1];
 extern CONST real rErrorData[72+51+42*3];
 extern OE rgoe[oVes+cUran-2];
-extern int rgObjSwiss[cUran];
+extern int rgObjSwiss[cUran], rgTypSwiss[cUran], rgPntSwiss[cUran];
 extern char *szMacro[48], *szWheel[4+1];
 extern CONST char *szColor[cColor+2];
 
@@ -168,6 +181,12 @@ extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 
 #define PrintAltitude(deg) PrintSz(SzAltitude(deg))
 #define ErrorValR(sz, r) ErrorValN(sz, (int)r)
+#define FEqCI(ci1, ci2) (\
+  ci1.mon == ci2.mon && ci1.day == ci2.day && ci1.yea == ci2.yea && \
+  ci1.tim == ci2.tim && ci1.dst == ci2.dst && ci1.zon == ci2.zon && \
+  ci1.lon == ci2.lon && ci1.lat == ci2.lat && \
+  (ci1.nam == ci2.nam || NCompareSz(ci1.nam, ci2.nam) == 0) && \
+  (ci1.loc == ci2.loc || NCompareSz(ci1.loc, ci2.loc) == 0))
 
 extern void SwapR P((real *, real *));
 extern int CchSz P((CONST char *));
@@ -187,8 +206,10 @@ extern real DegToDec P((real));
 extern real MinDistance P((real, real));
 extern real MinDifference P((real, real));
 extern real Midpoint P((real, real));
+extern real PolarDistance P((real, real, real, real));
 extern char *Dignify P((int, int));
 extern void EnsureRay P((void));
+extern void EnsureStarBright P((void));
 extern int DayInMonth P((int, int));
 extern int DaysInMonth P((int, int));
 extern int DayOfWeek P((int, int, int));
@@ -249,9 +270,10 @@ extern int HousePlaceIn P((real, real));
 extern real HousePlaceIn3D P((real, real));
 extern void ComputeInHouses P((void));
 extern void ComputeHouses P((int));
-extern void ComputeStars P((real));
+extern void ComputeStars P((real, real));
 extern real Decan P((real));
 extern real Navamsa P((real));
+extern void RecToPol P((real, real, real *, real *));
 extern void SphToRec P((real, real, real, real *, real *, real *));
 extern void ComputeEphem P((real));
 extern real CastChart P((flag));
@@ -282,7 +304,6 @@ extern real MdytszToJulian P((int, int, int, real, real, real));
 extern void JulianToMdy P((real, int *, int *, int *));
 extern real ProcessInput P((flag));
 extern void PolToRec P((real, real, real *, real *));
-extern void RecToPol P((real, real, real *, real *));
 extern real RecToSph P((real, real, real));
 extern void CoorXform P((real *, real *, real));
 extern void ComputeVariables P((real *));
@@ -321,10 +342,12 @@ extern void revjul P((double, int, int *, int *, int *, double *));
 #ifdef SWISS
 /* From swedate.cpp */
 
+#define log10(r) (log((double)(r)) / log(10.0))
 extern flag FSwissPlanet
   P((int, real, flag, real *, real *, real *, real *));
 extern flag FSwissHouse P((real, real, real, int,
   real *, real *, real *, real *, real *, real *, real *));
+extern void SwissComputeStars P((real, flag));
 extern double SwissJulDay P((int, int, int, real, int));
 extern void SwissRevJul P((real, int, int *, int *, int *, double *));
 #endif
@@ -382,6 +405,7 @@ extern void PrintChart P((flag));
 
 /* From charts2.cpp */
 
+extern void ChartListingRelation P((void));
 extern void ChartGridRelation P((void));
 extern void ChartAspectRelation P((void));
 extern void ChartMidpointRelation P((void));
@@ -390,7 +414,8 @@ extern void PrintInDay P((int, int, int));
 extern void PrintAspect P((int, int, int, int, int, int, int, char));
 extern void ChartInDayInfluence P((void));
 extern void ChartTransitInfluence P((flag));
-extern void EclToHorizon P((real *, real *, real, real, real, real, real));
+extern void ChartTransitGraph P((flag));
+extern void EclToHorizon P((real *, real *, real, real, real, real));
 extern void ChartCalendarMonth P((void));
 extern void ChartCalendarYear P((void));
 extern void DisplayRelation P((void));
@@ -445,35 +470,38 @@ extern KV fg, bg;
 #ifdef WIN
 extern int ikPalette[cColor];
 #endif
+#ifdef WCLI
+extern WI wi;
+#endif
 extern char *szWheelX[4+1];
 
 extern CONST KV rgbbmp[cColor];
 extern KI kMainB[9], kRainbowB[8], kElemB[cElem], kAspB[cAspect+1],
   kObjB[objMax], kRayB[cRay+2];
 extern CONST char szObjectFont[oNorm+1], szAspectFont[cAspect+1],
-  *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawObject[oNorm+5],
-  *szDrawObject2[oNorm+5], *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1],
+  *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawObjectDef[oNorm+5],
+  *szDrawObjectDef2[oNorm+5], *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1],
   *szDrawAspect[cAspect+3], *szDrawAspect2[cAspect+3], *szDrawCh[256-32],
   *szWorldData[62*3], *szDrawConstel[cCnstl+1];
-
+extern CONST char *szDrawObject[oNorm+5], *szDrawObject2[oNorm+5];
 
 /* From xgeneral.cpp */
 
-#define BBmGet(B, X, Y) ((B)[(long)(Y)*(long)(gi.cbBmpRow) + ((X) >> 1)])
-#define FBmGet(B, X, Y) (BBmGet(B, X, Y) >> (((X)&1^1) << 2) & 15)
-#define BmSet(B, X, Y, O) BBmGet(B, X, Y) = BBmGet(B, X, Y) & \
-  15 << (((X)&1) << 2) | (O) << (((X)&1^1) << 2)
+#define BBmGet(rg, x, y) ((rg)[(y)*gi.cbBmpRow + ((x) >> 1)])
+#define FBmGet(rg, x, y) (BBmGet(rg, x, y) >> (((x)&1^1) << 2) & 15)
+#define BmSet(rg, x, y, o) BBmGet(rg, x, y) = BBmGet(rg, x, y) & \
+  15 << (((x)&1) << 2) | (o) << (((x)&1^1) << 2)
 
-#define PutByte(A) putc((byte) (A), file)
-#define PutWord(A) PutByte(BLo(A)); PutByte(BHi(A))
-#define PutLong(A) PutWord(WLo(A)); PutWord(WHi(A))
+#define PutByte(n) putc((byte)(n), file)
+#define PutWord(n) PutByte(BLo(n)); PutByte(BHi(n))
+#define PutLong(n) PutWord(WLo(n)); PutWord(WHi(n))
 
-#define DrawEdge(X1, Y1, X2, Y2) \
-  DrawBox(X1, Y1, X2, Y2, gi.nScaleT, gi.nScaleT)
+#define DrawEdge(x1, y1, x2, y2) \
+  DrawBox(x1, y1, x2, y2, gi.nScaleT, gi.nScaleT)
 #define DrawEdgeAll() DrawEdge(0, 0, gs.xWin-1, gs.yWin-1)
-#define DrawLine(X1, Y1, X2, Y2) DrawDash(X1, Y1, X2, Y2, 0)
-#define DrawCircle(X, Y, RX, RY) \
-  DrawEllipse((X)-(RX), (Y)-(RY), (X)+(RX), (Y)+(RY))
+#define DrawLine(x1, y1, x2, y2) DrawDash(x1, y1, x2, y2, 0)
+#define DrawCircle(x, y, xr, yr) \
+  DrawEllipse((x)-(xr), (y)-(yr), (x)+(xr), (y)+(yr))
 
 extern void DrawColor P((KI));
 extern void DrawPoint P((int, int));
@@ -553,7 +581,7 @@ extern void WriteMeta P((FILE *));
 /* From xcharts0.cpp */
 
 extern int DrawPrint P((CONST char *, int, int));
-extern void DrawInfo P((void));
+extern void DrawSidebar P((void));
 extern void DrawWheel
   P((real *, real *, int, int, real, real, real,real,real,real,real));
 extern void DrawSymbolRing
@@ -579,6 +607,7 @@ extern void DrawArrow P((int, int, int, int));
 extern void XChartDispositor P((void));
 extern void XChartEsoteric P((void));
 extern void XChartCalendar P((void));
+extern void XChartSphere P((void));
 
 
 /* From xcharts2.cpp */
@@ -592,6 +621,7 @@ extern void XChartWheelRelation P((void));
 extern void XChartWheelThreeFour P((void));
 extern void XChartGridRelation P((void));
 extern void XChartEphemeris P((void));
+extern void XChartTransit P((flag));
 extern void XChartBiorhythm P((void));
 
 
@@ -599,6 +629,7 @@ extern void XChartBiorhythm P((void));
 
 extern void InitColorsX P((void));
 #ifdef ISG
+extern void ResizeWindowToChart P((void));
 extern void BeginX P((void));
 extern void AddTime P((int, int));
 extern void Animate P((int, int));
@@ -608,7 +639,7 @@ extern void InteractX P((void));
 extern void EndX P((void));
 #endif
 extern int NProcessSwitchesX P((int, char **, int, flag, flag, flag));
-extern int NProcessSwitchesRareX P((int, char **, int));
+extern int NProcessSwitchesRareX P((int, char **, int, flag, flag, flag));
 extern flag FActionX P((void));
 #endif /* GRAPH */
 
@@ -646,7 +677,6 @@ extern char szFileName[cchSzMaxFile], szFileTitle[cchSzMaxFile], *szFileTemp;
 
 extern LRESULT API WndProc P((HWND, UINT, WPARAM, LPARAM));
 extern int NProcessSwitchesW P((int, char **, int, flag, flag, flag));
-extern void ResizeWindowToChart P((void));
 extern void BootExternal P((CONST char *, CONST char *));
 extern WORD WCmdFromRc P((int));
 extern void SetRel P((int));
@@ -685,7 +715,7 @@ extern flag API DlgObject P((HWND, uint, WORD, LONG));
 extern flag API DlgObject2 P((HWND, uint, WORD, LONG));
 extern flag API DlgRestrict P((HWND, uint, WORD, LONG));
 extern flag API DlgStar P((HWND, uint, WORD, LONG));
-extern flag API DlgSetting P((HWND, uint, WORD, LONG));
+extern flag API DlgCalc P((HWND, uint, WORD, LONG));
 extern flag API DlgDisplay P((HWND, uint, WORD, LONG));
 extern flag API DlgTransit P((HWND, uint, WORD, LONG));
 extern flag API DlgProgress P((HWND, uint, WORD, LONG));

@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: io.cpp
+** Astrolog (Version 6.30) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -268,7 +268,7 @@ flag FOutputData(void)
         rT = FBetween(i, cuspLo-1+4, cuspLo-1+9) ?
           chouse[i-(cuspLo-1)] : planet[i];
         j = (int)rT;
-        fprintf(file, "%3d %.3s%13.9f,%4d%13.9f,",
+        fprintf(file, "%3d %.3s %12.9f,%4d %12.9f,",
           j%30, szSignName[j/30+1], RFract(rT)*60.0,
           (int)planetalt[i], RFract(RAbs(planetalt[i]))*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :

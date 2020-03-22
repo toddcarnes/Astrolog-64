@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: charts2.cpp
+** Astrolog (Version 6.30) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -55,6 +55,83 @@
 ** Dual Chart Display Routines.
 ******************************************************************************
 */
+
+/* Print a listing of planets for two (or more) charts, as specified by the */
+/* -v -r0 switch combination, along with the maximum delta between planets. */
+
+void ChartListingRelation(void)
+{
+  CI *ci[4];
+  CP *cp[4];
+  char sz[cchSzDef], szT[cchSzDef];
+  int cChart, i, j, k, n;
+  real r, rT;
+
+  cChart = 2 + (us.nRel <= rcTriWheel) + (us.nRel <= rcQuadWheel);
+  ci[0] = &ciMain; ci[1] = &ciTwin; ci[2] = &ciThre; ci[3] = &ciFour;
+  cp[0] = &cp1; cp[1] = &cp2; cp[2] = &cp3; cp[3] = &cp4;
+
+  /* Print header rows. */
+  AnsiColor(kMainA[1]);
+  PrintTab(' ', 5);
+  n = us.fSeconds ? 23 : 16;
+  sprintf(szT, " %%-%d.%ds", n, n);
+  for (i = 0; i < cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
+    sprintf(sz, szT, ci[i]->nam); PrintSz(sz);
+  }
+  PrintSz("\n      ");
+  for (i = 0; i < cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
+    PrintSz(SzDate(ci[i]->mon, ci[i]->day, ci[i]->yea, us.fSeconds-1));
+    PrintCh(' ');
+    PrintSz(SzTim(ci[i]->tim));
+    PrintTab(' ', us.fSeconds ? 3 : 1);
+  }
+  AnsiColor(kMainA[3]);
+  PrintSz("\nBody");
+  for (i = 0; i < cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
+    PrintSz("  Location");
+    PrintTab(' ', us.fSeconds ? 5 : 1);
+    if (us.fSeconds)
+      PrintSz(" Latitude");
+    else
+      PrintSz("Latit.");
+  }
+  AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
+  PrintTab(' ', 3 + us.fSeconds);
+  PrintSz("Delta\n");
+
+  /* Print object positions. */
+  for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
+    AnsiColor(kObjA[i]);
+    sprintf(sz, "%-4.4s:", szObjDisp[i]); PrintSz(sz);
+    for (j = 0; j < cChart; j++) {
+      PrintCh(' ');
+      PrintZodiac(cp[j]->obj[i]);
+      sprintf(sz, "%c ", cp[j]->dir[i] >= 0.0 ? ' ' : chRet); PrintSz(sz);
+      PrintAltitude(cp[j]->alt[i]);
+    }
+
+    /* Compute maximum offset between any two instances of this planet. */
+    r = 0.0;
+    for (j = 0; j < cChart; j++)
+      for (k = 0; k < j; k++) {
+        if (!us.fAspect3D)
+          rT = MinDistance(cp[j]->obj[i], cp[k]->obj[i]);
+        else
+          rT = PolarDistance(cp[j]->obj[i], cp[k]->obj[i],
+            cp[j]->alt[i], cp[k]->alt[i]);
+        r = Max(r, rT);
+      }
+    AnsiColor(kMainA[3]);
+    PrintCh(' ');
+    PrintSz(SzDegree(r));
+    PrintL();
+  }
+}
+
 
 /* Print out an aspect (or midpoint if -g0 switch in effect) grid of a      */
 /* relationship chart. This is similar to the ChartGrid() routine; however, */
@@ -67,7 +144,7 @@ void ChartGridRelation(void)
   int i, j, k, tot = cObj, temp;
 
 #ifdef INTERPRET
-  if (us.fInterpret && !us.fGridConfig) {
+  if (us.fInterpret && !us.fGridMidpoint) {
     InterpretGridRelation();
     return;
   }
@@ -76,7 +153,7 @@ void ChartGridRelation(void)
   for (temp = 0, i = 0; i <= cObj; i++) if (!ignore[i]) {
     PrintCh(chV);
     AnsiColor(kObjA[i]);
-    sprintf(sz, "%.3s", szObjName[i]); PrintSz(sz);
+    sprintf(sz, "%.3s", szObjDisp[i]); PrintSz(sz);
     AnsiColor(kDefault);
     temp++;
   }
@@ -112,7 +189,7 @@ void ChartGridRelation(void)
         PrintTab(chH, 3);
       else if (k == 2) {
         AnsiColor(kObjA[j]);
-        sprintf(sz, "%.3s", szObjName[j]); PrintSz(sz);
+        sprintf(sz, "%.3s", szObjDisp[j]); PrintSz(sz);
       } else {
         temp = SFromZ(cp1.obj[j]);
         AnsiColor(kSignA(temp));
@@ -132,36 +209,36 @@ void ChartGridRelation(void)
         if (k > 1) {
           if (i == j)
             AnsiColor(kReverse);
-          AnsiColor(us.fGridConfig ? kSignA(temp) : kAspA[temp]);
+          AnsiColor(us.fGridMidpoint ? kSignA(temp) : kAspA[temp]);
         }
         if (k < 2)
           PrintTab(chH, 3);
         else if (k == 2) {
-          if (us.fGridConfig)
+          if (us.fGridMidpoint)
             sprintf(sz, "%.3s", szSignName[temp]);
           else
             sprintf(sz, "%s", temp ? SzAspectAbbrev(temp) : "   ");
           PrintSz(sz);
         } else if (k == 3) {
-          if (us.fGridConfig) {
+          if (us.fGridMidpoint) {
             sprintf(sz, "%2d%c", grid->v[i][j]/3600, chDeg0); PrintSz(sz);
           } else
             if (grid->n[i][j]) {
               if (grid->v[i][j] < 6000*60)
                 sprintf(sz, "%c%2d", us.fAppSep ?
                   (grid->v[i][j] < 0 ? 'a' : 's') :
-                  (grid->v[i][j] < 0 ? '-' : '+'), abs(grid->v[i][j])/3600);
+                  (grid->v[i][j] < 0 ? '-' : '+'), NAbs(grid->v[i][j])/3600);
               else
-                sprintf(sz, "%3d", abs(temp)/3600);
+                sprintf(sz, "%3d", NAbs(temp)/3600);
               PrintSz(sz);
             } else
               PrintSz("   ");
         } else {
           if (grid->n[i][j]) {
             if (k == 4)
-              sprintf(sz, "%02d'", abs(grid->v[i][j])/60%60);
+              sprintf(sz, "%02d'", NAbs(grid->v[i][j])/60%60);
             else
-              sprintf(sz, "%02d\"", abs(grid->v[i][j])%60);
+              sprintf(sz, "%02d\"", NAbs(grid->v[i][j])%60);
             PrintSz(sz);
           } else
             PrintSz("   ");
@@ -223,9 +300,9 @@ void ChartAspectRelation(void)
     AnsiColor(k < 0 ? kMainA[1] : kMainA[2]);
     sprintf(sz, "- orb: %c%d,%02d'",
       us.fAppSep ? (k < 0 ? 'a' : 's') : (k < 0 ? '-' : '+'),
-      abs(k)/3600, abs(k)%3600/60); PrintSz(sz);
+      NAbs(k)/3600, NAbs(k)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
-      sprintf(sz, "%02d\"", abs(k)%60); PrintSz(sz);
+      sprintf(sz, "%02d\"", NAbs(k)%60); PrintSz(sz);
     }
     AnsiColor(kMainA[5]);
     sprintf(sz, " - power:%6.2f\n", (real)phi/1000.0); PrintSz(sz);
@@ -482,7 +559,7 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
     PrintSz("trans ");
   else if (chart == 'e' || chart == 'u' || chart == 'U')
     PrintSz("progr ");
-  sprintf(sz, "%7.7s", szObjName[obj1]); PrintSz(sz);
+  sprintf(sz, "%7.7s", szObjDisp[obj1]); PrintSz(sz);
   AnsiColor(kSignA(sign1));
   sprintf(sz, " %c%.3s%c",
     ret1 > 0 ? '(' : (ret1 < 0 ? '[' : '<'), szSignName[sign1],
@@ -513,11 +590,11 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
       ret2 > 0 ? '(' : (ret2 < 0 ? '[' : '<'), szSignName[sign2],
       ret2 > 0 ? ')' : (ret2 < 0 ? ']' : '>')); PrintSz(sz);
     AnsiColor(kObjA[obj2]);
-    sprintf(sz, "%.10s", szObjName[obj2]); PrintSz(sz);
+    sprintf(sz, "%.10s", szObjDisp[obj2]); PrintSz(sz);
   }
   if (chart == 'D' || chart == 'T' || chart == 'U' ||
     chart == 'a' || chart == 'A' || chart == 'm' || chart == 'M')
-    PrintTab(' ', 10-CchSz(szObjName[obj2]));
+    PrintTab(' ', 10-CchSz(szObjDisp[obj2]));
 }
 
 
@@ -553,7 +630,7 @@ void ChartInDayInfluence(void)
       source[occurcount] = i; aspect[occurcount] = k; dest[occurcount] = j;
       l = grid->v[i][j];
       power[occurcount] = (RTransitInf(i)/4.0) * (RTransitInf(j)/4.0) *
-        rAspInf[k]*(1.0-(real)abs(l)/3600.0/GetOrb(i, j, k));
+        rAspInf[k]*(1.0-(real)NAbs(l)/3600.0/GetOrb(i, j, k));
       occurcount++;
     }
   }
@@ -582,9 +659,9 @@ void ChartInDayInfluence(void)
     m = grid->v[j][l];
     AnsiColor(m < 0 ? kMainA[1] : kMainA[2]);
     sprintf(sz, " - %s%2d%c%02d'", m < 0 ? "app" : "sep",
-      abs(m)/3600, chDeg1, abs(m)%3600/60); PrintSz(sz);
+      NAbs(m)/3600, chDeg1, NAbs(m)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
-      sprintf(sz, "%02d\"", abs(m)%60); PrintSz(sz);
+      sprintf(sz, "%02d\"", NAbs(m)%60); PrintSz(sz);
     }
     AnsiColor(kMainA[5]);
     sprintf(sz, " - power:%6.2f", power[i]); PrintSz(sz);
@@ -613,7 +690,7 @@ void ChartTransitInfluence(flag fProg)
   for (i = 0; i <= cObj; i++) {
     ignore3[i] = ignore[i]; ignore[i] = ignore2[i];
   }
-  SetCI(ciCore, ciTran.mon, ciTran.day, ciTran.yea, Tim,
+  SetCI(ciCore, ciTran.mon, ciTran.day, ciTran.yea, ciTran.tim,
     Dst, Zon, Lon, Lat);
   if (us.fProgress = fProg) {
     is.JDp = MdytszToJulian(MM, DD, YY, TT, SS, ZZ);
@@ -689,9 +766,9 @@ void ChartTransitInfluence(flag fProg)
     m = grid->v[l][dest[i]];
     AnsiColor(m < 0 ? kMainA[1] : kMainA[2]);
     sprintf(sz, "- %s%2d%c%02d'", m < 0 ? "app" : "sep",
-      abs(m)/3600, chDeg1, abs(m)%3600/60); PrintSz(sz);
+      NAbs(m)/3600, chDeg1, NAbs(m)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
-      sprintf(sz, "%02d\"", abs(m)%60); PrintSz(sz);
+      sprintf(sz, "%02d\"", NAbs(m)%60); PrintSz(sz);
     }
     AnsiColor(kMainA[5]);
     sprintf(sz, " - power:%6.2f", power[i]); PrintSz(sz);
@@ -720,16 +797,15 @@ void ChartTransitInfluence(flag fProg)
 /* location. A reference MC position at Greenwich is also needed for this. */
 
 void EclToHorizon(real *azi, real *alt, real obj, real objalt,
-  real lon, real lat, real mc)
+  real mc, real lat)
 {
   real lonz, latz;
 
-  lonz = RFromD(obj); latz = RFromD(objalt);
+  lonz = obj; latz = objalt;
   EclToEqu(&lonz, &latz);
-  lonz = RFromD(Mod(DFromR(mc-lonz+lon)));
-  lonz = RFromD(Mod(DFromR(lonz-lon+rPiHalf)));
-  EquToLocal(&lonz, &latz, rPiHalf-lat);
-  *azi = rDegMax-DFromR(lonz); *alt = DFromR(latz);
+  lonz = Mod(mc - lonz + rDegQuad);
+  EquToLocal(&lonz, &latz, rDegQuad - lat);
+  *azi = rDegMax - lonz; *alt = latz;
 }
 
 
@@ -883,8 +959,8 @@ void DisplayRelation(void)
 
   if (us.nRel == rcDifference) {
     PrintSz("Differences between the dates in the two charts:\n");
-    k = fabs(ciMain.lon - ciTwin.lon);
-    l = fabs(ciMain.lat - ciTwin.lat);
+    k = RAbs(ciMain.lon - ciTwin.lon);
+    l = RAbs(ciMain.lat - ciTwin.lat);
     for (i = 1; i <= 10; i++) {
       if (i <= 7)
         AnsiColor(kRainbowA[i]);
@@ -901,8 +977,7 @@ void DisplayRelation(void)
       case 8: sprintf(sz, "Longitude: %.2f", k);                 break;
       case 9: sprintf(sz, "Latitude : %.2f", l);                 break;
       case 10:
-        l = DFromR(RAcos(RSinD(ciMain.lat)*RSinD(ciTwin.lat) +
-          RCosD(ciMain.lat)*RCosD(ciTwin.lat)*RCosD(k)));
+        l = PolarDistance(ciMain.lon, ciTwin.lon, ciMain.lat, ciTwin.lat);
         sprintf(sz, "Distance : %.2f (%.2f %s)", l, l / 360.0 *
           (us.fEuroDist ? 40075.0 : 24901.0), us.fEuroDist ? "km" : "miles");
         break;
@@ -926,7 +1001,7 @@ void DisplayRelation(void)
       AnsiColor(kMainA[1]);
     else if (i == 1)
       AnsiColor(kDefault);
-    j = abs(i);
+    j = NAbs(i);
     sprintf(sz, "T%c%d%sDay%c:", i < 0 ? '-' : '+', j,
       j < 10 ? " " : "", j != 1 ? 's' : ' '); PrintSz(sz);
     for (j = 1; j <= 3; j++) {

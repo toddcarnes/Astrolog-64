@@ -596,28 +596,13 @@ void FAR PASCAL_CONV swe_jdut1_to_utc(double tjd_ut, int32 gregflag, int32 *iyea
 
 
 #ifdef ASTROLOG
-int rgObjSwiss[cUran] = {SE_VULCAN - SE_FICT_OFFSET_1,
-  SE_CUPIDO - SE_FICT_OFFSET_1,   SE_HADES - SE_FICT_OFFSET_1,
-  SE_ZEUS - SE_FICT_OFFSET_1,     SE_KRONOS - SE_FICT_OFFSET_1,
-  SE_APOLLON - SE_FICT_OFFSET_1,  SE_ADMETOS - SE_FICT_OFFSET_1,
-  SE_VULKANUS - SE_FICT_OFFSET_1, SE_POSEIDON - SE_FICT_OFFSET_1};
+/* Set up path for Swiss Ephemeris to search in for ephemeris files. */
 
-/* Given an object index and a Julian Day time, get ecliptic longitude and */
-/* latitude of the object and its velocity and distance from the Earth or  */
-/* Sun. This basically just calls the Swiss Ephemeris calculation function */
-/* to actually do it. Because this is the one of the only routines called  */
-/* from Astrolog, this routine has knowledge of and uses both Astrolog and */
-/* Swiss Ephemeris definitions, and does things such as translation to     */
-/* indices and formats of Swiss Ephemeris.                                 */
-
-flag FSwissPlanet(int ind, real jd, flag fHelio,
-  real *obj, real *objalt, real *dir, real *space)
+void SwissEnsurePath()
 {
-  int iobj, iflag;
-  double jde, xx[6];
-  char serr[AS_MAXCH];
+  char sz[cchSzDef], serr[AS_MAXCH];
 #ifdef ENVIRON
-  char sz[cchSzDef], *env;
+  char *env;
 #endif
   static flag fPath = fFalse;
 
@@ -645,6 +630,38 @@ flag FSwissPlanet(int ind, real jd, flag fHelio,
     swe_set_ephe_path(serr);
     fPath = fTrue;
   }
+}
+
+
+int rgObjSwiss[cUran] = {SE_VULCAN - SE_FICT_OFFSET_1,
+  SE_CUPIDO   - SE_FICT_OFFSET_1, SE_HADES    - SE_FICT_OFFSET_1,
+  SE_ZEUS     - SE_FICT_OFFSET_1, SE_KRONOS   - SE_FICT_OFFSET_1,
+  SE_APOLLON  - SE_FICT_OFFSET_1, SE_ADMETOS  - SE_FICT_OFFSET_1,
+  SE_VULKANUS - SE_FICT_OFFSET_1, SE_POSEIDON - SE_FICT_OFFSET_1};
+int rgTypSwiss[cUran] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+int rgPntSwiss[cUran] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+/* Given an object index and a Julian Day time, get ecliptic longitude and */
+/* latitude of the object and its velocity and distance from the Earth or  */
+/* Sun. This basically just calls the Swiss Ephemeris calculation function */
+/* to actually do it. Because this is the one of the only routines called  */
+/* from Astrolog, this routine has knowledge of and uses both Astrolog and */
+/* Swiss Ephemeris definitions, and does things such as translation to     */
+/* indices and formats of Swiss Ephemeris.                                 */
+
+flag FSwissPlanet(int ind, real jd, flag fHelio,
+  real *obj, real *objalt, real *dir, real *space)
+{
+  int iobj, iflag, nRet, nTyp, nPnt = 0, ix;
+  double jde, xx[6], xnasc[6], xndsc[6], xperi[6], xaphe[6], *px;
+  char serr[AS_MAXCH];
+  static flag fSwissMosh = fFalse;
+
+  /* Reset Swiss Ephemeris if changing computation method. */
+  if (us.fSwissMosh != fSwissMosh)
+    swe_close();
+  fSwissMosh = us.fSwissMosh;
+  SwissEnsurePath();
 
   /* Convert Astrolog object index to Swiss Ephemeris index. */
   if (ind == oSun && fHelio)
@@ -658,14 +675,35 @@ flag FSwissPlanet(int ind, real jd, flag fHelio,
   else if (ind == oNod)
     iobj = us.fTrueNode ? SE_TRUE_NODE : SE_MEAN_NODE;
   else if (ind == oLil)
-    iobj = SE_MEAN_APOG;
-  else if (FBetween(ind, uranLo, uranHi))
-    iobj = SE_FICT_OFFSET_1 + rgObjSwiss[ind - uranLo];
-  else
+    iobj = us.fTrueNode ? SE_OSCU_APOG : SE_MEAN_APOG;
+  else if (FBetween(ind, uranLo, uranHi)) {
+    iobj = rgObjSwiss[ind - uranLo];
+    nTyp = rgTypSwiss[ind - uranLo];
+    nPnt = rgPntSwiss[ind - uranLo];
+    if (nTyp < 2)
+      iobj += (nTyp <= 0 ? SE_FICT_OFFSET_1 : SE_AST_OFFSET);
+    else {
+      if (iobj <= oEar)
+        iobj = SE_EARTH;
+      else if (iobj <= oPlu)
+        iobj--;
+      else if (iobj == oChi)
+        iobj = SE_CHIRON;
+      else if (FBetween(iobj, oCer, oVes))
+        iobj = iobj - oCer + SE_CERES;
+      else if (iobj == oVul)
+        iobj = SE_VULCAN;
+      else if (FBetween(iobj, uranLo, uranHi))
+        iobj = iobj - uranLo + SE_FICT_OFFSET_1;
+      else
+        return fFalse;
+    }
+  } else
     return fFalse;
 
   /* Convert Astrolog calculation settings to Swiss Ephemeris flags. */
   iflag = SEFLG_SPEED;
+  iflag |= (us.fSwissMosh ? SEFLG_MOSEPH : SEFLG_SWIEPH);
   if (us.fSidereal) {
     swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
     iflag |= SEFLG_SIDEREAL;
@@ -680,7 +718,21 @@ flag FSwissPlanet(int ind, real jd, flag fHelio,
   }
 
   jde = jd + swe_deltat(jd);
-  if (swe_calc(jde, iobj, iflag, xx, serr) < 0) {
+  if (nPnt == 0)
+    nRet = swe_calc(jde, iobj, iflag, xx, serr);
+  else {
+    nRet = swe_nod_aps(jde, iobj, iflag, us.fTrueNode ? SE_NODBIT_OSCU :
+      SE_NODBIT_MEAN, xnasc, xndsc, xperi, xaphe, serr);
+    switch (nPnt) {
+    case 1:  px = xnasc; break;
+    case 2:  px = xndsc; break;
+    case 3:  px = xperi; break;
+    default: px = xaphe; break;
+    }
+    for (ix = 0; ix < 6; ix++)
+      xx[ix] = px[ix];
+  }
+  if (nRet < 0) {
     if (!is.fNoEphFile) {
       is.fNoEphFile = fTrue;
       PrintWarning(serr);
@@ -708,6 +760,7 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   char ch;
 
   /* Translate Astrolog house index to Swiss Ephemeris house character. */
+  /* Don't do hsWhole houses ('W') yet, until after is.rSid computed.   */
   switch (housesystem) {
   case hsPlacidus:      ch = 'P'; break;
   case hsKoch:          ch = 'K'; break;
@@ -720,7 +773,6 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   case hsTopocentric:   ch = 'T'; break;
   case hsAlcabitius:    ch = 'B'; break;
   case hsKrusinski:     ch = 'U'; break;
-  case hsWhole:         ch = 'W'; break;
   case hsVedic:         ch = 'V'; break;
   default:              ch = 'A'; break;
   }
@@ -750,7 +802,7 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   *ra  = RFromD(Mod(ascmc[SE_ARMC] + is.rSid));
   *vtx = Mod(ascmc[SE_VERTEX] + is.rSid);
   *ep  = Mod(ascmc[SE_EQUASC] + is.rSid);
-  *ob  = RFromD(eps);
+  *ob  = eps;
   for (i = 1; i <= cSign; i++)
     chouse[i] = Mod(cusp[i] + is.rSid);
 
@@ -763,6 +815,59 @@ flag FSwissHouse(real jd, real lon, real lat, int housesystem,
   if (ch == 'A')
     ComputeHouses(housesystem);
   return fTrue;
+}
+
+
+/* Compute fixed star locations. Given a time, call Swiss Ephemeris to    */
+/* compute them. This is similar to FSwissPlanet() in that it knows about */
+/* and translates between Astrolog and Swiss Ephemeris defintions.        */
+
+void SwissComputeStars(real jd, flag fInitBright)
+{
+  char sz[cchSzDef], serr[AS_MAXCH];
+  int i, iflag;
+  double xx[6], mag;
+
+  SwissEnsurePath();
+  if (!fInitBright) {
+    jd = JulianDayFromTime(jd);
+    iflag = SEFLG_SPEED;
+    if (us.fSidereal) {
+      swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
+      iflag |= SEFLG_SIDEREAL;
+    }
+    if (us.fTruePos)
+      iflag |= SEFLG_TRUEPOS;
+  }
+  for (i = 1; i <= cStar; i++) {
+
+    /* In most cases Astrolog's star name is the same as Swiss Ephemeris,  */
+    /* however for a few stars we need to translate to a different string. */
+    if (szStarCustom[i] == NULL || szStarCustom[i][0] == chNull) {
+      if      (i == 3)  sprintf(sz, ",ze-1Ret");         /* Zeta Retic. */
+      else if (i == 4)  sprintf(sz, "Pleione");          /* Pleiades    */
+      else if (i == 10) sprintf(sz, "Alnilam");          /* Orion       */
+      else if (i == 30) sprintf(sz, ",beCru");           /* Becrux      */
+      else if (i == 36) sprintf(sz, "Rigel Kentaurus");  /* Rigel Kent. */
+      else if (i == 40) sprintf(sz, "Kaus Australis");   /* Kaus Austr. */
+      else
+        sprintf(sz, "%s", szObjName[oNorm + i]);
+    } else
+      sprintf(sz, "%s", szStarCustom[i]);
+
+    /* Compute the star location or get the star's brightness. */
+    if (!fInitBright) {
+      swe_fixstar(sz, jd, iflag, xx, serr);
+      planet[oNorm+i] = xx[0];
+      planetalt[oNorm+i] = xx[1];
+      if (!us.fSidereal)
+        ret[oNorm+i] = rDegMax/25765.0/rDayInYear;
+      starname[i] = i;
+    } else {
+      swe_fixstar_mag(sz, &mag, serr);
+      rStarBright[i] = mag;
+    }
+  }
 }
 
 

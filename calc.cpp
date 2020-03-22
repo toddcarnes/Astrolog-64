@@ -1,5 +1,5 @@
 /*
-** Astrolog (Version 6.20) File: calc.cpp
+** Astrolog (Version 6.30) File: calc.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 ** not enumerated below used in this program are Copyright (C) 1991-2017 by
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 3/19/2017.
+** Last code change made 10/22/2017.
 */
 
 #include "astrolog.h"
@@ -90,13 +90,13 @@ real HousePlaceIn3D(real rLon, real rLat)
 {
   real lonM, latM, lon, lat;
 
-  lonM = RFromD(Tropical(is.MC)); latM = 0.0;
+  lonM = Tropical(is.MC); latM = 0.0;
   EclToEqu(&lonM, &latM);
-  lon = RFromD(Tropical(rLon)); lat = RFromD(rLat);
+  lon = Tropical(rLon); lat = rLat;
   EclToEqu(&lon, &lat);
-  lon = RFromD(Mod(DFromR(lonM - lon + rPiHalf)));
-  EquToLocal(&lon, &lat, -RFromD(Lat));
-  lon = rDegMax - DFromR(lon);
+  lon = Mod(lonM - lon + rDegQuad);
+  EquToLocal(&lon, &lat, -Lat);
+  lon = rDegMax - lon;
   return Mod(lon + rSmall);
 }
 
@@ -136,7 +136,7 @@ void HouseAlcabitius(void)
   real rDecl, rSda, rSna, r, rLon;
   int i;
 
-  rDecl = RAsin(RSin(is.OB) * RSinD(is.Asc));
+  rDecl = RAsin(RSinD(is.OB) * RSinD(is.Asc));
   r = -RTan(AA) * RTan(rDecl);
   rSda = DFromR(RAcos(r));
   rSna = rDegHalf - rSda;
@@ -149,7 +149,7 @@ void HouseAlcabitius(void)
   for (i = sLib; i <= sPis; i++) {
     r = RFromD(Mod(chouse[i]));
     /* The transformation below is also done in CuspMidheaven(). */
-    rLon = RAtn(RTan(r)/RCos(is.OB));
+    rLon = RAtn(RTan(r)/RCosD(is.OB));
     if (rLon < 0.0)
       rLon += rPi;
     if (r > rPi)
@@ -322,8 +322,8 @@ void ComputeHouses(int housesystem)
   char sz[cchSzDef];
 
   /* Don't allow polar latitudes if system not defined in polar zones. */
-  if (((housesystem == hsPlacidus || housesystem == hsKoch) &&
-    RAbs(AA) >= RFromD(rDegQuad - DFromR(is.OB)))) {
+  if ((housesystem == hsPlacidus || housesystem == hsKoch) &&
+    RAbs(DFromR(AA)) >= rDegQuad - is.OB) {
     sprintf(sz,
       "The %s system of houses is not defined at extreme latitudes.",
       szSystem[housesystem]);
@@ -376,28 +376,34 @@ void ComputeHouses(int housesystem)
 /* in the correct precession for the tropical zodiac, and sort the final    */
 /* index list based on what order the stars are supposed to be printed in.  */
 
-void ComputeStars(real SD)
+void ComputeStars(real t, real Off)
 {
   int i, j;
   real x, y, z;
 
   /* Read in star positions. */
 
-  for (i = 1; i <= cStar; i++) {
-    x = rStarData[i*6-6]; y = rStarData[i*6-5]; z = rStarData[i*6-4];
-    planet[oNorm+i] = RFromD(x*rDegMax/24.0+y*15.0/60.0+z*0.25/60.0);
-    x = rStarData[i*6-3]; y = rStarData[i*6-2]; z = rStarData[i*6-1];
-    if (x < 0.0) {
-      neg(y); neg(z);
+#ifdef SWISS
+  if (FCmSwissStar())
+    SwissComputeStars(t, fFalse);
+  else
+#endif
+  {
+    for (i = 1; i <= cStar; i++) {
+      x = rStarData[i*6-6]; y = rStarData[i*6-5]; z = rStarData[i*6-4];
+      planet[oNorm+i] = x*rDegMax/24.0 + y*15.0/60.0 + z*0.25/60.0;
+      x = rStarData[i*6-3]; y = rStarData[i*6-2]; z = rStarData[i*6-1];
+      if (x < 0.0) {
+        neg(y); neg(z);
+      }
+      planetalt[oNorm+i] = x + y/60.0 + z/60.0/60.0;
+      /* Convert to ecliptic zodiac coordinates. */
+      EquToEcl(&planet[oNorm+i], &planetalt[oNorm+i]);
+      planet[oNorm+i] = Mod(planet[oNorm+i] + rEpoch2000 + Off);
+      if (!us.fSidereal)
+        ret[oNorm+i] = rDegMax/25765.0/rDayInYear;
+      starname[i] = i;
     }
-    planetalt[oNorm+i] = RFromD(x+y/60.0+z/60.0/60.0);
-    /* Convert to ecliptic zodiac coordinates. */
-    EquToEcl(&planet[oNorm+i], &planetalt[oNorm+i]);
-    planet[oNorm+i] = Mod(DFromR(planet[oNorm+i])+rEpoch2000+SD);
-    planetalt[oNorm+i] = DFromR(planetalt[oNorm+i]);
-    if (!us.fSidereal)
-      ret[oNorm+i] = rDegMax/25765.0/rDayInYear;
-    starname[i] = i;
   }
 
   /* Sort the index list if -Uz, -Ul, -Un, or -Ub switch in effect. */
@@ -408,7 +414,7 @@ void ComputeStars(real SD)
     /* Compare star names for -Un switch. */
 
     if (us.nStar == 'n') while (j > 0 && NCompareSz(
-      szObjName[oNorm+starname[j]], szObjName[oNorm+starname[j+1]]) > 0) {
+      szObjDisp[oNorm+starname[j]], szObjDisp[oNorm+starname[j+1]]) > 0) {
       SwapN(starname[j], starname[j+1]);
       j--;
 
@@ -473,6 +479,15 @@ real Navamsa(real deg)
   unit = deg - ZFromS(sign);
   sign2 = Mod12(((sign-1 & 3)^(2*FOdd(sign-1)))*3+(int)(unit*0.3)+1);
   return ZFromS(sign2)+unit;
+}
+
+
+/* Transform rectangular coordinates in x, y to polar coordinates. */
+
+void RecToPol(real x, real y, real *a, real *r)
+{
+  *r = RSqr(x*x + y*y);
+  *a = Angle(x, y);
 }
 
 
@@ -610,7 +625,7 @@ void ComputeEphem(real t)
 
 real CastChart(flag fDate)
 {
-  CI ci;
+  CI ciSav;
   real housetemp[cSign+1], Off, vtx, ep, j;
   int i, k, k2;
 
@@ -620,11 +635,11 @@ real CastChart(flag fDate)
 
   if (ZZ == 24.0)
     ZZ = OO / 15.0;
-  if (SS == 24.0)
-    SS = (real)(is.fDst);
-  ci = ciCore;
+  if (SS == dstAuto)
+    SS = (real)is.fDst;
+  ciSav = ciCore;
 
-  if (MM == -1) {
+  if (FNoTimeOrSpace(ciCore)) {
 
     /* Hack: If month is negative, then know chart was read in through a */
     /* -o0 position file, so planet positions are already in the arrays. */
@@ -716,17 +731,14 @@ real CastChart(flag fDate)
   /* Go calculate star positions if -U switch in effect. */
 
   if (us.nStar)
-    ComputeStars((us.fSidereal ? 0.0 : -Off) + us.rZodiacOffset);
+    ComputeStars(is.T, (us.fSidereal ? 0.0 : -Off) + us.rZodiacOffset);
 
   /* Transform ecliptic to equatorial coordinates if -sr in effect. */
 
   if (us.fEquator)
     for (i = 0; i <= cObj; i++) if (!ignore[i]) {
-      planet[i]    = RFromD(Tropical(planet[i]));
-      planetalt[i] = RFromD(planetalt[i]);
+      planet[i] = Tropical(planet[i]);
       EclToEqu(&planet[i], &planetalt[i]);
-      planet[i]    = DFromR(planet[i]);
-      planetalt[i] = DFromR(planetalt[i]);
     }
 
   /* Now, we may have to modify the base positions we calculated above */
@@ -813,7 +825,7 @@ real CastChart(flag fDate)
       planet[i] = Navamsa(planet[i]);
 
   ComputeInHouses();        /* Figure out what house everything falls in. */
-  ciCore = ci;
+  ciCore = ciSav;
   return is.T;
 }
 
@@ -827,7 +839,7 @@ void CastSectors()
   int source[MAXINDAY], type[MAXINDAY], occurcount, division, div,
     i, j, s1, s2, ihouse, fT;
   real time[MAXINDAY], rgalt1[objMax], rgalt2[objMax],
-    azi1, azi2, alt1, alt2, lon, lat, mc1, mc2, d, k;
+    azi1, azi2, alt1, alt2, mc1, mc2, d, k;
 
   /* If the -l0 approximate sectors flag is set, we can quickly get rough   */
   /* positions by having each position be the location of the planet as     */
@@ -847,7 +859,6 @@ void CastSectors()
   /* below is similar to ChartInDayHorizon() accessed by the -Zd switch.    */
 
   fT = us.fSidereal; us.fSidereal = fFalse;
-  lon = RFromD(Mod(Lon)); lat = RFromD(Lat);
   division = us.nDivision * 4;
   occurcount = 0;
 
@@ -860,7 +871,7 @@ void CastSectors()
     ciCore.day--;
   }
   CastChart(fTrue);
-  mc2 = RFromD(planet[oMC]); k = RFromD(planetalt[oMC]);
+  mc2 = planet[oMC]; k = planetalt[oMC];
   EclToEqu(&mc2, &k);
   cp2 = cp0;
   for (i = 0; i <= cObj; i++)
@@ -881,7 +892,7 @@ void CastSectors()
     }
     CastChart(fTrue);
     mc1 = mc2;
-    mc2 = RFromD(planet[oMC]); k = RFromD(planetalt[oMC]);
+    mc2 = planet[oMC]; k = planetalt[oMC];
     EclToEqu(&mc2, &k);
     cp1 = cp2; cp2 = cp0;
     for (i = 1; i <= cObj; i++) {
@@ -891,8 +902,8 @@ void CastSectors()
     /* During our segment, check to see if each planet rises or sets. */
 
     for (i = 0; i <= cObj; i++) if (!FIgnore(i) && FThing(i)) {
-      EclToHorizon(&azi1, &alt1, cp1.obj[i], rgalt1[i], lon, lat, mc1);
-      EclToHorizon(&azi2, &alt2, cp2.obj[i], rgalt2[i], lon, lat, mc2);
+      EclToHorizon(&azi1, &alt1, cp1.obj[i], rgalt1[i], mc1, Lat);
+      EclToHorizon(&azi2, &alt2, cp2.obj[i], rgalt2[i], mc2, Lat);
       j = 0;
       if ((alt1 > 0.0) != (alt2 > 0.0)) {
         d = RAbs(alt1)/(RAbs(alt1)+RAbs(alt2));
@@ -985,11 +996,19 @@ flag FAcceptAspect(int obj1, int asp, int obj2)
   int oCen;
   flag fSupp, fTrans;
 
+  /* Negative aspect means context is a transit to transit consideration. */
   fTrans = (asp < 0);
   if (fTrans)
     neg(asp);
-  if (FIgnoreA(asp))    /* If the aspect restricted, reject immediately. */
+
+  /* If the aspect restricted, reject immediately. */
+  if (FIgnoreA(asp))
     return fFalse;
+  if (us.objRequire >= 0 && obj1 != us.objRequire && obj2 != us.objRequire)
+    return fFalse;
+
+  /* Transits always need to prevent aspects involving continually opposite */
+  /* objects, to prevent exact aspect events numerous times per day.        */
   if (!us.fSmartCusp) {
     if (!fTrans)
       return fTrue;
@@ -1043,14 +1062,17 @@ flag FAcceptAspect(int obj1, int asp, int obj2)
 /* Given two planets, determine what aspect, if any, is present between */
 /* them, and save the aspect name and orb in the specified grid cell.   */
 
-void GetAspect(real *planet1, real *planet2, real *ret1, real *ret2,
-  int i, int j)
+void GetAspect(real *planet1, real *planet2,
+  real *planetalt1, real *planetalt2, real *ret1, real *ret2, int i, int j)
 {
   int k;
   real l, m;
 
   grid->v[i][j] = grid->n[i][j] = 0;
-  l = MinDistance(planet2[i], planet1[j]);
+  if (!us.fAspect3D)
+    l = MinDistance(planet2[i], planet1[j]);
+  else
+    l = PolarDistance(planet2[i], planet1[j], planetalt2[i], planetalt1[j]);
   for (k = us.nAsp; k >= 1; k--) {
     if (!FAcceptAspect(i, k, j))
       continue;
@@ -1083,10 +1105,10 @@ void GetParallel(real *planet1, real *planet2,
   int k;
   real l, alt1, alt2;
 
-  l = RFromD(planet1[j]); alt1 = RFromD(planetalt1[j]);
-  EclToEqu(&l, &alt1); alt1 = DFromR(alt1);
-  l = RFromD(planet2[i]); alt2 = RFromD(planetalt2[i]);
-  EclToEqu(&l, &alt2); alt2 = DFromR(alt2);
+  l = planet1[j]; alt1 = planetalt1[j];
+  EclToEqu(&l, &alt1);
+  l = planet2[i]; alt2 = planetalt2[i];
+  EclToEqu(&l, &alt2);
   grid->v[i][j] = grid->n[i][j] = 0;
   for (k = Min(us.nAsp, aOpp); k >= 1; k--) {
     if (!FAcceptAspect(i, k, j))
@@ -1120,7 +1142,7 @@ flag FCreateGrid(flag fFlip)
         if (us.fParallel)
           GetParallel(planet, planet, planetalt, planetalt, i, j);
         else
-          GetAspect(planet, planet, ret, ret, i, j);
+          GetAspect(planet, planet, planetalt, planetalt, ret, ret, i, j);
       } else if (fFlip ? i < j : i > j) {
         l = Mod(Midpoint(planet[i], planet[j])); k = (int)l;  /* Calculate */
         grid->n[i][j] = k/30+1;                               /* midpoint. */
@@ -1150,7 +1172,8 @@ flag FCreateGridRelation(flag fMidpoint)
         if (us.fParallel)
           GetParallel(cp1.obj, cp2.obj, cp1.alt, cp2.alt, i, j);
         else
-          GetAspect(cp1.obj, cp2.obj, cp1.dir, cp2.dir, i, j);
+          GetAspect(cp1.obj, cp2.obj, cp1.alt, cp2.alt, cp1.dir, cp2.dir,
+            i, j);
       } else {
         l = Mod(Midpoint(cp2.obj[i], cp1.obj[j])); k = (int)l; /* Calculate */
         grid->n[i][j] = k/30+1;                                /* midpoint. */

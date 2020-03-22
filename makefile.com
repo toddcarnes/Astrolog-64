@@ -1,4 +1,4 @@
-$ ! Astrolog (Version 6.20) File: makefile.com (VMS version)
+$ ! Astrolog (Version 6.30) File: makefile.com (VMS version)
 $ !
 $ ! IMPORTANT NOTICE: Astrolog and all chart display routines and anything
 $ ! not enumerated elsewhere in this program are Copyright (C) 1991-2017 by
@@ -33,6 +33,7 @@ $ CC XDATA
 $ CC XDEVICE
 $ CC XGENERAL
 $ CC XSCREEN
+$ CC SWECL
 $ CC SWEDATE
 $ CC SWEHOUSE
 $ CC SWEJPL
@@ -63,6 +64,7 @@ $ link/exe=astrolog.exe -
 	XDEVICE.obj, -
 	XGENERAL.obj, -
 	XSCREEN.obj, -
+	SWECL.obj, -
 	SWEDATE.obj, -
 	SWEHOUSE.obj, -
 	SWEJPL.obj, -

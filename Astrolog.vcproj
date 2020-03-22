@@ -63,6 +63,7 @@
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="2"
+				EntryPointSymbol=""
 				TargetMachine="1"
 			/>
 			<Tool
@@ -137,9 +138,10 @@
 				AdditionalOptions="shlwapi.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
-				SubSystem="2"
+				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
+				EntryPointSymbol=""
 				TargetMachine="1"
 			/>
 			<Tool
@@ -306,6 +308,10 @@
 			</File>
 			<File
 				RelativePath=".\placalc2.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\swecl.cpp"
 				>
 			</File>
 			<File
