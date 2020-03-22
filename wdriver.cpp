@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: wdriver.cpp
+** Astrolog (Version 6.40) File: wdriver.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -65,9 +65,10 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
   flag fOr, flag fAnd, flag fNot)
 {
   int darg = 0, i;
-  char sz[cchSzDef], ch1;
+  char sz[cchSzDef], ch1, ch2;
 
   ch1 = argv[0][pos+1];
+  ch2 = ch1 != chNull ? argv[0][pos+2] : chNull;
   switch (argv[0][pos]) {
   case chNull:
     if (argc <= 1) {
@@ -116,10 +117,12 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
     break;
 
   case 'o':
-    if (ch1 == '0') {
+    if (ch1 == '0' || ch2 == '0') {
       SwitchF(wi.fAutoSaveNum);
       wi.nAutoSaveNum = 0;
     }
+    if (ch1 == '3' || ch2 == '3')
+      SwitchF(wi.fAutoSaveWire);
     SwitchF(wi.fAutoSave);
     break;
 
@@ -299,6 +302,8 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   /* Cleanup and exit Astrolog for Windows. */
 
+  if (wi.hMutex != NULL)
+    CloseHandle(wi.hMutex);
   UnregisterClass(szAppName, wi.hinst);
   return (int)msg.wParam;
 }
@@ -373,20 +378,40 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_LBUTTONDOWN:
     case WM_MOUSEMOVE:
-
-      /* Treat dragging with the mouse down as a Shift+left click. */
+      x = WLo(lParam);
+      y = WHi(lParam);
       if (wMsg == WM_MOUSEMOVE) {
+
+        /* Dragging with right mouse down rotates and tilts globes. */
+        if ((wParam & MK_RBUTTON) != 0 && us.fGraphics &&
+          (gi.nMode == gSphere || gi.nMode == gGlobe || gi.nMode == gPolar ||
+          (gi.nMode == gWorldMap && (gs.fConstel || gs.fMollewide)))) {
+          gs.rRot += (real)(x-WLo(wi.lParamRC)) * rDegHalf / (real)gs.xWin;
+          gs.rTilt += (real)(y-WHi(wi.lParamRC)) * rDegHalf / (real)gs.yWin;
+          while (gs.rRot >= rDegMax)
+            gs.rRot -= rDegMax;
+          while (gs.rRot < 0.0)
+            gs.rRot += rDegMax;
+          while (gs.rTilt > rDegQuad)
+            gs.rTilt = rDegQuad;
+          while (gs.rTilt < -rDegQuad)
+            gs.rTilt = -rDegQuad;
+          wi.lParamRC = lParam;
+          wi.fRedraw = fTrue;
+          ProcessState();
+          break;
+        }
+
+        /* Treat dragging with left mouse down as a Shift+left click. */
         if ((wParam & MK_LBUTTON) == 0 ||
           (wParam & MK_SHIFT) || (wParam & MK_CONTROL))
           break;
         wParam = MK_SHIFT;
       }
-      x = WLo(lParam);
-      y = WHi(lParam);
 
       /* Alt+click on a world map chart means relocate the chart there. */
       if (wMsg == WM_LBUTTONDOWN && GetKeyState(VK_MENU) < 0) {
-        if (fMap && gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
+        if (fMap && gs.rRot == 0.0 && !gs.fConstel && !gs.fMollewide) {
           Lon = rDegHalf-(real)(x-gi.xOffset)/(real)gs.xWin*rDegMax;
           if (Lon < -rDegHalf)
             Lon = -rDegHalf;
@@ -442,9 +467,9 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
     case WM_RBUTTONDOWN:
       x = WLo(lParam);
       y = WHi(lParam);
-      if (us.fGraphics &&
-        fMap && gs.nRot == 0 && !gs.fConstel && !gs.fMollewide) {
-        Lon = rDegHalf - (real)(x-gi.xOffset) / (real)gs.xWin*rDegMax;
+      if (us.fGraphics && fMap && !gs.fConstel && !gs.fMollewide) {
+        Lon = rDegHalf -
+          Mod((real)(x-gi.xOffset) / (real)gs.xWin*rDegMax - gs.rRot);
         if (Lon < -rDegHalf)
           Lon = -rDegHalf;
         else if (Lon > rDegHalf)
@@ -457,7 +482,9 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
         ciCore = ciMain;
         wi.fCast = fTrue;
         ProcessState();
-      }
+      } else if (us.fGraphics && (gi.nMode == gSphere || gi.nMode == gGlobe ||
+        gi.nMode == gPolar || gi.nMode == gWorldMap))
+        wi.lParamRC = lParam;
       break;
 
     /* A timer message is received at a defined regular interval. */
@@ -681,6 +708,9 @@ int NWmCommand(WORD wCmd)
 #ifdef PS
   case cmdSavePS:
 #endif
+#ifdef WIRE
+  case cmdSaveWire:
+#endif
   case cmdSaveSettings:
   case cmdSaveWallTile:
   case cmdSaveWallCenter:
@@ -725,12 +755,16 @@ int NWmCommand(WORD wCmd)
 #ifdef PS
   case cmdCopyPS:
 #endif
+#ifdef WIRE
+  case cmdCopyWire:
+#endif
     if (us.fNoWrite)
       break;
     gi.szFileOut = szFileTemp;
     gs.fBitmap = wi.wCmd == cmdCopyBitmap;
-    gs.fMeta = wi.wCmd == cmdCopyPicture;
-    gs.fPS = wi.wCmd == cmdCopyPS;
+    gs.fMeta   = wi.wCmd == cmdCopyPicture;
+    gs.fPS     = wi.wCmd == cmdCopyPS;
+    gs.fWire   = wi.wCmd == cmdCopyWire;
     if (wCmd == cmdCopyBitmap)
       gs.chBmpMode = 'B';
     us.fGraphics = wi.fRedraw = fTrue;
@@ -943,6 +977,9 @@ int NWmCommand(WORD wCmd)
   case cmdHouse15:
   case cmdHouse16:
   case cmdHouse17:
+  case cmdHouse18:
+  case cmdHouse19:
+  case cmdHouse20:
     WiCheckMenu(cmdHouse00 + us.nHouseSystem, fFalse);
     us.nHouseSystem = (int)(wCmd - cmdHouse00);
     WiCheckMenu(wCmd, fTrue);
@@ -967,6 +1004,12 @@ int NWmCommand(WORD wCmd)
     wi.fCast = fTrue;
     break;
 
+  case cmdHouseSetDwad:
+    inv(us.nDwad);
+    WiCheckMenu(cmdHouseSetDwad, us.nDwad > 0);
+    wi.fCast = fTrue;
+    break;
+
   case cmdHouseSetFlip:
     inv(us.fFlip);
     WiCheckMenu(cmdHouseSetFlip, us.fFlip);
@@ -976,6 +1019,12 @@ int NWmCommand(WORD wCmd)
   case cmdHouseSetGeodetic:
     inv(us.fGeodetic);
     WiCheckMenu(cmdHouseSetGeodetic, us.fGeodetic);
+    wi.fCast = fTrue;
+    break;
+
+  case cmdGraphicsHouse:
+    inv(gs.fHouseExtra);
+    WiCheckMenu(cmdGraphicsHouse, gs.fHouseExtra);
     wi.fCast = fTrue;
     break;
 
@@ -1156,7 +1205,7 @@ int NWmCommand(WORD wCmd)
 
 #ifdef CONSTEL
   case cmdConstellation:
-    if (gi.nMode != gGlobe && gi.nMode != gPolar)
+    if (gi.nMode != gSphere && gi.nMode != gGlobe && gi.nMode != gPolar)
       wi.nMode = gWorldMap;
     inv(gs.fConstel);
     WiCheckMenu(cmdConstellation, gs.fConstel);
@@ -1164,10 +1213,22 @@ int NWmCommand(WORD wCmd)
     break;
 #endif
 
+  case cmdGraphicsEquator:
+    inv(gs.fEquator);
+    WiCheckMenu(cmdGraphicsEquator, gs.fEquator);
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+
+  case cmdGraphicsAllStar:
+    inv(gs.fAllStar);
+    WiCheckMenu(cmdGraphicsAllStar, gs.fAllStar);
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+
   case cmdGraphicsReverse:
     inv(gs.fInverse);
     WiCheckMenu(cmdGraphicsReverse, gs.fInverse);
-    us.fGraphics = wi.fRedraw = fTrue;
+    wi.fRedraw = fTrue;
     break;
 
   case cmdGraphicsMonochrome:
@@ -1280,9 +1341,9 @@ LScale:
     if (gi.nMode != gAstroGraph && gi.nMode != gSphere &&
       gi.nMode != gWorldMap && gi.nMode != gGlobe && gi.nMode != gPolar)
       wi.nMode = gGlobe;
-    gs.nRot += NAbs(wi.nDir);
-    if (gs.nRot >= nDegMax)
-      gs.nRot -= nDegMax;
+    gs.rRot += (real)NAbs(wi.nDir);
+    if (gs.rRot >= rDegMax)
+      gs.rRot -= rDegMax;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
 
@@ -1290,9 +1351,9 @@ LScale:
     if (gi.nMode != gAstroGraph && gi.nMode != gSphere &&
       gi.nMode != gWorldMap && gi.nMode != gGlobe && gi.nMode != gPolar)
       wi.nMode = gGlobe;
-    gs.nRot -= NAbs(wi.nDir);
-    if (gs.nRot < 0)
-      gs.nRot += nDegMax;
+    gs.rRot -= (real)NAbs(wi.nDir);
+    if (gs.rRot < 0)
+      gs.rRot += rDegMax;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
 
@@ -1306,6 +1367,7 @@ LScale:
     inv(us.fGridMidpoint);
     inv(us.fPrimeVert);
     inv(us.fCalendarYear);
+    inv(us.fLatitudeCross);
     inv(us.nEphemYears);
     inv(us.fGraphAll);
     inv(gs.fSouth);
@@ -1587,6 +1649,7 @@ void API RedoMenu()
   CheckMenu(cmdHouseSetSolar, us.objOnAsc);
   CheckMenu(cmdHouseSet3D, us.fHouse3D);
   CheckMenu(cmdHouseSetDecan, us.fDecan);
+  CheckMenu(cmdHouseSetDwad, us.nDwad > 0);
   CheckMenu(cmdHouseSetFlip, us.fFlip);
   CheckMenu(cmdHouseSetGeodetic, us.fGeodetic);
   CheckMenu(cmdHouseSetVedic, us.fVedic);
@@ -1598,6 +1661,9 @@ void API RedoMenu()
 #ifdef CONSTEL
   CheckMenu(cmdConstellation, gs.fConstel);
 #endif
+  CheckMenu(cmdGraphicsEquator, gs.fEquator);
+  CheckMenu(cmdGraphicsAllStar, gs.fAllStar);
+  CheckMenu(cmdGraphicsHouse, gs.fHouseExtra);
   CheckMenu(cmdGraphicsReverse, gs.fInverse);
   CheckMenu(cmdGraphicsMonochrome, !gs.fColor);
   CheckMenu(cmdGraphicsBorder, gs.fBorder);
@@ -1637,7 +1703,8 @@ flag API FRedraw(void)
   HFONT hfontOld;
   char szFile[cchSzDef];
   int nScrollRow, i;
-  flag fSmartSave, fAnsiColor, fAnsiChar;
+  flag fSmartText = fFalse, fAnsiColor, fAnsiChar,
+    fSmartHTML = fFalse, fInverse;
 
   /* Local variables used for copying to the Windows clipboard. */
   HFILE hfile;
@@ -1646,9 +1713,15 @@ flag API FRedraw(void)
   byte *hpb;
   METAFILEPICT mfp;
   HMETAFILE hmf;
+  int cfid;
+  char *pch;
 
-  fSmartSave = us.fSmartSave &&
-    (wi.wCmd == cmdSaveText || wi.wCmd == cmdCopyText);
+  if (us.fSmartSave && (wi.wCmd == cmdSaveText || wi.wCmd == cmdCopyText)) {
+    if (!us.fTextHTML)
+      fSmartText = fTrue;
+    else
+      fSmartHTML = fTrue;
+  }
   if (wi.fHourglass)
     hcurOld = SetCursor(LoadCursor((HINSTANCE)NULL, IDC_WAIT));
   ClearB((lpbyte)&ps, sizeof(PAINTSTRUCT));
@@ -1695,35 +1768,48 @@ flag API FRedraw(void)
       nScrollRow = us.nScrollRow;
       us.nScrollRow = wi.yClient / wi.yChar;
     }
+    if (wi.wCmd == cmdCopyText && us.fTextHTML)
+      is.nHTML = -1;
   }
-  if (fSmartSave) {
+  if (fSmartText) {
     fAnsiColor = us.fAnsiColor; fAnsiChar = us.fAnsiChar;
     us.fAnsiColor = fFalse; us.fAnsiChar = fFalse;
+  } else if (fSmartHTML) {
+    fInverse = gs.fInverse; fAnsiChar = us.fAnsiChar;
+    gs.fInverse = fTrue; us.fAnsiChar = fFalse;
   }
 
   Action();    /* Actually go and create the chart here. */
 
-  /* Create the chart again if also autosaving to bitmap file. */
+  /* Create the chart again if also autosaving chart to file. */
 
-  if (wi.fAutoSave && us.fGraphics && !gs.fBitmap) {
-    gs.fBitmap = fTrue;
+  if (wi.fAutoSave && us.fGraphics &&
+    (!wi.fAutoSaveWire ? !gs.fBitmap : !gs.fWire)) {
+    gs.fBitmap = !wi.fAutoSaveWire;
+    gs.fWire   =  wi.fAutoSaveWire;
     gs.fMeta = gs.fPS = fFalse;
     if (!wi.fAutoSaveNum)
-      gi.szFileOut = szFileAutoCore;
+      gi.szFileOut = !wi.fAutoSaveWire ? szFileAutoCore : "astrolog.dw";
     else {
       gi.szFileOut = szFile;
-      sprintf(szFile, "ast%05d.bmp", wi.nAutoSaveNum);
+      sprintf(szFile, "ast%05d.%s",
+        wi.nAutoSaveNum, !wi.fAutoSaveWire ? "bmp" : "dw");
       wi.nAutoSaveNum++;
     }
     Action();
+    if (gs.fWire) {
+      gs.xWin /= WIREMUL; gs.yWin /= WIREMUL; gs.nScale /= WIREMUL;
+    }
     gi.szFileOut = NULL;
-    gs.fBitmap = fFalse;
+    gs.fBitmap = gs.fWire = fFalse;
   }
 
   /* Cleanup and copy from the buffer to the screen if need be. */
 
-  if (fSmartSave) {
+  if (fSmartText) {
     us.fAnsiColor = fAnsiColor; us.fAnsiChar = fAnsiChar;
+  } else if (fSmartHTML) {
+    gs.fInverse = fInverse; us.fAnsiChar = fAnsiChar;
   }
   if (!us.fGraphics) {
     if (wi.hdcPrint != hdcNil)
@@ -1752,20 +1838,24 @@ flag API FRedraw(void)
   /* Sometimes creating a chart means saving it to a file instead of     */
   /* drawing it on screen. If we were in file mode, cleanup things here. */
 
-  if (is.szFileScreen != NULL || gs.fBitmap || gs.fMeta || gs.fPS) {
+  if (is.szFileScreen != NULL ||
+    gs.fBitmap || gs.fMeta || gs.fPS || gs.fWire) {
     is.szFileScreen = NULL;
     if (gs.fMeta) {
       gs.xWin /= METAMUL; gs.yWin /= METAMUL; gs.nScale /= METAMUL;
     } else if (gs.fPS) {
       gs.xWin /= PSMUL; gs.yWin /= PSMUL; gs.nScale /= PSMUL;
+    } else if (gs.fWire) {
+      gs.xWin /= WIREMUL; gs.yWin /= WIREMUL; gs.nScale /= WIREMUL;
     }
-    gs.fBitmap = gs.fMeta = gs.fPS = fFalse;
+    gs.fBitmap = gs.fMeta = gs.fPS = gs.fWire = fFalse;
 
     /* To copy charts to the clipboard, Astrolog saves the chart to a temp */
     /* file, then copies the contents of that file to the clipboard.       */
 
-    if (wi.wCmd == cmdCopyText || wi.wCmd == cmdCopyBitmap ||
-      wi.wCmd == cmdCopyPicture || wi.wCmd == cmdCopyPS) {
+    if (wi.wCmd == cmdCopyText ||
+      wi.wCmd == cmdCopyBitmap || wi.wCmd == cmdCopyPicture ||
+      wi.wCmd == cmdCopyPS || wi.wCmd == cmdCopyWire) {
       hfile = _lopen(szFileTemp, OF_READ);
       if (hfile == HFILE_ERROR)
         return fFalse;
@@ -1773,27 +1863,43 @@ flag API FRedraw(void)
       /* For bitmap and metafile charts, skip over the file header bytes. */
       l = wi.wCmd == cmdCopyBitmap ? sizeof(BITMAPFILEHEADER) :
         (wi.wCmd == cmdCopyPicture ? 22 : 0);
-      hglobal = GlobalAlloc(GMEM_MOVEABLE, lSize - l);
+      lSize -= l;
+      hglobal = GlobalAlloc(GMEM_MOVEABLE, lSize);
       if (hglobal == (HGLOBAL)NULL)
         return fFalse;
       hpb = (byte *)GlobalLock(hglobal);
       _llseek(hfile, l, 0);
-      _hread(hfile, hpb, lSize - l);
+      _hread(hfile, hpb, lSize);
       _lclose(hfile);
+      if (l == 0 && us.fTextHTML) {
+        /* Mark HTML clipboard fragment end character indexes. */
+        pch = (char *)(hpb + 39);
+        sprintf(pch, "%08d", lSize - 1);
+        *(pch + 8) = '\n';
+        pch = (char *)(hpb + 87);
+        sprintf(pch, "%08d", lSize - 34);
+        *(pch + 8) = '\n';
+      }
       GlobalUnlock(hglobal);
       if (!OpenClipboard(wi.hwnd))
         return fFalse;
       EmptyClipboard();
-      if (wi.wCmd == cmdCopyText || wi.wCmd == cmdCopyPS)
-        SetClipboardData(CF_TEXT, hglobal);
-      else if (wi.wCmd == cmdCopyBitmap)
+      if (l == 0) {
+        if (!us.fTextHTML)
+          SetClipboardData(CF_TEXT, hglobal);
+        else {
+          cfid = RegisterClipboardFormat("HTML Format");
+          if (cfid != 0)
+            SetClipboardData(cfid, hglobal);
+        }
+      } else if (wi.wCmd == cmdCopyBitmap) {
         SetClipboardData(CF_DIB, hglobal);
-      else {
+      } else {
         mfp.mm = MM_ANISOTROPIC;         /* For metafiles special structure */
         mfp.xExt = (gs.xWin-1)*-METAMUL; /* with a pointer to picture data  */
         mfp.yExt = (gs.yWin-1)*-METAMUL; /* needs to be allocated and used. */
         hpb = (byte *)GlobalLock(hglobal);
-        hmf = SetMetaFileBitsEx(lSize - l, hpb);
+        hmf = SetMetaFileBitsEx(lSize, hpb);
         GlobalUnlock(hglobal);
         mfp.hMF = hmf;
         hmfp = GlobalAlloc(GMEM_MOVEABLE, sizeof(METAFILEPICT));
@@ -1810,7 +1916,7 @@ flag API FRedraw(void)
     }
     ProcessState();
   }
-  if (fSmartSave)
+  if (fSmartText || fSmartHTML)
     wi.wCmd = 0;
 
   wi.fRedraw = fFalse;

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: charts2.cpp
+** Astrolog (Version 6.40) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -61,37 +61,34 @@
 
 void ChartListingRelation(void)
 {
-  CI *ci[4];
-  CP *cp[4];
   char sz[cchSzDef], szT[cchSzDef];
   int cChart, i, j, k, n;
   real r, rT;
 
   cChart = 2 + (us.nRel <= rcTriWheel) + (us.nRel <= rcQuadWheel);
-  ci[0] = &ciMain; ci[1] = &ciTwin; ci[2] = &ciThre; ci[3] = &ciFour;
-  cp[0] = &cp1; cp[1] = &cp2; cp[2] = &cp3; cp[3] = &cp4;
 
   /* Print header rows. */
   AnsiColor(kMainA[1]);
   PrintTab(' ', 5);
   n = us.fSeconds ? 23 : 16;
   sprintf(szT, " %%-%d.%ds", n, n);
-  for (i = 0; i < cChart; i++) {
-    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
-    sprintf(sz, szT, ci[i]->nam); PrintSz(sz);
+  for (i = 1; i <= cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 1 : 3]);
+    sprintf(sz, szT, rgpci[i]->nam); PrintSz(sz);
   }
   PrintSz("\n      ");
-  for (i = 0; i < cChart; i++) {
-    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
-    PrintSz(SzDate(ci[i]->mon, ci[i]->day, ci[i]->yea, us.fSeconds-1));
+  for (i = 1; i <= cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 1 : 3]);
+    PrintSz(SzDate(rgpci[i]->mon, rgpci[i]->day, rgpci[i]->yea,
+      us.fSeconds-1));
     PrintCh(' ');
-    PrintSz(SzTim(ci[i]->tim));
+    PrintSz(SzTim(rgpci[i]->tim));
     PrintTab(' ', us.fSeconds ? 3 : 1);
   }
   AnsiColor(kMainA[3]);
   PrintSz("\nBody");
-  for (i = 0; i < cChart; i++) {
-    AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
+  for (i = 1; i <= cChart; i++) {
+    AnsiColor(kMainA[FOdd(i) ? 1 : 3]);
     PrintSz("  Location");
     PrintTab(' ', us.fSeconds ? 5 : 1);
     if (us.fSeconds)
@@ -107,22 +104,22 @@ void ChartListingRelation(void)
   for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
     AnsiColor(kObjA[i]);
     sprintf(sz, "%-4.4s:", szObjDisp[i]); PrintSz(sz);
-    for (j = 0; j < cChart; j++) {
+    for (j = 1; j <= cChart; j++) {
       PrintCh(' ');
-      PrintZodiac(cp[j]->obj[i]);
-      sprintf(sz, "%c ", cp[j]->dir[i] >= 0.0 ? ' ' : chRet); PrintSz(sz);
-      PrintAltitude(cp[j]->alt[i]);
+      PrintZodiac(rgpcp[j]->obj[i]);
+      sprintf(sz, "%c ", rgpcp[j]->dir[i] >= 0.0 ? ' ' : chRet); PrintSz(sz);
+      PrintAltitude(rgpcp[j]->alt[i]);
     }
 
     /* Compute maximum offset between any two instances of this planet. */
     r = 0.0;
-    for (j = 0; j < cChart; j++)
-      for (k = 0; k < j; k++) {
+    for (j = 1; j <= cChart; j++)
+      for (k = 1; k < j; k++) {
         if (!us.fAspect3D)
-          rT = MinDistance(cp[j]->obj[i], cp[k]->obj[i]);
+          rT = MinDistance(rgpcp[j]->obj[i], rgpcp[k]->obj[i]);
         else
-          rT = PolarDistance(cp[j]->obj[i], cp[k]->obj[i],
-            cp[j]->alt[i], cp[k]->alt[i]);
+          rT = PolarDistance(rgpcp[j]->obj[i], rgpcp[k]->obj[i],
+            rgpcp[j]->alt[i], rgpcp[k]->alt[i]);
         r = Max(r, rT);
       }
     AnsiColor(kMainA[3]);
@@ -258,13 +255,13 @@ void ChartAspectRelation(void)
 {
   int ca[cAspect + 1], co[objMax];
   char sz[cchSzDef];
-  int pcut = 30000, icut, jcut, phi, ihi, jhi, ahi, p, i, j, k, count = 0;
+  int pcut = nLarge, icut, jcut, phi, ihi, jhi, ahi, p, i, j, k, count = 0;
   real ip, jp, rPowSum = 0.0;
 
   ClearB((lpbyte)ca, (cAspect + 1)*(int)sizeof(int));
   ClearB((lpbyte)co, objMax*(int)sizeof(int));
   loop {
-    phi = -1;
+    phi = -nLarge;
 
     /* Search for the next most powerful aspect in the aspect grid. */
 
@@ -280,7 +277,7 @@ void ChartAspectRelation(void)
             ihi = i; jhi = j; phi = p; ahi = k;
           }
         }
-    if (phi < 0)    /* Exit when no less powerful aspect found. */
+    if (phi <= -nLarge)    /* Exit when no less powerful aspect found. */
       break;
     pcut = phi; icut = ihi; jcut = jhi;
     count++;                              /* Display the current aspect.   */
@@ -341,6 +338,8 @@ void ChartMidpointRelation(void)
     if (mlo >= 360*60*60) /* Exit when no midpoint farther in zodiac found. */
       break;
     mcut = mlo; icut = ilo; jcut = jlo;
+    if (us.objRequire >= 0 && ilo != us.objRequire && jlo != us.objRequire)
+      continue;
     count++;                               /* Display the current midpoint. */
     cs[mlo/(30*60*60)+1]++;
     m = (int)(MinDistance(cp1.obj[ilo], cp2.obj[jlo])*3600.0);
@@ -407,6 +406,9 @@ void CastRelation(void)
   } else if (us.nRel == rcProgress)
     us.fProgress = fFalse;
   cp2 = cp0;
+
+  /* Cast the third and fourth charts. */
+
   if (us.nRel == rcTriWheel || us.nRel == rcQuadWheel) {
     ciCore = ciThre;
     FProcessCommandLine(szWheel[3]);
@@ -501,8 +503,10 @@ void CastRelation(void)
 /* change or major lunar phase. This is called from the ChartInDay()      */
 /* searching and influence routines. Do an interpretation if need be too. */
 
-void PrintInDay(int source, int aspect, int dest)
+void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
 {
+  char sz[cchSzDef];
+
   /* If the Sun changes sign, then print out if this is a season change. */
   if (aspect == aSig) {
     if (source == oSun) {
@@ -520,9 +524,9 @@ void PrintInDay(int source, int aspect, int dest)
       }
     }
 
-  /* Print out if the present aspect is a New, Full, or Half Moon. */
+  /* Print if the present aspect is a New, Full, or Half Moon. */
   } else if (aspect > 0) {
-    if (source == oSun && dest == oMoo) {
+    if (source == oSun && dest == oMoo && !us.fParallel) {
       if (aspect <= aSqu)
         AnsiColor(kMainA[1]);
       if (aspect == aCon)
@@ -532,6 +536,16 @@ void PrintInDay(int source, int aspect, int dest)
       else if (aspect == aSqu)
         PrintSz(" (Half Moon)");
     }
+  }
+
+  /* Print if the present aspect is the Moon going void of course. */
+  if (nVoid >= 0) {
+    AnsiColor(kDefault);
+    sprintf(sz, " (v/c %d:%02d", nVoid / 3600, nVoid / 60 % 60); PrintSz(sz);
+    if (us.fSeconds) {
+      sprintf(sz, ":%02d", nVoid % 60); PrintSz(sz);
+    }
+    PrintCh(')');
   }
   PrintL();
 
@@ -566,10 +580,13 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
     ret1 > 0 ? ')' : (ret1 < 0 ? ']' : '>')); PrintSz(sz);
   AnsiColor(asp > 0 ? kAspA[asp] : kMainA[1]);
   PrintCh(' ');
-  if (asp == aSig)
+
+  if (asp == aSig || asp == aHou)
     sprintf(sz, "-->");                        /* Print a sign change. */
   else if (asp == aDir)
     sprintf(sz, "S/%c", obj2 ? chRet : 'D');   /* Print a direction change. */
+  else if (asp == aDeg)
+    sprintf(sz, "At:");                        /* Print a degree change. */
   else if (asp == 0)
     sprintf(sz, chart == 'm' ? "&" : "with");
   else
@@ -577,11 +594,17 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
   PrintSz(sz);
   if (asp != aDir)
     PrintCh(' ');
+
   if (chart == 'A')
     PrintSz("with ");
   if (asp == aSig) {
     AnsiColor(kSignA(obj2));
     sprintf(sz, "%s", szSignName[obj2]); PrintSz(sz);
+  } else if (asp == aDeg) {
+    PrintZodiac((real)obj2 * (rDegMax / (real)(cSign * us.nSignDiv)));
+  } else if (asp == aHou) {
+    AnsiColor(kSignA(obj2));
+    sprintf(sz, "%d%s 3D House", obj2, szSuffix[obj2]); PrintSz(sz);
   } else if (asp >= 0) {
     AnsiColor(kSignA(sign2));
     if (chart == 't' || chart == 'u' || chart == 'T' || chart == 'U')
@@ -665,7 +688,7 @@ void ChartInDayInfluence(void)
     }
     AnsiColor(kMainA[5]);
     sprintf(sz, " - power:%6.2f", power[i]); PrintSz(sz);
-    PrintInDay(j, k, l);
+    PrintInDayEvent(j, k, l, -1);
   }
   if (occurcount == 0)
     PrintSz("Empty transit aspect list.\n");

@@ -101,5 +101,3 @@ extern int swi_open_jpl_file(double *ss, char *fname, char *fpath, char *serr);
 extern int32 swi_get_jpl_denum(void);
 
 extern void swi_IERS_FK5(double *xin, double *xout, int dir);
-
-/* swejpl.h */

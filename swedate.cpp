@@ -88,12 +88,11 @@
 
 # include "swephexp.h"
 # include "sweph.h"
-# include "swephlib.h"
 
-static AS_BOOL init_leapseconds_done = FALSE;
+static TLS AS_BOOL init_leapseconds_done = FALSE;
 
 
-int FAR PASCAL_CONV swe_date_conversion(int y,
+int CALL_CONV swe_date_conversion(int y,
 		     int m,
 		     int d,		/* day, month, year */
 		     double uttime, 	/* UT in hours (decimal) */
@@ -165,7 +164,7 @@ int FAR PASCAL_CONV swe_date_conversion(int y,
 		    and notifies errors like 32 January.
  ****************************************************************/
 
-double FAR PASCAL_CONV swe_julday(int year, int month, int day, double hour, int gregflag) 
+double CALL_CONV swe_julday(int year, int month, int day, double hour, int gregflag) 
 {
   double jd;
   double u,u0,u1,u2;
@@ -206,7 +205,7 @@ double FAR PASCAL_CONV swe_julday(int year, int month, int day, double hour, int
   Original author Mark Pottenger, Los Angeles.
   with bug fix for year < -4711 16-aug-88 Alois Treindl
 *************************************************************************/
-void FAR PASCAL_CONV swe_revjul (double jd, int gregflag,
+void CALL_CONV swe_revjul (double jd, int gregflag,
 	     int *jyear, int *jmon, int *jday, double *jut)
 {
   double u0,u1,u2,u3,u4;
@@ -240,7 +239,7 @@ void FAR PASCAL_CONV swe_revjul (double jd, int gregflag,
  * For conversion from local time to utc, use +d_timezone.
  * For conversion from utc to local time, use -d_timezone.
  */
-void FAR PASCAL_CONV swe_utc_time_zone(
+void CALL_CONV swe_utc_time_zone(
         int32 iyear, int32 imonth, int32 iday,
         int32 ihour, int32 imin, double dsec,
         double d_timezone,
@@ -280,9 +279,9 @@ void FAR PASCAL_CONV swe_utc_time_zone(
  */
 
 /* Leap seconds were inserted at the end of the following days:*/
-#define NLEAP_SECONDS 26
+#define NLEAP_SECONDS 27 // ignoring end mark '0'
 #define NLEAP_SECONDS_SPACE 100
-static int leap_seconds[NLEAP_SECONDS_SPACE] = {
+static TLS int leap_seconds[NLEAP_SECONDS_SPACE] = {
 19720630,
 19721231,
 19731231,
@@ -309,6 +308,7 @@ static int leap_seconds[NLEAP_SECONDS_SPACE] = {
 20081231,
 20120630,
 20150630,
+20161231,
 0  /* keep this 0 as end mark */
 };
 #define J1972 2441317.5
@@ -380,7 +380,7 @@ static int init_leapsec(void)
  *   the leap seconds table (or the Swiss Ephemeris version) is not updated
  *   for a long time.
 */
-int32 FAR PASCAL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32 ihour, int32 imin, double dsec, int32 gregflag, double *dret, char *serr)
+int32 CALL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32 ihour, int32 imin, double dsec, int32 gregflag, double *dret, char *serr)
 {
   double tjd_ut1, tjd_et, tjd_et_1972, dhour, d;
   int iyear2, imonth2, iday2;
@@ -409,7 +409,7 @@ int32 FAR PASCAL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32
    */
   if (tjd_ut1 < J1972) {
     dret[1] = swe_julday(iyear, imonth, iday, dhour, gregflag);
-    dret[0] = dret[1] + swe_deltat(dret[1]);
+    dret[0] = dret[1] + swe_deltat_ex(dret[1], -1, NULL);
     return OK;
   }
   /* 
@@ -436,10 +436,10 @@ int32 FAR PASCAL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32
    * input time as UT1, not as UTC. How do we find out? 
    * Check, if delta_t - nleap - 32.184 > 0.9
    */
-  d = swe_deltat(tjd_ut1) * 86400.0;
+  d = swe_deltat_ex(tjd_ut1, -1, NULL) * 86400.0;
   if (d - (double) nleap - 32.184 >= 1.0) {
     dret[1] = tjd_ut1 + dhour / 24.0;
-    dret[0] = dret[1] + swe_deltat(dret[1]);
+    dret[0] = dret[1] + swe_deltat_ex(dret[1], -1, NULL);
     return OK;
   }
   /* 
@@ -469,9 +469,9 @@ int32 FAR PASCAL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32
   /* ET (TT) */
   tjd_et_1972 = J1972 + (32.184 + NLEAP_INIT) / 86400.0;
   tjd_et = tjd_et_1972 + d + ((double) (nleap - NLEAP_INIT)) / 86400.0;
-  d = swe_deltat(tjd_et);
-  tjd_ut1 = tjd_et - swe_deltat(tjd_et - d);
-  tjd_ut1 = tjd_et - swe_deltat(tjd_ut1);
+  d = swe_deltat_ex(tjd_et, -1, NULL);
+  tjd_ut1 = tjd_et - swe_deltat_ex(tjd_et - d, -1, NULL);
+  tjd_ut1 = tjd_et - swe_deltat_ex(tjd_ut1, -1, NULL);
   dret[0] = tjd_et;
   dret[1] = tjd_ut1;
   return OK;
@@ -491,7 +491,7 @@ int32 FAR PASCAL_CONV swe_utc_to_jd(int32 iyear, int32 imonth, int32 iday, int32
  *   the leap seconds table (or the Swiss Ephemeris version) has not been
  *   updated for a long time.
  */
-void FAR PASCAL_CONV swe_jdet_to_utc(double tjd_et, int32 gregflag, int32 *iyear, int32 *imonth, int32 *iday, int32 *ihour, int32 *imin, double *dsec) 
+void CALL_CONV swe_jdet_to_utc(double tjd_et, int32 gregflag, int32 *iyear, int32 *imonth, int32 *iday, int32 *ihour, int32 *imin, double *dsec) 
 {
   int i;
   int second_60 = 0;
@@ -501,9 +501,9 @@ void FAR PASCAL_CONV swe_jdet_to_utc(double tjd_et, int32 gregflag, int32 *iyear
    * if tjd_et is before 1 jan 1972 UTC, return UT1
    */
   tjd_et_1972 = J1972 + (32.184 + NLEAP_INIT) / 86400.0; 
-  d = swe_deltat(tjd_et);
-  tjd_ut = tjd_et - swe_deltat(tjd_et - d);
-  tjd_ut = tjd_et - swe_deltat(tjd_ut);
+  d = swe_deltat_ex(tjd_et, -1, NULL);
+  tjd_ut = tjd_et - swe_deltat_ex(tjd_et - d, -1, NULL);
+  tjd_ut = tjd_et - swe_deltat_ex(tjd_ut, -1, NULL);
   if (tjd_et < tjd_et_1972) {
     swe_revjul(tjd_ut, gregflag, iyear, imonth, iday, &d);
     *ihour = (int32) d;
@@ -558,8 +558,8 @@ void FAR PASCAL_CONV swe_jdet_to_utc(double tjd_et, int32 gregflag, int32 *iyear
    * input time as UT1, not as UTC. How do we find out? 
    * Check, if delta_t - nleap - 32.184 > 0.9
    */
-  d = swe_deltat(tjd_et);
-  d = swe_deltat(tjd_et - d);
+  d = swe_deltat_ex(tjd_et, -1, NULL);
+  d = swe_deltat_ex(tjd_et - d, -1, NULL);
   if (d * 86400.0 - (double) (nleap + NLEAP_INIT) - 32.184 >= 1.0) {
     swe_revjul(tjd_et - d, SE_GREG_CAL, iyear, imonth, iday, &d);
     *ihour = (int32) d;
@@ -588,302 +588,11 @@ void FAR PASCAL_CONV swe_jdet_to_utc(double tjd_et, int32 gregflag, int32 *iyear
  *   the leap seconds table (or the Swiss Ephemeris version) has not been
  *   updated for a long time.
  */
-void FAR PASCAL_CONV swe_jdut1_to_utc(double tjd_ut, int32 gregflag, int32 *iyear, int32 *imonth, int32 *iday, int32 *ihour, int32 *imin, double *dsec) 
+void CALL_CONV swe_jdut1_to_utc(double tjd_ut, int32 gregflag, int32 *iyear, int32 *imonth, int32 *iday, int32 *ihour, int32 *imin, double *dsec) 
 {
-  double tjd_et = tjd_ut + swe_deltat(tjd_ut);
+  double tjd_et = tjd_ut + swe_deltat_ex(tjd_ut, -1, NULL);
   swe_jdet_to_utc(tjd_et, gregflag, iyear, imonth, iday, ihour, imin, dsec);
 }
-
-
-#ifdef ASTROLOG
-/* Set up path for Swiss Ephemeris to search in for ephemeris files. */
-
-void SwissEnsurePath()
-{
-  char sz[cchSzDef], serr[AS_MAXCH];
-#ifdef ENVIRON
-  char *env;
-#endif
-  static flag fPath = fFalse;
-
-  if (!fPath) {
-    /* First look for the file in the current directory. */
-    sprintf(serr, ".");
-#ifdef ENVIRON
-    /* Next look for the file in the directory indicated by the version */
-    /* specific system environment variable.                            */
-    sprintf(sz, "%s%s", ENVIRONVER, szVersionCore);
-    env = getenv(sz);
-    if (env && *env)
-      sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, env);
-    /* Next look in the directory in the general environment variable. */
-    env = getenv(ENVIRONALL);
-    if (env && *env)
-      sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, env);
-    /* Next look in directory in the version prefix environment variable. */
-    env = getenv(ENVIRONVER);
-    if (env && *env)
-      sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, env);
-#endif
-    /* Finally look in a directory specified at compile time. */
-    sprintf(serr + CchSz(serr), "%s%s", PATH_SEPARATOR, EPHE_DIR);
-    swe_set_ephe_path(serr);
-    fPath = fTrue;
-  }
-}
-
-
-int rgObjSwiss[cUran] = {SE_VULCAN - SE_FICT_OFFSET_1,
-  SE_CUPIDO   - SE_FICT_OFFSET_1, SE_HADES    - SE_FICT_OFFSET_1,
-  SE_ZEUS     - SE_FICT_OFFSET_1, SE_KRONOS   - SE_FICT_OFFSET_1,
-  SE_APOLLON  - SE_FICT_OFFSET_1, SE_ADMETOS  - SE_FICT_OFFSET_1,
-  SE_VULKANUS - SE_FICT_OFFSET_1, SE_POSEIDON - SE_FICT_OFFSET_1};
-int rgTypSwiss[cUran] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-int rgPntSwiss[cUran] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-/* Given an object index and a Julian Day time, get ecliptic longitude and */
-/* latitude of the object and its velocity and distance from the Earth or  */
-/* Sun. This basically just calls the Swiss Ephemeris calculation function */
-/* to actually do it. Because this is the one of the only routines called  */
-/* from Astrolog, this routine has knowledge of and uses both Astrolog and */
-/* Swiss Ephemeris definitions, and does things such as translation to     */
-/* indices and formats of Swiss Ephemeris.                                 */
-
-flag FSwissPlanet(int ind, real jd, flag fHelio,
-  real *obj, real *objalt, real *dir, real *space)
-{
-  int iobj, iflag, nRet, nTyp, nPnt = 0, ix;
-  double jde, xx[6], xnasc[6], xndsc[6], xperi[6], xaphe[6], *px;
-  char serr[AS_MAXCH];
-  static flag fSwissMosh = fFalse;
-
-  /* Reset Swiss Ephemeris if changing computation method. */
-  if (us.fSwissMosh != fSwissMosh)
-    swe_close();
-  fSwissMosh = us.fSwissMosh;
-  SwissEnsurePath();
-
-  /* Convert Astrolog object index to Swiss Ephemeris index. */
-  if (ind == oSun && fHelio)
-    iobj = SE_EARTH;
-  else if (ind <= oPlu)
-    iobj = ind-1;
-  else if (ind == oChi)
-    iobj = SE_CHIRON;
-  else if (FBetween(ind, oCer, oVes))
-    iobj = ind - oCer + SE_CERES;
-  else if (ind == oNod)
-    iobj = us.fTrueNode ? SE_TRUE_NODE : SE_MEAN_NODE;
-  else if (ind == oLil)
-    iobj = us.fTrueNode ? SE_OSCU_APOG : SE_MEAN_APOG;
-  else if (FBetween(ind, uranLo, uranHi)) {
-    iobj = rgObjSwiss[ind - uranLo];
-    nTyp = rgTypSwiss[ind - uranLo];
-    nPnt = rgPntSwiss[ind - uranLo];
-    if (nTyp < 2)
-      iobj += (nTyp <= 0 ? SE_FICT_OFFSET_1 : SE_AST_OFFSET);
-    else {
-      if (iobj <= oEar)
-        iobj = SE_EARTH;
-      else if (iobj <= oPlu)
-        iobj--;
-      else if (iobj == oChi)
-        iobj = SE_CHIRON;
-      else if (FBetween(iobj, oCer, oVes))
-        iobj = iobj - oCer + SE_CERES;
-      else if (iobj == oVul)
-        iobj = SE_VULCAN;
-      else if (FBetween(iobj, uranLo, uranHi))
-        iobj = iobj - uranLo + SE_FICT_OFFSET_1;
-      else
-        return fFalse;
-    }
-  } else
-    return fFalse;
-
-  /* Convert Astrolog calculation settings to Swiss Ephemeris flags. */
-  iflag = SEFLG_SPEED;
-  iflag |= (us.fSwissMosh ? SEFLG_MOSEPH : SEFLG_SWIEPH);
-  if (us.fSidereal) {
-    swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
-    iflag |= SEFLG_SIDEREAL;
-  }
-  if (fHelio && ind != oNod && ind != oLil)
-    iflag |= SEFLG_HELCTR;
-  if (us.fTruePos)
-    iflag |= SEFLG_TRUEPOS;
-  if (us.fTopoPos && !fHelio) {
-    swe_set_topo(-OO, DFromR(AA), us.elvDef);
-    iflag |= SEFLG_TOPOCTR;
-  }
-
-  jde = jd + swe_deltat(jd);
-  if (nPnt == 0)
-    nRet = swe_calc(jde, iobj, iflag, xx, serr);
-  else {
-    nRet = swe_nod_aps(jde, iobj, iflag, us.fTrueNode ? SE_NODBIT_OSCU :
-      SE_NODBIT_MEAN, xnasc, xndsc, xperi, xaphe, serr);
-    switch (nPnt) {
-    case 1:  px = xnasc; break;
-    case 2:  px = xndsc; break;
-    case 3:  px = xperi; break;
-    default: px = xaphe; break;
-    }
-    for (ix = 0; ix < 6; ix++)
-      xx[ix] = px[ix];
-  }
-  if (nRet < 0) {
-    if (!is.fNoEphFile) {
-      is.fNoEphFile = fTrue;
-      PrintWarning(serr);
-    }
-    return fFalse;
-  }
-  *obj    = xx[0] - is.rSid + us.rZodiacOffset;
-  *objalt = xx[1];
-  *space  = xx[2];
-  *dir    = xx[3];
-  return fTrue;
-}
-
-
-/* Compute house cusps and related variables like the Ascendant. Given a  */
-/* Julian Day time, location, and house system, call Swiss Ephemeris to   */
-/* compute them. This is similar to FSwissPlanet() in that it knows about */
-/* and translates between Astrolog and Swiss Ephemeris defintions.        */
-
-flag FSwissHouse(real jd, real lon, real lat, int housesystem,
-  real *asc, real *mc, real *ra, real *vtx, real *ep, real *ob, real *off)
-{
-  double cusp[cSign+1], ascmc[10];
-  int i;
-  char ch;
-
-  /* Translate Astrolog house index to Swiss Ephemeris house character. */
-  /* Don't do hsWhole houses ('W') yet, until after is.rSid computed.   */
-  switch (housesystem) {
-  case hsPlacidus:      ch = 'P'; break;
-  case hsKoch:          ch = 'K'; break;
-  case hsEqual:         ch = 'E'; break;
-  case hsCampanus:      ch = 'C'; break;
-  case hsMeridian:      ch = 'X'; break;
-  case hsRegiomontanus: ch = 'R'; break;
-  case hsPorphyry:      ch = 'O'; break;
-  case hsMorinus:       ch = 'M'; break;
-  case hsTopocentric:   ch = 'T'; break;
-  case hsAlcabitius:    ch = 'B'; break;
-  case hsKrusinski:     ch = 'U'; break;
-  case hsVedic:         ch = 'V'; break;
-  default:              ch = 'A'; break;
-  }
-
-  jd = JulianDayFromTime(jd);
-  lon = -lon;
-
-  /* The following is largely copied from swe_houses(). */
-  double armc, eps, nutlo[2];
-  double tjde = jd + swe_deltat(jd);
-  eps = swi_epsiln(tjde, 0) * RADTODEG;
-  swi_nutation(tjde, 0, nutlo);
-  for (i = 0; i < 2; i++)
-    nutlo[i] *= RADTODEG;
-  if (!us.fGeodetic)
-    armc = swe_degnorm(swe_sidtime0(jd, eps + nutlo[1], nutlo[0]) * 15 + lon);
-  else
-    armc = lon;
-  swe_houses_armc(armc, lat, eps + nutlo[1], ch, cusp, ascmc);
-
-  /* Fill out return parameters for cusp array, Ascendant, etc. */
-  *off = -swe_get_ayanamsa(tjde);
-  is.rSid = us.rZodiacOffset + (us.fSidereal ? *off : 0.0);
-
-  *asc = Mod(ascmc[SE_ASC] + is.rSid);
-  *mc  = Mod(ascmc[SE_MC]  + is.rSid);
-  *ra  = RFromD(Mod(ascmc[SE_ARMC] + is.rSid));
-  *vtx = Mod(ascmc[SE_VERTEX] + is.rSid);
-  *ep  = Mod(ascmc[SE_EQUASC] + is.rSid);
-  *ob  = eps;
-  for (i = 1; i <= cSign; i++)
-    chouse[i] = Mod(cusp[i] + is.rSid);
-
-  /* Want generic MC. Undo if house system flipped it 180 degrees. */
-  if ((housesystem == hsCampanus || housesystem == hsRegiomontanus ||
-    housesystem == hsTopocentric) && MinDifference(*mc, *asc) < 0.0)
-    *mc = Mod(*mc + rDegHalf);
-
-  /* Have Astrolog compute the houses if Swiss Ephemeris didn't do so. */
-  if (ch == 'A')
-    ComputeHouses(housesystem);
-  return fTrue;
-}
-
-
-/* Compute fixed star locations. Given a time, call Swiss Ephemeris to    */
-/* compute them. This is similar to FSwissPlanet() in that it knows about */
-/* and translates between Astrolog and Swiss Ephemeris defintions.        */
-
-void SwissComputeStars(real jd, flag fInitBright)
-{
-  char sz[cchSzDef], serr[AS_MAXCH];
-  int i, iflag;
-  double xx[6], mag;
-
-  SwissEnsurePath();
-  if (!fInitBright) {
-    jd = JulianDayFromTime(jd);
-    iflag = SEFLG_SPEED;
-    if (us.fSidereal) {
-      swe_set_sid_mode(SE_SIDM_FAGAN_BRADLEY, 0.0, 0.0);
-      iflag |= SEFLG_SIDEREAL;
-    }
-    if (us.fTruePos)
-      iflag |= SEFLG_TRUEPOS;
-  }
-  for (i = 1; i <= cStar; i++) {
-
-    /* In most cases Astrolog's star name is the same as Swiss Ephemeris,  */
-    /* however for a few stars we need to translate to a different string. */
-    if (szStarCustom[i] == NULL || szStarCustom[i][0] == chNull) {
-      if      (i == 3)  sprintf(sz, ",ze-1Ret");         /* Zeta Retic. */
-      else if (i == 4)  sprintf(sz, "Pleione");          /* Pleiades    */
-      else if (i == 10) sprintf(sz, "Alnilam");          /* Orion       */
-      else if (i == 30) sprintf(sz, ",beCru");           /* Becrux      */
-      else if (i == 36) sprintf(sz, "Rigel Kentaurus");  /* Rigel Kent. */
-      else if (i == 40) sprintf(sz, "Kaus Australis");   /* Kaus Austr. */
-      else
-        sprintf(sz, "%s", szObjName[oNorm + i]);
-    } else
-      sprintf(sz, "%s", szStarCustom[i]);
-
-    /* Compute the star location or get the star's brightness. */
-    if (!fInitBright) {
-      swe_fixstar(sz, jd, iflag, xx, serr);
-      planet[oNorm+i] = xx[0];
-      planetalt[oNorm+i] = xx[1];
-      if (!us.fSidereal)
-        ret[oNorm+i] = rDegMax/25765.0/rDayInYear;
-      starname[i] = i;
-    } else {
-      swe_fixstar_mag(sz, &mag, serr);
-      rStarBright[i] = mag;
-    }
-  }
-}
-
-
-/* Wrappers around Swiss ephemeris Julian Day conversion routines. */
-
-double SwissJulDay(int month, int day, int year, real hour, int gregflag)
-{
-  return swe_julday(year, month, day, hour, gregflag);
-}
-
-void SwissRevJul(real jd, int gregflag,
-  int *jmon, int *jday, int *jyear, double *jut)
-{
-  swe_revjul(jd, gregflag, jyear, jmon, jday, jut);
-}
-#endif /* ASTROLOG */
 #endif /* SWISS */
 
 /* swedate.cpp */

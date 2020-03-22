@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: matrix.cpp
+** Astrolog (Version 6.40) File: matrix.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -152,6 +152,7 @@ void JulianToMdy(real JD, int *mon, int *day, int *yea)
 }
 
 
+#ifdef MATRIX
 /* This is a subprocedure of CastChart(). Once we have the chart parameters */
 /* calculate a few important things related to the date, i.e. the Greenwich */
 /* time, the Julian day and fractional part of the day, the offset to the   */
@@ -159,45 +160,21 @@ void JulianToMdy(real JD, int *mon, int *day, int *yea)
 
 real ProcessInput(flag fDate)
 {
-  TT = RSgn(TT)*RFloor(RAbs(TT))+RFract(RAbs(TT)) + (ZZ - SS);
-  AA = Min(AA, rDegQuad-rSmall);    /* Make sure the chart isn't being cast */
-  AA = Max(AA, -(rDegQuad-rSmall)); /* on the precise North or South Pole.  */
-  AA = RFromD(AA);
+  real Ln, Off;
 
-  /* if parameter 'fDate' isn't set, then we can assume that the true time */
-  /* has already been determined (as in a -rm switch time midpoint chart). */
+  /* Compute angle that the ecliptic is inclined to the Celestial Equator */
+  is.OB = 23.452294 - 0.0130125*is.T;
 
-  if (fDate) {
-    is.JD = (real)MdyToJulian(MM, DD, YY);
-    is.T = (is.JD + TT/24.0);
-    if (us.fProgress && !us.fSolarArc) {
-      /* Determine actual time that a progressed chart is to be cast for. */
-      is.T += ((is.JDp - is.T) / us.rProgDay);
-    }
-    is.T = (is.T - 2415020.5) / 36525.0;
-  }
-
-#ifdef MATRIX
-  if (!(us.fEphemFiles && !us.fPlacalcPla)) {
-    real Ln, Off;
-
-    /* Compute angle that the ecliptic is inclined to the Celestial Equator */
-    is.OB = 23.452294 - 0.0130125*is.T;
-
-    Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0); /* Mean lunar node */
-    Off = (259205536.0*is.T+2013816.0)/3600.0;            /* Mean Sun        */
-    Off = 17.23*RSin(RFromD(Ln)) + 1.27*RSin(RFromD(Off)) -
-      (5025.64+1.11*is.T)*is.T;
-    Off = (Off-84038.27)/3600.0;
-    is.rSid = (us.fSidereal ? Off : 0.0) + us.rZodiacOffset;
-    return Off;
-  }
-#endif
-  return 0.0;
+  Ln = Mod((933060-6962911*is.T+7.5*is.T*is.T)/3600.0); /* Mean lunar node */
+  Off = (259205536.0*is.T+2013816.0)/3600.0;            /* Mean Sun        */
+  Off = 17.23*RSin(RFromD(Ln)) + 1.27*RSin(RFromD(Off)) -
+    (5025.64+1.11*is.T)*is.T;
+  Off = (Off-84038.27)/3600.0;
+  is.rSid = (us.fSidereal ? Off : 0.0) + us.rZodiacOffset;
+  return Off;
 }
 
 
-#ifdef MATRIX
 /* Convert polar to rectangular coordinates. */
 
 void PolToRec(real a, real r, real *x, real *y)
@@ -274,7 +251,7 @@ void ComputeVariables(real *vtx)
   }
   is.RA = RFromD(Mod((6.6460656 + 2400.0513*is.T + 2.58E-5*is.T*is.T +
     tim)*15.0 - OO));
-  L = is.RA + rPi; B = rPiHalf - RAbs(AA);
+  L = is.RA + rPi; B = rPiHalf - RAbs(RFromD(AA));
   if (AA < 0.0)
     B = -B;
   G = RecToSph(B, L, -is.OB);
@@ -310,7 +287,7 @@ real CuspAscendant(void)
 {
   real Asc;
 
-  Asc = Angle(-RSin(is.RA)*RCosD(is.OB)-RTan(AA)*RSinD(is.OB), RCos(is.RA));
+  Asc = Angle(-RSin(is.RA)*RCosD(is.OB)-RTanD(AA)*RSinD(is.OB), RCos(is.RA));
   return Mod(DFromR(Asc)+is.rSid);
 }
 
@@ -337,7 +314,7 @@ real CuspPlacidus(real deg, real FF, flag fNeg)
 
     /* This formula works except at 0 latitude (AA == 0.0). */
 
-    XS = X*RSin(R1)*RTanD(is.OB)*RTan(AA == 0.0 ? 0.0001 : AA);
+    XS = X*RSin(R1)*RTanD(is.OB)*RTanD(AA == 0.0 ? 0.0001 : AA);
     XS = RAcos(XS);
     if (XS < 0.0)
       XS += rPi;
@@ -374,7 +351,7 @@ void HouseKoch(void)
   real A1, A2, A3, KN, D, X;
   int i;
 
-  A1 = RSin(is.RA)*RTan(AA)*RTanD(is.OB);
+  A1 = RSin(is.RA)*RTanD(AA)*RTanD(is.OB);
   A1 = RAsin(A1);
   for (i = 1; i <= cSign; i++) {
     D = Mod(60.0+30.0*(real)i);
@@ -384,7 +361,7 @@ void HouseKoch(void)
       A2 = D/rDegQuad-3.0;
     }
     A3 = RFromD(Mod(DFromR(is.RA)+D+A2*DFromR(A1)));
-    X = Angle(RCos(A3)*RCosD(is.OB)-KN*RTan(AA)*RSinD(is.OB), RSin(A3));
+    X = Angle(RCos(A3)*RCosD(is.OB)-KN*RTanD(AA)*RSinD(is.OB), RSin(A3));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
 }
@@ -404,12 +381,12 @@ void HouseCampanus(void)
 
   for (i = 1; i <= cSign; i++) {
     KO = RFromD(60.000001+30.0*(real)i);
-    DN = RAtn(RTan(KO)*RCos(AA));
+    DN = RAtn(RTan(KO)*RCosD(AA));
     if (DN < 0.0)
       DN += rPi;
     if (RSin(KO) < 0.0)
       DN += rPi;
-    X = Angle(RCos(is.RA+DN)*RCosD(is.OB)-RSin(DN)*RTan(AA)*RSinD(is.OB),
+    X = Angle(RCos(is.RA+DN)*RCosD(is.OB)-RSin(DN)*RTanD(AA)*RSinD(is.OB),
       RSin(is.RA+DN));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
@@ -434,7 +411,7 @@ void HouseRegiomontanus(void)
 
   for (i = 1; i <= cSign; i++) {
     D = RFromD(60.0+30.0*(real)i);
-    X = Angle(RCos(is.RA+D)*RCosD(is.OB)-RSin(D)*RTan(AA)*RSinD(is.OB),
+    X = Angle(RCos(is.RA+D)*RCosD(is.OB)-RSin(D)*RTanD(AA)*RSinD(is.OB),
       RSin(is.RA+D));
     chouse[i] = Mod(DFromR(X)+is.rSid);
   }
@@ -494,12 +471,12 @@ void HouseTopocentric(void)
   int i;
 
   chouse[4] = ModRad(RFromD(is.MC+rDegHalf-is.rSid));
-  TL = RTan(AA); P1 = RAtn(TL/3.0); P2 = RAtn(TL/1.5); LT = AA;
-  AA = P1; chouse[5] = CuspTopocentric(30.0) + rPi;
-  AA = P2; chouse[6] = CuspTopocentric(60.0) + rPi;
-  AA = LT; chouse[1] = CuspTopocentric(90.0);
-  AA = P2; chouse[2] = CuspTopocentric(120.0);
-  AA = P1; chouse[3] = CuspTopocentric(150.0);
+  TL = RTanD(AA); P1 = RAtn(TL/3.0); P2 = RAtn(TL/1.5); LT = AA;
+  AA = P1;         chouse[5] = CuspTopocentric(30.0) + rPi;
+  AA = P2;         chouse[6] = CuspTopocentric(60.0) + rPi;
+  AA = RFromD(LT); chouse[1] = CuspTopocentric(90.0);
+  AA = P2;         chouse[2] = CuspTopocentric(120.0);
+  AA = P1;         chouse[3] = CuspTopocentric(150.0);
   AA = LT;
   for (i = 1; i <= 6; i++) {
     chouse[i] = Mod(DFromR(chouse[i])+is.rSid);
@@ -569,7 +546,7 @@ void ErrorCorrect(int ind, real *x, real *y, real *z)
 }
 
 
-/* This is probably the heart of the whole program of Astrolog. Calculate  */
+/* This is the (classic) heart of the whole program of Astrolog. Calculate */
 /* the position of each body that orbits the Sun. A heliocentric chart is  */
 /* most natural; extra calculation is needed to have other central bodies. */
 
@@ -609,20 +586,18 @@ void ComputePlanets(void)
       ErrorCorrect(ind, &XS, &YS, &ZS);
     ret[ind] = DFromR((XS*helioy[ind]-YS*heliox[ind]) /
       (XS*XS+YS*YS));  /* Helio daily motion */
-    spacex[ind] = XS; spacey[ind] = YS; spacez[ind] = ZS;
+    space[ind].x = XS; space[ind].y = YS; space[ind].z = ZS;
     ProcessPlanet(ind, 0.0);
 LNextPlanet:
     ind += (ind == oSun ? 2 : (ind != cPlanet ? 1 : uranLo+1-cPlanet));
   }
 
-  spacex[oEar] = spacex[oSun];
-  spacey[oEar] = spacey[oSun];
-  spacez[oEar] = spacez[oSun];
+  space[oEar] = space[oSun];
   planet[oEar] = planet[oSun]; planetalt[oEar] = planetalt[oSun];
   ret[oEar] = ret[oSun];
   heliox[oEar] = heliox[oSun]; helioy[oEar] = helioy[oSun];
   helioret[oEar] = helioret[oSun] = RFromD(1.0);
-  spacex[oSun] = spacey[oSun] = spacez[oSun] =
+  space[oSun].x = space[oSun].y = space[oSun].z =
     planet[oSun] = planetalt[oSun] = heliox[oSun] = helioy[oSun] = 0.0;
   if (us.objCenter == oSun) {
     if (us.fVelocity)
@@ -640,16 +615,16 @@ LNextPlanet:
   for (i = 0; i <= oNorm; i++) {
     helioret[i] = ret[i];
     if (i != oMoo && i != ind) {
-      spacex[i] -= spacex[ind];
-      spacey[i] -= spacey[ind];
-      spacez[i] -= spacez[ind];
+      space[i].x -= space[ind].x;
+      space[i].y -= space[ind].y;
+      space[i].z -= space[ind].z;
     }
   }
   for (i = oEar; i <= (us.fUranian ? oNorm : cPlanet);
     i += (i == oSun ? 2 : (i != cPlanet ? 1 : uranLo+1-cPlanet))) {
     if ((ignore[i] && i > oSun) || i == ind)
       continue;
-    XS = spacex[i]; YS = spacey[i]; ZS = spacez[i];
+    XS = space[i].x; YS = space[i].y; ZS = space[i].z;
     ret[i] = DFromR((XS*(helioy[i]-helioy[ind])-YS*(heliox[i]-heliox[ind])) /
       (XS*XS + YS*YS));
     if (ind == oEar && !us.fTruePos)
@@ -658,7 +633,7 @@ LNextPlanet:
     if (us.fVelocity)                 /* Use relative velocity */
       ret[i] = ret[i]/helioret[i];    /* if -v0 is in effect   */
   }
-  spacex[ind] = spacey[ind] = spacez[ind] = 0.0;
+  space[ind].x = space[ind].y = space[ind].z = 0.0;
 }
 
 

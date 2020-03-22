@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: intrpret.cpp
+** Astrolog (Version 6.40) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -64,63 +64,77 @@ void FieldWord(CONST char *sz)
 {
   static char line[cchSzMax];
   static int cursor = 0;
-  int i, j;
+  int isz = 0, i, j;
+  char ch;
 
-  /* Dump buffer if function called with a null string. */
+  /* Display buffer if function called with a null string. */
 
-  if (sz == NULL) {
-    line[cursor] = 0;
-    PrintSz(line); PrintL();
-    cursor = 0;
-    return;
-  }
-  if (cursor)
+  if (sz == NULL)
+    sz = "\n";
+  else if (cursor > 0)
     line[cursor++] = ' ';
-  for (i = 0; (line[cursor] = sz[i]); i++, cursor++)
-    ;
+  loop {
+    ch = sz[isz];
+    if (ch == chNull)
+      break;
+    if (ch == '\n') {
+      line[cursor] = 0;
+      PrintSz(line); PrintL();
+      cursor = 0;
+      isz++;
+      continue;
+    }
+    line[cursor] = ch;
 
-  /* When buffer overflows 'n' columns, display one line and start over. */
+    /* When buffer overflows 'n' columns, display one line and start over. */
 
-  while (cursor >= us.nScreenWidth-1) {
-    for (i = us.nScreenWidth-1; line[i] != ' '; i--)
-      ;
-    line[i] = 0;
-    PrintSz(line); PrintL();
-    line[0] = line[1] = ' ';
-    for (j = 2; (line[j] = line[i+j-1]) != 0; j++)
-      ;
-    cursor -= (i-1);
+    if (cursor >= us.nScreenWidth-1) {
+      for (i = us.nScreenWidth-1; i > 2 && line[i] != ' '; i--)
+        ;
+      if (i <= 2)
+        i = us.nScreenWidth-1;
+      line[i] = 0;
+      PrintSz(line); PrintL();
+      line[0] = line[1] = ' ';
+      for (j = 2; (line[j] = line[j+i-1]) != 0; j++)
+        ;
+      cursor -= (i-1);
+    }
+    isz++, cursor++;
   }
 }
 
 
 /* Display a general interpretation of what each sign of the zodiac, house, */
-/* and planet or object means. This is called to do the -I0 switch table.   */
+/* and planet or object means. This is called to do the -HI switch table.   */
 
 void InterpretGeneral(void)
 {
   char sz[cchSzMax];
   int i;
 
-  PrintSz("Signs of the zodiac represent psychological characteristics.\n\n");
+  FieldWord(
+    "Signs of the zodiac represent psychological characteristics.\n\n");
   for (i = 1; i <= cSign; i++) {
     AnsiColor(kSignA(i));
     sprintf(sz, "%s is", szSignName[i]); FieldWord(sz);
     sprintf(sz, "%s, and", szDesc[i]); FieldWord(sz);
-    sprintf(sz, "%s.", szDesire[i]); FieldWord(sz);
-    FieldWord(NULL);
+    sprintf(sz, "%s.\n", szDesire[i]); FieldWord(sz);
   }
   AnsiColor(kDefault);
-  PrintSz("\nHouses represent different areas within one's life.\n\n");
+
+  PrintL();
+  FieldWord("Houses represent different areas within one's life.\n\n");
   for (i = 1; i <= cSign; i++) {
     AnsiColor(kSignA(i));
     sprintf(sz, "The %d%s House is the area of life dealing with",
       i, szSuffix[i]); FieldWord(sz);
-    sprintf(sz, "%s.", szLifeArea[i]); FieldWord(sz);
-    FieldWord(NULL);
+    sprintf(sz, "%s.\n", szLifeArea[i]); FieldWord(sz);
   }
   AnsiColor(kDefault);
-  PrintSz("\nPlanets represent various parts of one's mind or self.\n\n");
+
+  PrintL();
+  FieldWord("Planets represent various parts of one's mind or self.\n\n");
   for (i = 0; i <= cObjInt; i++) {
     if (ignore[i] || FCusp(i))
       continue;
@@ -129,22 +143,22 @@ void InterpretGeneral(void)
       FieldWord("The");
     sprintf(sz, "%s%s%s represents one's", i == oFor ? "Part of " : "",
       szObjDisp[i], i == oPal ? " Athena" : ""); FieldWord(sz);
-    sprintf(sz, "%s.", szMindPart[i]); FieldWord(sz);
-    FieldWord(NULL);
+    sprintf(sz, "%s.\n", szMindPart[i]); FieldWord(sz);
   }
   AnsiColor(kDefault);
 }
 
 
 /* Display a general interpretation of what each aspect type means. This */
-/* is called when printing the interpretation table in the -I0 switch.   */
+/* is called when printing the interpretation table in the -HI switch.   */
 
 void InterpretAspectGeneral(void)
 {
   char sz[cchSzMax];
   int i;
 
-  PrintSz("\nAspects are different relationships between planets.\n\n");
+  PrintL();
+  FieldWord("Aspects are different relationships between planets.\n\n");
   for (i = 1; i <= us.nAsp; i++) {
     if (!FInterpretAsp(i))
       continue;
@@ -177,8 +191,10 @@ void InterpretLocation(void)
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
     sprintf(sz, "%s%s%s%s in %s", ret[i] < 0.0 ? "Retrograde " : "",
-      i == oFor ? "Part of " : "", szObjDisp[i],
-      i == oPal ? " Athena" : "", szSignName[j]);
+      i == oFor && szObjDisp[i] == szObjName[i] ? "Part of " : "",
+      szObjDisp[i],
+      i == oPal && szObjDisp[i] == szObjName[i] ? " Athena" : "",
+      szSignName[j]);
     FieldWord(sz);
     sprintf(sz, "and %d%s House:", inhouse[i], szSuffix[inhouse[i]]);
     FieldWord(sz);
@@ -222,8 +238,8 @@ void InterpretAspect(int x, int y)
   if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
-  sprintf(sz, "%s %s %s: %s's", szObjDisp[x],
-    szAspectName[n], szObjDisp[y], szPerson);
+  sprintf(sz, "%s %s %s: %s's",
+    szObjDisp[x], SzAspect(n), szObjDisp[y], szPerson);
   FieldWord(sz); FieldWord(szMindPart[x]);
   sprintf(sz, szInteract[n],
     szModify[Min(NAbs(grid->v[x][y])/(150*60), 2)][n-1]);
@@ -299,8 +315,7 @@ void InterpretInDay(int source, int aspect, int dest)
     FieldWord("will tend to manifest in");
     FieldWord(dest ? "an independent, backward, introverted" :
       "the standard, direct, open");
-    FieldWord("manner.");
-    FieldWord(NULL);
+    FieldWord("manner.\n");
 
   /* Interpret object entering new sign. */
 
@@ -309,8 +324,7 @@ void InterpretInDay(int source, int aspect, int dest)
     FieldWord("Energy representing"); FieldWord(szMindPart[source]);
     sprintf(sz, "will be %s,", szDesc[dest]);
     FieldWord(sz);
-    sprintf(sz, "and it %s.", szDesire[dest]); FieldWord(sz);
-    FieldWord(NULL);
+    sprintf(sz, "and it %s.\n", szDesire[dest]); FieldWord(sz);
 
   /* Interpret aspect between transiting planets. */
 
@@ -378,8 +392,10 @@ void InterpretSynastry(void)
     AnsiColor(kObjA[i]);
     j = SFromZ(planet[i]); c = *Dignify(i, j);
     sprintf(sz, "%s%s%s%s in %s,", ret[i] < 0.0 ? "Retrograde " : "",
-      i == oFor ? "Part of " : "", szObjDisp[i],
-      i == oPal ? " Athena" : "", szSignName[j]);
+      i == oFor && szObjDisp[i] == szObjName[i] ? "Part of " : "",
+      szObjDisp[i],
+      i == oPal && szObjDisp[i] == szObjName[i] ? " Athena" : "",
+      szSignName[j]);
     FieldWord(sz);
     sprintf(sz, "in their %d%s House:", inhouse[i], szSuffix[inhouse[i]]);
     FieldWord(sz);
@@ -430,8 +446,8 @@ void InterpretAspectRelation(int x, int y)
   if (n < 1 || !FInterpretAsp(n) || !FInterpretObj(x) || !FInterpretObj(y))
     return;
   AnsiColor(kAspA[n]);
-  sprintf(sz, "%s %s %s: %s's", szObjDisp[x],
-    szAspectName[n], szObjDisp[y], szPerson1);
+  sprintf(sz, "%s %s %s: %s's",
+    szObjDisp[x], SzAspect(n), szObjDisp[y], szPerson1);
   FieldWord(sz); FieldWord(szMindPart[x]);
   sprintf(sz, szInteract[n],
     szModify[Min(NAbs(grid->v[y][x])/(150*60), 2)][n-1]);

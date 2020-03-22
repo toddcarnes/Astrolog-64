@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: xgeneral.cpp
+** Astrolog (Version 6.40) File: xgeneral.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -82,6 +82,10 @@ void DrawColor(KI col)
 #ifdef META
     if (gs.fMeta)
       gi.kiLineDes = col;
+#endif
+#ifdef WIRE
+    if (gs.fWire)
+      gi.kiCur = col;
 #endif
   }
 #ifdef X11
@@ -141,12 +145,16 @@ void DrawPoint(int x, int y)
     }
 #endif
 #ifdef META
-    else {
+    else if (gs.fMeta) {
       gi.kiFillDes = gi.kiCur;
       MetaSelect();
       MetaEllipse(x-gi.nPenWid/2, y-gi.nPenWid/2,
         x+gi.nPenWid/2, y+gi.nPenWid/2);
     }
+#endif
+#ifdef WIRE
+    else
+      WirePoint(x, y, gi.zDefault);
 #endif
   }
 #ifdef X11
@@ -175,6 +183,36 @@ void DrawPoint(int x, int y)
 }
 
 
+/* Set a single point on the screen, whose color is a grayscale based on */
+/* the passed in star magnitude. This is one of the few areas in the     */
+/* program that works with more than a 16 color palette.                 */
+
+void DrawPointStar(int x, int y, real mag)
+{
+#ifdef WINANY
+  KV kv;
+  int n;
+
+  n = 255 - (int)((mag + 1.46) / 7.0 * 224.0);
+  n = Min(n, 255); n = Max(n, 32);
+  if (gs.fInverse)
+    n = 255 - n;
+  kv = Rgb(n, n, n);
+#endif
+#ifdef WIN
+  if (wi.hdcPrint == hdcNil) {
+    SetPixel(wi.hdc, x, y, (COLORREF)kv);
+    return;
+  }
+#endif
+#ifdef WCLI
+  SetPixel(wi.hdc, x, y, (COLORREF)kv);
+#else
+  DrawPoint(x, y);
+#endif
+}
+
+
 /* Draw dot a little larger than just a single pixel at specified location. */
 
 void DrawSpot(int x, int y)
@@ -192,6 +230,13 @@ void DrawSpot(int x, int y)
     gi.kiFillDes = gi.kiCur;
     MetaSelect();
     MetaEllipse(x-gi.nPenWid, y-gi.nPenWid, x+gi.nPenWid, y+gi.nPenWid);
+    return;
+  }
+#endif
+#ifdef WIRE
+  if (gs.fWire) {
+    WireLine(x-1, y,   0, x+1, y,   0);
+    WireLine(x,   y-1, 0, x,   y+1, 0);
     return;
   }
 #endif
@@ -233,11 +278,17 @@ void DrawBlock(int x1, int y1, int x2, int y2)
     }
 #endif
 #ifdef META
-    else {
+    else if (gs.fMeta) {
       gi.kiFillDes = gi.kiCur;
       MetaSelect();
       MetaRectangle(x1-gi.nPenWid/2, y1-gi.nPenWid/2,
         x2+gi.nPenWid/2, y2+gi.nPenWid/2);
+    }
+#endif
+#ifdef WIRE
+    else {
+      if (x1 == x2 || y1 == y2)
+        WireLine(x1, y1, 0, x2, y2, 0);
     }
 #endif
   }
@@ -278,6 +329,15 @@ void DrawBox(int x1, int y1, int x2, int y2, int xsiz, int ysiz)
       MetaRectangle(x1, y1, x2, y2);
       return;
     }
+#endif
+#ifdef WIRE
+  if (gs.fWire) {
+    DrawLine(x1, y1, x2, y1);
+    DrawLine(x1, y1, x1, y2);
+    DrawLine(x2, y1, x2, y2);
+    DrawLine(x1, y2, x2, y2);
+    return;
+  }
 #endif
   DrawBlock(x1, y1, x2, y1 + ysiz - 1);
   DrawBlock(x1, y1 + ysiz, x1 + xsiz - 1, y2 - ysiz);
@@ -424,6 +484,16 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
   }
 #endif
 
+#ifdef WIRE
+  if (gs.fWire) {
+    /* Solid non-dashed lines are supported in wireframe format. */
+    if (skip == 0) {
+      WireLine(x1, y1, gi.zDefault, x2, y2, gi.zDefault);
+      return;
+    }
+  }
+#endif
+
   /* If none of the above cases hold, we have to draw the line dot by dot. */
 
   xadd = x2 - x1 >= 0 ? 1 : 3;
@@ -530,6 +600,9 @@ void ClipGreater(int *x1, int *y1, int *x2, int *y2, int s)
 void DrawClip(int x1, int y1, int x2, int y2, int xl, int yl, int xh, int yh,
   int skip)
 {
+  if ((x1 < xl && x2 < xl) || (y1 < yl && y2 < yl) ||  /* Skip if outside */
+    (x1 > xh && x2 > xh) || (y1 > yh && y2 > yh))      /* bounding box.   */
+    return;
   if (x1 < xl)
     ClipLesser (&y1, &x1, &y2, &x2, xl);    /* Check left side of window. */
   if (x2 < xl)
@@ -561,7 +634,7 @@ void DrawEllipse(int x1, int y1, int x2, int y2)
 
   if (gi.fFile) {
     x = (x1+x2)/2; y = (y1+y2)/2; rx = (x2-x1)/2; ry = (y2-y1)/2;
-    if (gs.fBitmap) {
+    if (gs.fBitmap || gs.fWire) {
       m = x + rx; n = y;
       for (i = 0; i <= nDegMax; i += DEGINC) {
         u = x + (int)(((real)rx+rRound)*RCosD((real)i));

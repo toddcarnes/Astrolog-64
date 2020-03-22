@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: wdialog.cpp
+** Astrolog (Version 6.40) File: wdialog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -134,6 +134,10 @@ void SetEditSZOA(HWND hdlg, int idDst, int idZon, int idLon, int idLat,
   int i;
   flag fT;
 
+  ClearCombo(idDst);
+  ClearCombo(idZon);
+  ClearCombo(idLon);
+  ClearCombo(idLat);
   if (dst == 0.0 || dst == 1.0 || dst == dstAuto)
     sprintf(sz, "%s",
       dst == 0.0 ? "No" : (dst == 1.0 ? "Yes" : "Autodetect"));
@@ -222,7 +226,7 @@ flag FOutputSettings()
     szAppName, szVersionCore, DEFAULT_INFOFILE); PrintFSz();
 
   sprintf(sz, "-z %s                ", SzZone(us.zonDef)); PrintFSz();
-  PrintF("; Default time zone     [hours W or E of GMT   ]\n");
+  PrintF("; Default time zone     [hours W or E of UTC   ]\n");
   if (us.dstDef != dstAuto)
     sprintf(sz, "-z0 %d                   ", (int)us.dstDef);
   else
@@ -239,11 +243,11 @@ flag FOutputSettings()
   sprintf(sz, "-zj \"%s\" \"%s\" ; Default name and location\n\n",
     us.namDef, us.locDef); PrintFSz();
 
+  PrintF("-n      "
+    "; Comment out this line to not start with chart for \"now\".\n");
   sprintf(sz, "-Yz %ld   ", us.lTimeAddition); PrintFSz();
   PrintF(
-    "; Time minute addition to be used when \"now\" charts are off.\n-n");
-  PrintF(
-    "      ; Comment out this line to not start with chart for \"now\".\n\n");
+    "; Time minute addition to be used when \"now\" charts are off.\n\n");
 
   sprintf(sz, "%cs      ", ChDashF(us.fSidereal)); PrintFSz();
   PrintF(
@@ -259,9 +263,12 @@ flag FOutputSettings()
   PrintFSz();
   PrintF(
     "; House system              [Change \"Plac\" to desired system   ]\n");
+  sprintf(sz, "%cc3     ", ChDashF(us.fHouse3D)); PrintFSz();
+  PrintF(
+    "; 3D house boundaries       [\"=c3\" is 3D houses, \"_c3\" is 2D   ]\n");
   sprintf(sz, "%ck      ", ChDashF(us.fAnsiColor)); PrintFSz();
   PrintF(
-    "; Ansi color text           [\"=k\" is color, \"_k\" is normal     ]\n");
+    "; Ansi color text           [\"=k\" is color, \"_k\" is monochrome ]\n");
   sprintf(sz, ":d %d   ", us.nDivision); PrintFSz();
   PrintF(
     "; Searching divisions       [Change \"48\" to desired divisions  ]\n");
@@ -273,7 +280,7 @@ flag FOutputSettings()
     "; Use ephemeris files       [\"=b\" uses them, \"_b\" doesn't      ]\n");
   sprintf(sz, ":w %d    ", us.nWheelRows); PrintFSz();
   PrintF(
-    "; Wheel chart text rows     [Change \"4\" to desired wheel rows  ]\n");
+    "; Wheel chart text rows     [Change \"0\" to desired wheel rows  ]\n");
   sprintf(sz, ":I %d   ", us.nScreenWidth); PrintFSz();
   PrintF(
     "; Text screen columns       [Change \"80\" to desired columns    ]\n");
@@ -455,21 +462,33 @@ flag FOutputSettings()
   PrintF("  ; Main colors\n\n\n");
 
   PrintF("; GRAPHICS DEFAULTS:\n\n");
-  sprintf(sz, "%cX               ", ChDashF(us.fGraphics)); PrintFSz();
-  PrintF("; Graphics chart flag [\"_X\" is text, \"=X\" is graphics]\n");
+  sprintf(sz, "%cXm              ", ChDashF(gs.fColor)); PrintFSz();
+  PrintF("; Color charts       [\"=Xm\" is color, \"_Xm\" is monochrome]\n");
+  sprintf(sz, "%cXr              ", ChDashF(gs.fInverse)); PrintFSz();
+  PrintF("; Reverse background [\"_Xr\" is black, \"=Xr\" is white     ]\n");
   i = gs.xWin; if (fSidebar) i -= SIDESIZE;
   sprintf(sz, ":Xw %d %d      ", i, gs.yWin); PrintFSz();
-  PrintF("; Default X and Y resolution\n");
+  PrintF("; Default X and Y resolution (not including sidebar)\n");
   sprintf(sz, ":Xs %d          ", gs.nScale); PrintFSz();
-  PrintF("; Character scale [100-400]\n");
+  PrintF("; Character scale     [100-400]\n");
   sprintf(sz, ":XS %d          ", gs.nScaleText); PrintFSz();
   PrintF("; Graphics text scale [100-400]\n");
+  sprintf(sz, "%cXQ              ", ChDashF(gs.fKeepSquare)); PrintFSz();
+  PrintF(
+    "; Square charts [\"=XQ\" forces square, \"_XQ\" allows rectangle]\n");
+  sprintf(sz, "%cXu              ", ChDashF(gs.fBorder)); PrintFSz();
+  PrintF(
+    "; Chart border  [\"=Xu\" shows border, \"_Xu\" doesn't show     ]\n");
   sprintf(sz, ":Xb%c             ", ChUncap(gs.chBmpMode)); PrintFSz();
   PrintF("; Bitmap file type\n");
   sprintf(sz, ":YXG %d        ", gs.nGlyphs); PrintFSz();
-  PrintF("; Glyph selections [Capricorn, Uranus, Pluto, Lilith]\n");
+  PrintF("; Glyph selections   [Capricorn, Uranus, Pluto, Lilith]\n");
   sprintf(sz, ":YXg %d           ", gs.nGridCell); PrintFSz();
-  PrintF("; Aspect grid cells [\"0\" for autodetect]\n");
+  PrintF("; Aspect grid cells  [\"0\" for autodetect  ]\n");
+  sprintf(sz, ":YXS %.1f         ", gs.rspace); PrintFSz();
+  PrintF("; Orbit radius in AU [\"0.0\" for autodetect]\n");
+  sprintf(sz, ":YXj %d           ", gs.cspace, gs.zspace); PrintFSz();
+  PrintF("; Orbit trail count\n");
   sprintf(sz, ":YX7 %d         ", gs.nRayWidth); PrintFSz();
   PrintF("; Esoteric ray column influence width\n");
   sprintf(sz, ":YXf %d           ", gs.fFont); PrintFSz();
@@ -479,7 +498,9 @@ flag FOutputSettings()
     "; PostScript paper orientation [\"-1\" portrait, \"1\" landscape]\n");
   sprintf(sz, ":YXp0 %s ", SzLength(gs.xInch)); PrintFSz();
   sprintf(sz, "%s ", SzLength(gs.yInch)); PrintFSz();
-  PrintF("; PostScript paper X and Y sizes\n");
+  PrintF("; PostScript paper X and Y sizes\n\n");
+  sprintf(sz, "%cX               ", ChDashF(us.fGraphics)); PrintFSz();
+  PrintF("; Graphics chart display [\"_X\" is text, \"=X\" is graphics]\n");
 
   sprintf(sz, "\n; %s\n", DEFAULT_INFOFILE); PrintFSz();
   fclose(file);
@@ -559,10 +580,17 @@ flag API DlgSaveChart()
     ofn.lpstrTitle = "Save Chart Positions";
     break;
   case cmdSaveText:
-    ofn.lpstrTitle = "Save Chart Text";
-    ofn.lpstrFilter = "Text Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0";
-    ofn.lpstrDefExt = "txt";
-    sprintf(szFileName, "*.txt");
+    if (!us.fTextHTML) {
+      ofn.lpstrTitle = "Save Chart Text";
+      ofn.lpstrFilter = "Text Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0";
+      ofn.lpstrDefExt = "txt";
+      sprintf(szFileName, "*.txt");
+    } else {
+      ofn.lpstrTitle = "Save Chart HTML Text";
+      ofn.lpstrFilter = "HTML Files (*.htm)\0*.txt\0All Files (*.*)\0*.*\0";
+      ofn.lpstrDefExt = "htm";
+      sprintf(szFileName, "*.htm");
+    }
     break;
   case cmdSaveBitmap:
     ofn.lpstrTitle = "Save Chart Bitmap";
@@ -584,6 +612,13 @@ flag API DlgSaveChart()
       "PostScript Text (*.eps)\0*.eps\0All Files (*.*)\0*.*\0";
     ofn.lpstrDefExt = "eps";
     sprintf(szFileName, "*.eps");
+    break;
+  case cmdSaveWire:
+    ofn.lpstrTitle = "Save Chart Wireframe";
+    ofn.lpstrFilter =
+      "Daedalus Wireframes (*.dw)\0*.dw\0All Files (*.*)\0*.*\0";
+    ofn.lpstrDefExt = "dw";
+    sprintf(szFileName, "*.dw");
     break;
   case cmdSaveSettings:
     ofn.lpstrTitle = "Save Settings";
@@ -624,17 +659,22 @@ flag API DlgSaveChart()
   case cmdSaveWallFit:
   case cmdSaveWallFill:
     gs.fBitmap = fTrue;
-    gs.fMeta = gs.fPS = fFalse;
+    gs.fMeta = gs.fPS = gs.fWire = fFalse;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSavePicture:
     gs.fMeta = fTrue;
-    gs.fBitmap = gs.fPS = fFalse;
+    gs.fBitmap = gs.fPS = gs.fWire = fFalse;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSavePS:
     gs.fPS = fTrue;
-    gs.fBitmap = gs.fMeta = fFalse;
+    gs.fBitmap = gs.fMeta = gs.fWire = fFalse;
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+  case cmdSaveWire:
+    gs.fWire = fTrue;
+    gs.fBitmap = gs.fMeta = gs.fPS = fFalse;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSaveSettings:
@@ -919,13 +959,13 @@ flag API DlgInfo(HWND hdlg, uint message, WORD wParam, LONG lParam)
       else
         ci = ciFour;
     }
+    SetEditSz(hdlg, deInNam, ci.nam);
+    SetEditSz(hdlg, deInLoc, ci.loc);
 LInit:
     SetEditMDYT(hdlg, dcInMon, dcInDay, dcInYea, dcInTim,
       ci.mon, ci.day, ci.yea, ci.tim);
     SetEditSZOA(hdlg, dcInDst, dcInZon, dcInLon, dcInLat,
       ci.dst, ci.zon, ci.lon, ci.lat);
-    SetEditSz(hdlg, deInNam, ciMain.nam);
-    SetEditSz(hdlg, deInLoc, ciMain.loc);
     SetFocus(GetDlgItem(hdlg, dcInMon));
     return fFalse;
 
@@ -1432,6 +1472,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCombo(dcSe_s, "-3.619166");  // Djwhal Khul
     SetEditR(hdlg, dcSe_s, us.rZodiacOffset, 6);
     SetEditR(hdlg, deSe_x, us.rHarmonic, -6);
+    SetCheck(dxSe_Yh, us.fBarycenter);
     SetCheck(dxSe_Yn, us.fTrueNode);
     SetCheck(dxSe_Yc0, us.fHouseAngle);
     SetEdit(deSe_h, szObjName[us.objCenter]);
@@ -1444,6 +1485,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCheck(dxSe_yv, us.fTopoPos);
     SetCheck(dxSe_c3, us.fHouse3D);
     SetCheck(dxSe_A3, us.fAspect3D);
+    SetCheck(dxSe_Ap, us.fAspectLat);
 #ifdef SWISS
     SetCombo(dcSe_b, szEphem[cmSwiss]);
     SetCombo(dcSe_b, szEphem[cmMoshier]);
@@ -1455,8 +1497,8 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCombo(dcSe_b, szEphem[cmMatrix]);
 #endif
     SetCombo(dcSe_b, szEphem[cmNone]);
-    i = us.fEphemFiles ? (us.fPlacalcPla ? cmPlacalc : (us.fSwissMosh ?
-      cmMoshier : cmSwiss)) : (us.fMatrixPla ? cmMatrix : cmNone);
+    i = FCmSwissEph() ? cmSwiss : (FCmSwissMosh() ? cmMoshier :
+      (FCmPlacalc() ? cmPlacalc : (FCmMatrix() ? cmMatrix : cmNone)));
     SetEdit(dcSe_b, szEphem[i]);
     return fTrue;
 
@@ -1472,6 +1514,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
       EnsureN(n1, FItem(n1), "Solar chart planet");
       us.rZodiacOffset = rs;
       us.rHarmonic = rx;
+      us.fBarycenter = GetCheck(dxSe_Yh);
       us.fTrueNode = GetCheck(dxSe_Yn);
       us.fHouseAngle = GetCheck(dxSe_Yc0);
       us.objCenter = nh;
@@ -1485,6 +1528,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
       us.fHouse3D = GetCheck(dxSe_c3);
       WiCheckMenu(cmdHouseSet3D, us.fHouse3D);
       us.fAspect3D = GetCheck(dxSe_A3);
+      us.fAspectLat = GetCheck(dxSe_Ap);
       wi.fCast = fTrue;
       GetEdit(dcSe_b, sz);
       us.fEphemFiles = us.fSwissMosh = us.fPlacalcPla = us.fMatrixPla = fFalse;
@@ -1539,6 +1583,7 @@ flag API DlgDisplay(HWND hdlg, uint message, WORD wParam, LONG lParam)
     else
       SetEdit(deOb_RO, "None");
     SetCheck(dxOb_YO, us.fSmartSave);
+    SetCheck(dxOb_kh, us.fTextHTML);
     SetCheck(dxOb_Yo, us.fWriteOld);
     SetCheck(dxOb_YXf, gs.fFont);
     SetEdit(deOb_YXp0_x, SzLength(gs.xInch));
@@ -1573,6 +1618,7 @@ flag API DlgDisplay(HWND hdlg, uint message, WORD wParam, LONG lParam)
       us.fIgnoreDir = GetCheck(dxOb_YR0_d);
       us.objRequire = nro;
       us.fSmartSave = GetCheck(dxOb_YO);
+      us.fTextHTML = GetCheck(dxOb_kh);
       us.fWriteOld = GetCheck(dxOb_Yo);
       gs.fFont = GetCheck(dxOb_YXf);
       GetEdit(deOb_YXp0_x, sz); gs.xInch = RParseSz(sz, pmLength);
@@ -1620,20 +1666,21 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
     else if (us.fTransitGra) n1 = 6;
     else                     n1 = 0;
     SetRadio(dr01 + n1, dr01, dr07);
-    SetCheck(dxTr_p, is.fProgress);
-    SetCheck(dxTr_r, is.fReturn);
     SetEditMDYT(hdlg, dcTrMon, dcTrDay, dcTrYea, dcTrTim,
       MonT, DayT, YeaT, TimT);
     if (n1 == 1 || n1 == 3 || n1 == 6) {
-      n2 = is.fProgress || us.fInDayMonth;
-      if (n2 == 1 && MonT == 0)
-        n2 += 1 + (us.nEphemYears > 1);
+      n2 = us.fInDayMonth || (n1 == 1 && is.fProgress);
+      if (n2 == 1 && us.fInDayYear)
+        n2 += 1 + (NAbs(us.nEphemYears) > 1);
     } else if (n1 == 4) {
-      n2 = 1 + (MonT <= 0) + (MonT < 0);
+      n2 = 1 + us.fInDayYear + us.fInDayYear*(NAbs(us.nEphemYears) > 1);
     } else
-      n2 = 0;
+      n2 = us.fInDayMonth + us.fInDayYear;
     SetRadio(dr08 + n2, dr08, dr11);
     SetEditN(deTr_tY, us.nEphemYears);
+    SetCheck(dxTr_p, is.fProgress);
+    SetCheck(dxTr_r, is.fReturn);
+    SetCheck(dxTr_g, us.fGraphAll);
     SetEditN(deTr_d, us.nDivision);
     SetFocus(GetDlgItem(hdlg, dcTrMon));
     return fFalse;
@@ -1662,9 +1709,10 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
       SetCI(ciTran, mon, day, yea, tim,
         us.dstDef, us.zonDef, us.lonDef, us.latDef);
       us.nEphemYears = nty;
-      us.nDivision = nd;
       is.fProgress = GetCheck(dxTr_p);
-      is.fReturn = GetCheck(dxTr_r);
+      is.fReturn   = GetCheck(dxTr_r);
+      us.fGraphAll = GetCheck(dxTr_g);
+      us.nDivision = nd;
       for (n1 = dr01; n1 < dr07; n1++)
         if (GetCheck(n1))
           break;
@@ -1680,32 +1728,16 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
       }
       n2 = GetCheck(dr08) ? 0 : (GetCheck(dr09) ? 1 :
         (GetCheck(dr10) ? 2 : 3));
-      if (n1 == 1 || n1 == 3) {
-        us.fInDayMonth = (is.fProgress || n2 >= 1);
-        if (n2 >= 2) {
-          MonT = 0;
-          if (n2 == 2)
-            us.nEphemYears = 1;
-          else if (n1 == 3)
-            us.nEphemYears = 5;
-        }
-      } else if (n1 == 2) {
+      us.fInDayMonth = n2 >= 1 || (n1 == 1 && is.fProgress);
+      us.fInDayYear = us.fInDayMonth && n2 >= 2;
+      if (n2 == 2 && NAbs(us.nEphemYears) > 1)
+        us.nEphemYears = 0;
+      if (n1 == 2) {
         us.fProgress = is.fProgress;
         wi.fCast = fTrue;
-      } else if (n1 == 4) {
-        if (n2 == 2)
-          MonT = 0;
-        else if (n2 == 3) {
-          MonT = -1; DayT = us.nEphemYears;
-        }
-      } else if (n1 == 6) {
-        us.fInDayMonth = (is.fProgress || n2 >= 1);
-        if (n2 >= 2) {
-          MonT = 0;
-          us.nEphemYears = (n2 == 2 ? 1 : 5);
-        }
-      }
-      if (n1 != 3 && n1 != 6)
+      } else if (n1 == 3 || n1 == 6)
+        us.nEphemYears = (n2 <= 2 ? 1 : 5);
+      else
         us.fGraphics = fFalse;
       wi.fRedraw = fTrue;
     }
@@ -1879,8 +1911,8 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
 flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
   char sz[cchSzMax];
-  int nx, ny, ns, nS, ng, nxw, nwn, nx1, nyxv, is;
-  real rxg;
+  int nx, ny, ns, nS, ng, nwn, nx1, nyxv, is;
+  real rxw, rxg;
 
   switch (message) {
   case WM_INITDIALOG:
@@ -1894,7 +1926,7 @@ flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetEditN(dcGr_XS, gs.nScaleText);
     SetCheck(dxGr_XQ, gs.fKeepSquare);
     SetEditN(deGr_YXg, gs.nGridCell);
-    SetEditN(deGr_XW, gs.nRot);
+    SetEditR(hdlg, deGr_XW, gs.rRot, 2);
     SetEditR(hdlg, deGr_XG, gs.rTilt, 2);
     SetCheck(dxGr_XP0, gs.fSouth);
     SetCheck(dxGr_XW0, gs.fMollewide);
@@ -1920,7 +1952,7 @@ flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
       ns = GetEditN(dcGr_Xs);
       nS = GetEditN(dcGr_XS);
       ng = GetEditN(deGr_YXg);
-      nxw = GetEditN(deGr_XW);
+      rxw = GetEditR(hdlg, deGr_XW);
       rxg = GetEditR(hdlg, deGr_XG);
       nwn = GetEditN(deGr_WN);
       nyxv = GetEditN(deGr_YXv);
@@ -1930,7 +1962,7 @@ flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
       EnsureN(ns, FValidScale(ns), "character scale");
       EnsureN(nS, FValidScale(nS), "text scale");
       EnsureN(ng, FValidGrid(ng), "grid cell");
-      EnsureN(nxw, FValidRotation(nxw), "horizontal rotation");
+      EnsureR(rxw, FValidRotation(rxw), "horizontal rotation");
       EnsureR(rxg, FValidTilt(rxg), "vertical tilt");
       EnsureN(nwn, FValidTimer(nwn), "animation delay");
       EnsureN(nx1, FItem(nx1), "rotation planet");
@@ -1943,7 +1975,7 @@ flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
       gs.nScale = ns; gs.nScaleText = nS;
       gs.fKeepSquare = GetCheck(dxGr_XQ);
       gs.nGridCell = ng;
-      gs.nRot = nxw; gs.rTilt = rxg;
+      gs.rRot = rxw; gs.rTilt = rxg;
       if (wi.nTimerDelay != (UINT)nwn) {
         wi.nTimerDelay = nwn;
         if (wi.lTimer != 0)

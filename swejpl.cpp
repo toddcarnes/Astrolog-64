@@ -77,12 +77,11 @@
 #include "swejpl.h"
 
 #if MSDOS
-  extern __int64 __cdecl _ftelli64(FILE *);
-  extern int __cdecl _fseeki64(FILE *, __int64, int);
-  typedef __int64 off_t;
+  typedef __int64 off_t64;
   #define FSEEK _fseeki64
   #define FTELL _ftelli64
 #else
+  typedef off_t off_t64;
   #define FSEEK fseeko
   #define FTELL ftello
 #endif
@@ -108,11 +107,11 @@ struct jpl_save {
   short do_km;
 };
 
-static struct jpl_save *FAR js;
+static TLS struct jpl_save *js;
 
 static int state (double et, int32 *list, int do_bary, 
 		  double *pv, double *pvsun, double *nut, char *serr);
-static int interp(double FAR *buf, double t, double intv, int32 ncfin, 
+static int interp(double *buf, double t, double intv, int32 ncfin, 
 		  int32 ncmin, int32 nain, int32 ifl, double *pv);
 static int32 fsizer(char *serr);
 static void reorder(char *x, int size, int number);
@@ -351,8 +350,8 @@ int swi_pleph(double et, int ntarg, int ncent, double *rrd, char *serr)
 {
   int i, retc;
   int32 list[12];
-  double FAR *pv = js->pv;
-  double FAR *pvsun = js->pvsun;
+  double *pv = js->pv;
+  double *pvsun = js->pvsun;
   for (i = 0; i < 6; ++i) 
     rrd[i] = 0.0;
   if (ntarg == ncent) 
@@ -457,18 +456,18 @@ int swi_pleph(double et, int ntarg, int ncent, double *rrd, char *serr)
  *      pv   d.p. interpolated quantities requested. 
  *           assumed dimension is pv(ncm,fl). 
  */
-static int interp(double FAR *buf, double t, double intv, int32 ncfin, 
+static int interp(double *buf, double t, double intv, int32 ncfin, 
 		  int32 ncmin, int32 nain, int32 ifl, double *pv)
 {
   /* Initialized data */
-  static int FAR np, nv;
-  static int FAR nac;
-  static int FAR njk;
-  static double FAR twot = 0.;
-  double FAR *pc = js->pc;
-  double FAR *vc = js->vc;
-  double FAR *ac = js->ac;
-  double FAR *jc = js->jc;
+  static TLS int np, nv;
+  static TLS int nac;
+  static TLS int njk;
+  static TLS double twot = 0.;
+  double *pc = js->pc;
+  double *vc = js->vc;
+  double *ac = js->ac;
+  double *jc = js->jc;
   int ncf = (int) ncfin;
   int ncm = (int) ncmin;
   int na = (int) nain;
@@ -642,16 +641,16 @@ static int state(double et, int32 *list, int do_bary,
 {
   int i, j, k;
   int32 nseg;
-  off_t flen, nb;
-  double FAR *buf = js->buf;
+  off_t64 flen, nb;
+  double *buf = js->buf;
   double aufac, s, t, intv, ts[4];
   int32 nrecl, ksize;
   int32 nr;
   double et_mn, et_fr;
-  int32 FAR *ipt = js->eh_ipt;
+  int32 *ipt = js->eh_ipt;
   char ch_ttl[252];
-  static int32 irecsz;
-  static int32 nrl, lpt[3], ncoeffs;
+  static TLS int32 irecsz;
+  static TLS int32 nrl, lpt[3], ncoeffs;
   if (js->jplfptr == NULL) {
     ksize = fsizer(serr); /* the number of single precision words in a record */
     nrecl = 4;
@@ -698,7 +697,7 @@ static int state(double et, int32 *list, int do_bary,
     if (js->do_reorder)
       reorder((char *) &lpt[0], sizeof(int32), 3);
     /* cval[]:  other constants in next record */
-    FSEEK(js->jplfptr, (off_t) (1L * irecsz), 0);
+    FSEEK(js->jplfptr, (off_t64) (1L * irecsz), 0);
     fread((void *) &js->eh_cval[0], sizeof(double), 400, js->jplfptr);
     if (js->do_reorder)
       reorder((char *) &js->eh_cval[0], sizeof(double), 400);
@@ -708,7 +707,7 @@ static int state(double et, int32 *list, int do_bary,
     nrl = 0;
     /* is file length correct? */
     /* file length */
-    FSEEK(js->jplfptr, (off_t) 0L, SEEK_END);
+    FSEEK(js->jplfptr, (off_t64) 0L, SEEK_END);
     flen = FTELL(js->jplfptr);
     /* # of segments in file */
     nseg = (int32) ((js->eh_ss[1] - js->eh_ss[0]) / js->eh_ss[2]);	
@@ -725,10 +724,6 @@ static int state(double et, int32 *list, int do_bary,
     nb *= 8;
     /* add size of header and constants section */
     nb += 2 * ksize * nrecl;
-#if 0
-    printf("hallo %d %d\n", nb, flen);
-    printf("hallo %d %d\n", nb-flen, ksize);
-#endif
     if (flen != nb 
       /* some of our files are one record too long */
       && flen - nb != ksize * nrecl
@@ -743,11 +738,11 @@ static int state(double et, int32 *list, int do_bary,
     }
     /* check if start and end dates in segments are the same as in 
      * file header */
-    FSEEK(js->jplfptr, (off_t) (2L * irecsz), 0);
+    FSEEK(js->jplfptr, (off_t64) (2L * irecsz), 0);
     fread((void *) &ts[0], sizeof(double), 2, js->jplfptr);
     if (js->do_reorder)
       reorder((char *) &ts[0], sizeof(double), 2);
-    FSEEK(js->jplfptr, (off_t) ((nseg + 2 - 1) * ((off_t) irecsz)), 0);
+    FSEEK(js->jplfptr, (off_t64) ((nseg + 2 - 1) * ((off_t64) irecsz)), 0);
     fread((void *) &ts[2], sizeof(double), 2, js->jplfptr);
     if (js->do_reorder)
       reorder((char *) &ts[2], sizeof(double), 2);
@@ -777,7 +772,7 @@ static int state(double et, int32 *list, int do_bary,
   /* read correct record if not in core */
   if (nr != nrl) {
     nrl = nr;
-    if (FSEEK(js->jplfptr, (off_t) (nr * ((off_t) irecsz)), 0) != 0) {
+    if (FSEEK(js->jplfptr, (off_t64) (nr * ((off_t64) irecsz)), 0) != 0) {
       if (serr != NULL) 
 	sprintf(serr, "Read error in JPL eph. at %f\n", et);
       return NOT_AVAILABLE;
@@ -845,7 +840,7 @@ static int read_const_jpl(double *ss,  char *serr)
     ss[i] = js->eh_ss[i];
 #if DEBUG_DO_SHOW
   {
-    static char FAR *bname[] = {
+    static const char *bname[] = {
 	"Mercury", "Venus", "EMB", "Mars", "Jupiter", "Saturn", 
 	"Uranus", "Neptune", "Pluto", "Moon", "SunBary", "Nut", "Libr"};
     int j, k;

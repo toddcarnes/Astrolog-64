@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: xscreen.cpp
+** Astrolog (Version 6.40) File: xscreen.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -59,12 +59,12 @@
 
 #ifdef X11
 /* This information used to define Astrolog's X icon (Rainbow over Third */
-/* Eye) is identical to the output format used by the bitmap program.    */
+/* Eye) is similar to the output format used by the bitmap program.      */
 /* You could extract this section and run xsetroot -bitmap on it.        */
 
 #define icon_width 63
 #define icon_height 32
-static char icon_bits[] = {
+CONST uchar icon_bits[] = {
  0x00,0x00,0x00,0xa8,0x0a,0x00,0x00,0x00,0x00,0x00,0x40,0x55,0x55,0x01,0x00,
  0x00,0x00,0x00,0xa8,0xaa,0xaa,0x0a,0x00,0x00,0x00,0x00,0x54,0xf5,0x57,0x15,
  0x00,0x00,0x00,0x80,0xaa,0xaa,0xaa,0xaa,0x00,0x00,0x00,0x40,0xd5,0xff,0xff,
@@ -108,20 +108,26 @@ void InitColorsX()
     cmap = XDefaultColormap(gi.disp, gi.screen);
 
     /* Allocate a color from the present X11 colormap. Given a string like */
-    /* "violet", allocate this color and return a value specifying it.     */
+    /* "magenta", allocate this color and return a value specifying it.    */
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < cColor; i++) {
       XParseColor(gi.disp, cmap, szColorX[i], &xcol);
       XAllocColor(gi.disp, cmap, &xcol);
       rgbind[i] = xcol.pixel;
     }
   }
+  if (!gi.fFile) {
+    XSetBackground(gi.disp, gi.gc,   rgbind[gi.kiOff]);
+    XSetForeground(gi.disp, gi.pmgc, rgbind[gi.kiOff]);
+  }
 #endif
+
 #ifdef WIN
   /* Don't print on a black background unless user really wants that. */
   if (wi.hdcPrint != NULL && us.fSmartSave)
     fInverse = fTrue;
 #endif
+
   gi.kiOn   = kMainA[!fInverse];
   gi.kiOff  = kMainA[fInverse];
   gi.kiLite = gs.fColor ? kMainA[2+fInverse] : gi.kiOn;
@@ -138,12 +144,6 @@ void InitColorsX()
     kObjB[i]     = gs.fColor ? kObjA[i]     : gi.kiOn;
   for (i = 0; i <= cRay+1; i++)
     kRayB[i]     = gs.fColor ? kRayA[i]     : gi.kiOn;
-#ifdef X11
-  if (!gi.fFile) {
-    XSetBackground(gi.disp, gi.gc,   rgbind[gi.kiOff]);
-    XSetForeground(gi.disp, gi.pmgc, rgbind[gi.kiOff]);
-  }
-#endif
 }
 
 
@@ -198,7 +198,7 @@ void BeginX()
   hint.flags = PPosition | PSize | PMaxSize | PMinSize;
   gi.depth = DefaultDepth(gi.disp, gi.screen);
   if (gi.depth < 5) {
-    gi.fMono = fTrue;      /* Is this a monochrome monitor? */
+    gi.fMono = fTrue;      /* Is this a monochrome display? */
     gs.fColor = fFalse;
   }
   gi.root = RootWindow(gi.disp, gi.screen);
@@ -209,7 +209,7 @@ void BeginX()
       hint.x, hint.y, hint.width, hint.height, 5, fg, bg);
   gi.pmap = XCreatePixmap(gi.disp, gi.wind, gs.xWin, gs.yWin, gi.depth);
   gi.icon = XCreateBitmapFromData(gi.disp, DefaultRootWindow(gi.disp),
-    icon_bits, icon_width, icon_height);
+    (char *)icon_bits, icon_width, icon_height);
   if (!gs.fRoot)
     XSetStandardProperties(gi.disp, gi.wind, szAppName, szAppName, gi.icon,
       (char **)xkey, 0, &hint);
@@ -403,11 +403,11 @@ void Animate(int mode, int toadd)
   if (((gi.nMode == gAstroGraph || gi.nMode == gSphere) && gs.fAnimMap) ||
     ((gi.nMode == gWorldMap || gi.nMode == gGlobe || gi.nMode == gPolar) &&
     (!gs.fAlt || gs.fAnimMap))) {
-    gs.nRot += toadd;
-    if (gs.nRot >= nDegMax)     /* For animating map displays, add */
-      gs.nRot -= nDegMax;       /* in appropriate degree value.    */
-    else if (gs.nRot < 0)
-      gs.nRot += nDegMax;
+    gs.rRot += (real)toadd;
+    if (gs.rRot >= rDegMax)     /* For animating map displays, add */
+      gs.rRot -= rDegMax;       /* in appropriate degree value.    */
+    else if (gs.rRot < 0.0)
+      gs.rRot += rDegMax;
     return;
   }
 
@@ -616,7 +616,7 @@ void InteractX()
     } else {
       if (gs.fKeepSquare && fSquare) {
         if (fSidebar)
-          gs.xWin -= SIDESIZE;
+          gs.xWin -= SIDESIZE * gi.nScaleText;
         if (gs.xWin != gs.yWin) {
           i = Min(gs.xWin, gs.yWin);
           i = Max(i, BITMAPX1);
@@ -624,7 +624,7 @@ void InteractX()
           fResize = fTrue;
         }
         if (fSidebar)
-          gs.xWin += SIDESIZE;
+          gs.xWin += SIDESIZE * gi.nScaleText;
       }
       if (gs.xWin < BITMAPX1) {
         gs.xWin = BITMAPX1;
@@ -701,7 +701,7 @@ void InteractX()
       EraseRect(&gi.wpAst->portRect);
 #endif
 #ifdef WCLI
-      InvalidateRect(wi.hwnd, NULL, FALSE);
+      InvalidateRect(wi.hwnd, NULL, fFalse);
       ClearB((lpbyte)&ps, sizeof(PAINTSTRUCT));
       hdcWin = BeginPaint(wi.hwnd, &ps);
       wi.hdc = CreateCompatibleDC(hdcWin);
@@ -780,7 +780,7 @@ void InteractX()
           XCopyArea(gi.disp, gi.pmap, gi.wind, gi.gc,
             0, 0, gs.xWin, gs.yWin, 0, 0);
         } else if (xevent.xbutton.button == Button2 && (gi.nMode ==
-          gAstroGraph || gi.nMode == gWorldMap) && gs.nRot == 0) {
+          gAstroGraph || gi.nMode == gWorldMap) && gs.rRot == 0.0) {
           Lon = rDegHalf -
             (real)(xevent.xbutton.x-1)/(real)(gs.xWin-2)*rDegMax;
           Lat = rDegQuad -
@@ -941,15 +941,15 @@ void InteractX()
             }
             break;
           case '{':
-            gs.nRot += NAbs(dir);
-            if (gs.nRot >= nDegMax)
-              gs.nRot -= nDegMax;
+            gs.rRot += (real)NAbs(dir);
+            if (gs.rRot >= rDegMax)
+              gs.rRot -= rDegMax;
             fRedraw = fTrue;
             break;
           case '}':
-            gs.nRot -= NAbs(dir);
-            if (gs.nRot < 0)
-              gs.nRot += nDegMax;
+            gs.rRot -= (real)NAbs(dir);
+            if (gs.rRot < 0.0)
+              gs.rRot += rDegMax;
             fRedraw = fTrue;
             break;
           case 'Q':
@@ -993,12 +993,16 @@ void InteractX()
             inv(us.objCenter);
             fCast = fTrue;
             break;
-          case 'f':
-            inv(us.fFlip);
+          case 'a':
+            inv(us.fHouse3D);
             fCast = fTrue;
             break;
           case 'g':
             inv(us.fDecan);
+            fCast = fTrue;
+            break;
+          case 'f':
+            inv(us.fFlip);
             fCast = fTrue;
             break;
           case 'z':
@@ -1069,12 +1073,21 @@ void InteractX()
 #endif
 #ifdef CONSTEL
           case 'F':
-            if (!fMap && gi.nMode != gGlobe && gi.nMode != gPolar)
+            if (gi.nMode != gSphere &&
+              gi.nMode != gGlobe && gi.nMode != gPolar)
               gi.nMode = gWorldMap;
             inv(gs.fConstel);
             fRedraw = fTrue;
             break;
 #endif
+          case 'e':
+            inv(gs.fEquator);
+            fRedraw = fTrue;
+            break;
+          case 'd':
+            inv(gs.fHouseExtra);
+            fRedraw = fTrue;
+            break;
           case '0':
             inv(us.fPrimeVert);
             inv(us.fCalendarYear);
@@ -1209,7 +1222,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     if (FValidBmpmode(ch1))
       gs.chBmpMode = ch1;
     SwitchF2(gs.fBitmap);
-    gs.fPS = gs.fMeta = fFalse;
+    gs.fPS = gs.fMeta = gs.fWire = fFalse;
     break;
 
 #ifdef PS
@@ -1219,7 +1232,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       return tcError;
     }
     gs.fPS = fTrue + (ch1 != '0');
-    gs.fBitmap = gs.fMeta = fFalse;
+    gs.fBitmap = gs.fMeta = gs.fWire = fFalse;
     break;
 #endif
 
@@ -1243,7 +1256,18 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     if (ch1 == '0')
       SwitchF(gs.fFont);
     SwitchF2(gs.fMeta);
-    gs.fBitmap = gs.fPS = fFalse;
+    gs.fBitmap = gs.fPS = gs.fWire = fFalse;
+    break;
+#endif
+
+#ifdef WIRE
+  case '3':
+    if (us.fNoWrite || is.fSzInteract) {
+      ErrorArgv("X3");
+      return tcError;
+    }
+    SwitchF2(gs.fWire);
+    gs.fBitmap = gs.fPS = gs.fMeta = fFalse;
     break;
 #endif
 
@@ -1256,7 +1280,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       ErrorArgc("Xo");
       return tcError;
     }
-    if (!gs.fBitmap && !gs.fPS && !gs.fMeta)
+    if (!gs.fBitmap && !gs.fPS && !gs.fMeta && !gs.fWire)
       gs.fBitmap = fTrue;
     gi.szFileOut = SzPersist(argv[1]);
     darg++;
@@ -1360,6 +1384,18 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     SwitchF(gs.fJetTrail);
     break;
 
+  case 'e':
+    SwitchF(gs.fEquator);
+    break;
+
+  case 'U':
+    SwitchF(gs.fAllStar);
+    break;
+
+  case 'C':
+    SwitchF(gs.fHouseExtra);
+    break;
+
   case '1':
     if (argc <= 1) {
       ErrorArgc("X1");
@@ -1404,13 +1440,13 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
 #endif
 
   case 'X':
-    if (argc > 1 && ((i = atoi(argv[1])) || argv[1][0] == '0')) {
+    if (argc > 1 && ((rT = atof(argv[1])) || argv[1][0] == '0')) {
       darg++;
-      if (!FValidRotation(i)) {
-        ErrorValN("XX", i);
+      if (!FValidRotation(rT)) {
+        ErrorValR("XX", rT);
         return tcError;
       }
-      gs.nRot = i;
+      gs.rRot = rT;
       if (argc > 2 && ((rT = atof(argv[2])) || argv[2][0] == '0')) {
         darg++;
         if (!FValidTilt(rT)) {
@@ -1427,13 +1463,13 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     break;
 
   case 'W':
-    if (argc > 1 && ((i = atoi(argv[1])) || argv[1][0] == '0')) {
+    if (argc > 1 && ((rT = atof(argv[1])) || argv[1][0] == '0')) {
       darg++;
-      if (!FValidRotation(i)) {
-        ErrorValN("XW", i);
+      if (!FValidRotation(rT)) {
+        ErrorValR("XW", rT);
         return tcError;
       }
-      gs.nRot = i;
+      gs.rRot = rT;
     }
     gi.nMode = gWorldMap;
     if (ch1 == '0')
@@ -1442,13 +1478,13 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     break;
 
   case 'G':
-    if (argc > 1 && ((i = atoi(argv[1])) || argv[1][0] == '0')) {
+    if (argc > 1 && ((rT = atof(argv[1])) || argv[1][0] == '0')) {
       darg++;
-      if (!FValidRotation(i)) {
-        ErrorValN("XG", i);
+      if (!FValidRotation(rT)) {
+        ErrorValR("XG", rT);
         return tcError;
       }
-      gs.nRot = i;
+      gs.rRot = rT;
       if (argc > 2 && ((rT = atof(argv[2])) || argv[2][0] == '0')) {
         darg++;
         if (!FValidTilt(rT)) {
@@ -1465,15 +1501,15 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     break;
 
   case 'P':
-    if (argc > 1 && ((i = atoi(argv[1])) || argv[1][0] == '0')) {
+    if (argc > 1 && ((rT = atoi(argv[1])) || argv[1][0] == '0')) {
       darg++;
-      if (!FValidRotation(i)) {
-        ErrorValN("XP", i);
+      if (!FValidRotation(rT)) {
+        ErrorValR("XP", rT);
         return tcError;
       }
     } else
-      i = 0;
-    gs.nRot = i;
+      rT = 0.0;
+    gs.rRot = rT;
     gi.nMode = gPolar;
     if (ch1 == '0')
       SwitchF(gs.fSouth);
@@ -1520,7 +1556,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
 
 /* Process one command line switch passed to the program dealing with more  */
 /* obscure graphics options. This is structured very much like the function */
-/* NProcessSwitchesX(), except here we know each switch begins with 'YX'.   */
+/* NProcessSwitchesX(), except here each switch begins with 'YX'.           */
 
 int NProcessSwitchesRareX(int argc, char **argv, int pos,
   flag fOr, flag fAnd, flag fNot)
@@ -1572,6 +1608,21 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
     darg += 3;
     break;
 
+  case 'A':
+    if (argc <= 3) {
+      ErrorArgc("YXA");
+      return tcError;
+    }
+    i = NParseSz(argv[1], pmAspect);
+    if (!FAspect(i)) {
+      ErrorValN("YXA", i);
+      return tcError;
+    }
+    szDrawAspect[i]  = argv[2][0] ? SzPersist(argv[2]) : szDrawAspectDef[i];
+    szDrawAspect2[i] = argv[3][0] ? SzPersist(argv[3]) : szDrawAspectDef2[i];
+    darg += 3;
+    break;
+
   case 'v':
     if (argc <= 1) {
       ErrorArgc("YXv");
@@ -1615,6 +1666,37 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
       return tcError;
     }
     gs.nGridCell = i;
+    darg++;
+    break;
+
+  case 'S':
+    if (argc <= 1) {
+      ErrorArgc("YXS");
+      return tcError;
+    }
+    gs.rspace = atof(argv[1]);
+    darg++;
+    break;
+
+  case 'j':
+    if (argc <= 1) {
+      ErrorArgc("YXj");
+      return tcError;
+    }
+    i = atoi(argv[1]);
+    if (ch1 != '0') {
+      if (i < 0) {
+        ErrorValN("YXj", i);
+        return tcError;
+      }
+      gs.cspace = i;
+      if (gi.rgspace != NULL) {
+        DeallocateP(gi.rgspace);
+        gi.rgspace = NULL;
+      }
+      gi.cspace = gi.ispace = 0;
+    } else
+      gs.zspace = i;
     darg++;
     break;
 
@@ -1680,13 +1762,13 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
 /* This is the main interface to all the graphics features. This routine     */
 /* is called from the main program if any of the -X switches were specified, */
 /* and it sets up for and goes and generates the appropriate graphics chart. */
-/* We return fTrue if successfull, fFalse if some non-fatal error occurred.  */
+/* Return fTrue if successfull, or fFalse if some non-fatal error occurred.  */
 
 flag FActionX()
 {
   int i, n;
 
-  gi.fFile = (gs.fBitmap || gs.fPS || gs.fMeta);
+  gi.fFile = (gs.fBitmap || gs.fPS || gs.fMeta || gs.fWire);
 #ifdef PS
   gi.fEps = gs.fPS > fTrue;
 #endif
@@ -1740,13 +1822,13 @@ flag FActionX()
 #ifdef WIN
     if (wi.hdcPrint == hdcNil) {
       if (fSidebar)
-        gs.xWin -= SIDESIZE;
+        gs.xWin -= SIDESIZE * gi.nScaleText;
 #endif
       n = Min(gs.xWin, gs.yWin);
       gs.xWin = gs.yWin = n;
 #ifdef WIN
       if (fSidebar)
-        gs.xWin += SIDESIZE;
+        gs.xWin += SIDESIZE * gi.nScaleText;
     }
 #endif
   } else if (fMap) {
@@ -1757,7 +1839,8 @@ flag FActionX()
   if (fSidebar)
     gs.xWin -= SIDESIZE;
 #endif
-  gi.nScaleT = gs.fPS ? PSMUL : (gs.fMeta ? METAMUL : 1);
+  gi.nScaleT =
+    gs.fPS ? PSMUL : (gs.fMeta ? METAMUL : (gs.fWire ? WIREMUL : 1));
 #ifdef WIN
   if (wi.hdcPrint != hdcNil)
     gi.nScaleT = METAMUL;
@@ -1787,18 +1870,34 @@ flag FActionX()
       PsBegin();
 #endif
 #ifdef META
-    else {
+    else if (gs.fMeta) {
       if (!FEnsureGrid())
         return fFalse;
       for (gi.cbMeta = MAXMETA; gi.cbMeta > 0 &&
         (gi.bm = PAllocate(gi.cbMeta, NULL)) == NULL;
         gi.cbMeta -= MAXMETA/8)
         PrintWarning("Attempting to get maximum memory for metafile.");
-      if (gi.cbMeta == 0)
+      if (gi.cbMeta <= 0)
         return fFalse;
       gs.xWin   *= METAMUL;  /* Increase chart sizes and scales behind the */
       gs.yWin   *= METAMUL;  /* scenes to make graphics look smoother.     */
       gs.nScale *= METAMUL;
+    }
+#endif
+#ifdef WIRE
+    else {
+      gs.xWin   *= WIREMUL;  /* Increase chart sizes and scales behind the */
+      gs.yWin   *= WIREMUL;  /* scenes to make graphics look smoother.     */
+      gs.nScale *= WIREMUL;
+      for (gi.cbWire = MAXMETA; gi.cbWire > 0 &&
+        (gi.bm = PAllocate(gi.cbWire, NULL)) == NULL;
+        gi.cbWire -= MAXMETA/8)
+        PrintWarning("Attempting to get maximum memory for wireframe.");
+      if (gi.cbWire <= 0)
+        return fFalse;
+      gi.pwWireCur = (word *)gi.bm;
+      gi.cWire = gi.zDefault = 0;
+      gi.kiInFile = -1;
     }
 #endif
     InitColorsX();
@@ -1821,7 +1920,7 @@ flag FActionX()
     DrawChartX();
   if (gi.fFile) {    /* Write bitmap to file if in that mode. */
     EndFileX();
-    if (!gs.fPS)
+    if (gs.fBitmap || gs.fMeta || gs.fWire)
       DeallocateP(gi.bm);
   }
 #ifdef ISG

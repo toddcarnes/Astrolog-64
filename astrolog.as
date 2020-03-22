@@ -1,23 +1,24 @@
-@0309  ; Astrolog (6.30) default settings file astrolog.as
+@0309  ; Astrolog (6.40) default settings file astrolog.as
 
--z 8:00W                ; Default time zone     [hours W or E of GMT   ]
+-z 8:00W                ; Default time zone     [hours W or E of UTC   ]
 -z0 Autodetect          ; Default Daylight time [0 standard, 1 daylight]
 -zl 122W19:59 47N36:35  ; Default location      [longitude and latitude]
 -zv 167ft               ; Default elevation     [in feet or meters     ]
 -zj "Current moment now" "Seattle, WA" ; Default name and location
 
+-n      ; Comment out this line to not start with chart for "now".
 -Yz 0   ; Time minute addition to be used when "now" charts are off.
-;-n      ; Comment out this line to not start with chart for "now".
 
 _s      ; Zodiac selection          ["_s" is tropical, "=s" is sidereal]
 :s 0    ; Zodiac offset value       [Change "0" to desired ayanamsa    ]
 -A 5    ; Number of aspects         [Change "5" to desired number      ]
 -c Plac ; House system              [Change "Plac" to desired system   ]
-_k      ; Ansi color text           ["=k" is color, "_k" is normal     ]
+_c3     ; 3D house boundaries       ["=c3" is 3D houses, "_c3" is 2D   ]
+=k      ; Ansi color text           ["=k" is color, "_k" is monochrome ]
 :d 48   ; Searching divisions       [Change "48" to desired divisions  ]
 _b0     ; Print zodiac seconds      ["_b0" to minute, "=b0" to second  ]
 =b      ; Use ephemeris files       ["=b" uses them, "_b" doesn't      ]
-:w 4    ; Wheel chart text rows     [Change "4" to desired wheel rows  ]
+:w 0    ; Wheel chart text rows     [Change "0" to desired wheel rows  ]
 :I 80   ; Text screen columns       [Change "80" to desired columns    ]
 -YQ 0   ; Text screen scroll limit  [Change "24" or set to "0" for none]
 _Yd     ; European date format      ["_Yd" is MDY, "=Yd" is DMY        ]
@@ -26,20 +27,20 @@ _Yv     ; European length units     ["_Yv" is imperial, "=Yv" is metric]
 _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 =YC     ; Smart cusp displays       ["=YC" is smart, "_YC" is normal   ]
 =YO     ; Smart copy and printing   ["=YO" does it smart, "_YO" doesn't]
-=Y8     ; Clip text to end of line  ["=Y8" clips, "_Y8" doesn't clip   ]
+_Y8     ; Clip text to end of line  ["=Y8" clips, "_Y8" doesn't clip   ]
 
 
 ; DEFAULT RESTRICTIONS:
 
 -YR 0 10     1 0 0 0 0 0 0 0 0 0 0    ; Planets
--YR 11 21    0 0 0 0 0 0 1 0 0 1 1    ; Minor planets
+-YR 11 21    1 1 1 1 1 0 1 1 1 1 1    ; Minor planets
 -YR 22 33    0 1 1 1 1 1 1 1 1 0 1 1  ; House cusps
 -YR 34 42    1 1 1 1 1 1 1 1 1        ; Uranians
 
 ; DEFAULT TRANSIT RESTRICTIONS:
 
 -YRT 0 10    1 0 1 0 0 0 0 0 0 0 0    ; Planets
--YRT 11 21   0 0 0 0 0 0 1 0 1 1 1    ; Minor planets
+-YRT 11 21   1 1 1 1 1 0 1 1 1 1 1    ; Minor planets
 -YRT 22 33   1 1 1 1 1 1 1 1 1 1 1 1  ; House cusps
 -YRT 34 42   1 1 1 1 1 1 1 1 1        ; Uranians
 
@@ -122,16 +123,23 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 
 ; GRAPHICS DEFAULTS:
 
-_X               ; Graphics chart flag ["_X" is text, "=X" is graphics]
-:Xw 480 480      ; Default X and Y resolution
-:Xs 200          ; Character scale [100-400]
+=Xm              ; Color charts       ["=Xm" is color, "_Xm" is monochrome]
+_Xr              ; Reverse background ["_Xr" is black, "=Xr" is white     ]
+:Xw 480 480      ; Default X and Y resolution (not including sidebar)
+:Xs 200          ; Character scale     [100-400]
 :XS 100          ; Graphics text scale [100-400]
+=XQ              ; Square charts ["=XQ" forces square, "_XQ" allows rectangle]
+=Xu              ; Chart border  ["=Xu" shows border, "_Xu" doesn't show     ]
 :Xbb             ; Bitmap file type
-:YXG 1111        ; Glyph selections [Capricorn, Uranus, Pluto, Lilith]
-:YXg 0           ; Aspect grid cells ["0" for autodetect]
+:YXG 1111        ; Glyph selections   [Capricorn, Uranus, Pluto, Lilith]
+:YXg 0           ; Aspect grid cells  ["0" for autodetect  ]
+:YXS 0.0         ; Orbit radius in AU ["0.0" for autodetect]
+:YXj 0           ; Orbit trail count
 :YX7 600         ; Esoteric ray column influence width
 :YXf 2           ; Use actual fonts
 :YXp 0           ; PostScript paper orientation ["-1" portrait, "1" landscape]
 :YXp0 8.5in 11in ; PostScript paper X and Y sizes
+
+=X               ; Graphics chart display ["_X" is text, "=X" is graphics]
 
 ; astrolog.as

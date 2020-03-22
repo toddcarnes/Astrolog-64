@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: general.cpp
+** Astrolog (Version 6.40) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -508,13 +508,23 @@ real GetOrb(int obj1, int obj2, int asp)
 }
 
 
+/* Return an aspect's name, checking whether parallel aspects are on. */
+
+CONST char *SzAspect(int asp)
+{
+  if (us.fParallel && asp <= aOpp)
+    asp += cAspect;
+  return szAspectDisp[asp];
+}
+
+
 /* Return the three letter abbreviation for an aspect. */
 
 CONST char *SzAspectAbbrev(int asp)
 {
   if (us.fParallel && asp <= aOpp)
     asp += cAspect;
-  return szAspectAbbrev[asp];
+  return szAspectAbbrevDisp[asp];
 }
 
 
@@ -564,9 +574,11 @@ void PrintSz(CONST char *sz)
 
   for (pch = (char *)sz; *pch; pch++) {
     if (*pch != '\n') {
-      is.cchCol++;
-      if (us.fClip80 && is.cchCol >= us.nScreenWidth)  /* Clip if need be. */
-        continue;
+      if (is.nHTML != 2) {
+        is.cchCol++;
+        if (us.fClip80 && is.cchCol >= us.nScreenWidth)  /* Clip if needed. */
+          continue;
+      }
     } else {
       is.cchRow++;
       is.cchCol = 0;
@@ -580,7 +592,23 @@ void PrintSz(CONST char *sz)
       }
     } else
 #endif
-    putc(*pch, is.S);
+    if (is.nHTML == 1) {
+      if (*pch == '<')
+        fprintf(is.S, "&lt;");
+      else if (*pch == '>')
+        fprintf(is.S, "&gt;");
+      else if (*pch == '&')
+        fprintf(is.S, "&amp;");
+      else if (*pch == '\"')
+        fprintf(is.S, "&quot;");
+      else if (*pch == ' ' && (pch <= sz || *(pch+1) <= ' '))
+        fprintf(is.S, "&nbsp;");
+      else if (*pch == '\n')
+        fprintf(is.S, "<br>\n");
+      else
+        putc(*pch, is.S);
+    } else
+      putc(*pch, is.S);
 #ifndef WIN
     if (*pch == '\n' && is.S == stdout &&
       us.nScrollRow > 0 && is.cchRow >= us.nScrollRow) {
@@ -595,7 +623,7 @@ void PrintSz(CONST char *sz)
 
       /* One can actually give a few simple commands before hitting return. */
 
-      if (szInput[0] == '.' || szInput[0] == 'q')
+      if (szInput[0] == 'q' || szInput[0] == '.')
         Terminate(tcForce);
       else if (szInput[0] == '8')
         inv(us.fClip80);
@@ -793,8 +821,7 @@ void AnsiColor(int k)
   if (is.S == stdout) {
     if (k < 0)
       k = kMainA[2];
-    SetTextColor(wi.hdc, (COLORREF)rgbbmp[us.fAnsiColor ? k :
-      (gs.fInverse ? kMainA[0] : kMainA[2])]);
+    SetTextColor(wi.hdc, (COLORREF)rgbbmp[us.fAnsiColor ? k : kMainA[2]]);
     return;
   }
 #endif
@@ -806,17 +833,30 @@ void AnsiColor(int k)
     return;
   cchSav = is.cchCol;
   is.cchCol = 0;
-  sprintf(sz, "%c[", chEscape);
-  PrintSz(sz);
-  if (k == kDefault)
-    PrintCh('0');
-  else if (k == kReverse) {
-    PrintCh('7');
-  } else {
-    sprintf(sz, "%c;%d", k > 7 ? '1' : '0', 30 + (k & 7));
+  if (is.nHTML <= 0) {
+    sprintf(sz, "%c[", chEscape);
     PrintSz(sz);
+    if (k == kDefault)
+      PrintCh('0');
+    else if (k == kReverse) {
+      PrintCh('7');
+    } else {
+      sprintf(sz, "%c;%d", k > 7 ? '1' : '0', 30 + (k & 7));
+      PrintSz(sz);
+    }
+    PrintCh('m');
+  } else {
+    if (is.nHTML != 3) {
+      is.nHTML = 2;
+      PrintSz("</font>");
+    } else
+      is.nHTML = 2;
+    if (k < 0)
+      k = kMainA[2];
+    sprintf(sz, "<font color=\"%s\">", szColorHTML[k]);
+    PrintSz(sz);
+    is.nHTML = 1;
   }
-  PrintCh('m');
   is.cchCol = cchSav;
 }
 
@@ -1019,7 +1059,7 @@ char *SzTim(real tim)
 
 
 /* Return a string containing the given time zone, given as a real value     */
-/* having the hours before GMT in the integer part and minutes fractionally. */
+/* having the hours before UTC in the integer part and minutes fractionally. */
 
 char *SzZone(real zon)
 {

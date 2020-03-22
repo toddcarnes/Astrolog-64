@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: xdata.cpp
+** Astrolog (Version 6.40) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -63,41 +63,45 @@ GS gs = {
 #else
   fTrue,
 #endif
-  fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse,
-  fTrue, fTrue, fFalse, fFalse, fFalse, fFalse, fFalse, fTrue, fTrue,
-  DEFAULTX, DEFAULTY,
+  fFalse, fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse, fTrue,
+  fTrue, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
+  fTrue, fTrue, DEFAULTX, DEFAULTY,
 #ifdef WIN
   -10,
 #else
   0,
 #endif
   200, 100, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
-  0, 25, 11, oCore, 600, 1111, fFalse, fFalse};
+  0, 25, 11, oCore, 0.0, 1000, 0, 600, 1111, fFalse, fFalse};
 
 GI gi = {
   0, fFalse, -1,
-  NULL, 0, NULL, NULL, 0.0, fFalse,
-  2, 1, 1, 20, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1
+  NULL, 0, NULL, NULL, 0.0, fFalse, fFalse,
+  2, 1, 1, 20, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1,
+  NULL, 0, 0,
 #ifdef X11
-  , NULL, 0, 0, 0, 0, 0, 0, 0, 0
+  NULL, 0, 0, 0, 0, 0, 0, 0, 0,
 #endif
 #ifdef PS
-  , fFalse, 0, fFalse, 0, 0, 1.0
+  fFalse, 0, fFalse, 0, 0, 1.0,
 #endif
 #ifdef META
-  , NULL, NULL, MAXMETA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+  NULL, NULL, MAXMETA, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+#endif
+#ifdef WIRE
+  NULL, 0, 0, -1, 0,
 #endif
   };
 
 #ifdef WIN
 WI wi = {
-  (HINSTANCE)NULL, (HWND)NULL, (HWND)NULL, (HMENU)NULL, (HACCEL)NULL,
-  hdcNil, hdcNil, (HWND)NULL, (HPEN)NULL, (HBRUSH)NULL, (HFONT)NULL,
+  (HINSTANCE)NULL, (HWND)NULL, (HWND)NULL, (HMENU)NULL, (HACCEL)NULL, hdcNil,
+  hdcNil, (HWND)NULL, (HPEN)NULL, (HBRUSH)NULL, (HFONT)NULL, (HANDLE)NULL,
   0, 0, 0, 0, 0, 0, 0, -1, -1,
-  0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
+  0, 0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
 
   /* Window user settings. */
-  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse,
+  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse, fFalse,
   0, kBlack, 1, 1000};
 
 OPENFILENAME ofn = {
@@ -131,17 +135,17 @@ CONST KV rgbbmp[cColor] = {
   0xFF0000, 0xFF00FF, 0xFFFF00, 0xFFFFFF};
 #ifdef X11
 CONST char *szColorX[cColor] = {
-  "black", "orangered3", "green4", "darkorange2",
-  "blue4", "violet", "cyan4", "grey65",
-  "grey35", "orangered1", "green1", "yellow1",
-  "blue1", "pink", "cyan1", "white"};
+  "black",  "red4",    "green4", "yellow4",
+  "blue4",  "purple1", "cyan4",  "grey75",
+  "grey50", "red1",    "green1", "yellow1",
+  "blue1",  "magenta", "cyan1",  "white"};
 KV rgbind[cColor], fg, bg;
 #endif
 #ifdef WIN
 int ikPalette[cColor] =
   {-0, -1, 1, 4, 6, 3, -8, 5, -3, -2, -4, -5, -7, 2, 7, -6};
 #endif
-char *szWheelX[4+1] = {"", "", "", "", ""};
+char *szWheelX[4+1] = {NULL, NULL, NULL, NULL, NULL};
 
 /* These are the actual color arrays and variables used by the program.      */
 /* Technically, Astrolog always assumes we are drawning on a color terminal. */
@@ -317,7 +321,7 @@ CONST char *szDrawHouse2[cSign+1] = {"",
   "BH4NG2D8NL2R2BR5HU6ER2FD6GL2", "BH4NG2D8NL2R2BR4R2NR2U8G2",
   "BH4NG2D8NL2R2BR4NR4UE4U2HL2G"};
 
-CONST char *szDrawAspect[cAspect+3] = {"",
+CONST char *szDrawAspectDef[cAspect2+1] = {"",
   "HLG2DF2RE2UHE4",                        /* Conjunction      */
   "BGL2GDFREU2E2U2ERFDGL2",                /* Opposition       */
   "BH4R8D8L8U8",                           /* Square           */
@@ -338,8 +342,9 @@ CONST char *szDrawAspect[cAspect+3] = {"",
   "BF2UHL2GFR3DGL3BU6LNLU2NLRBR2F2E2",     /* Quatronovile */
   "BU4BLD8BR2U8",                          /* Parallel       */
   "BU4BLD8BR2U8BF3BLL6BD2R6"};             /* Contraparallel */
+CONST char *szDrawAspect[cAspect2+1];
 
-CONST char *szDrawAspect2[cAspect+3] = {"",
+CONST char *szDrawAspectDef2[cAspect2+1] = {"",
   "BELHL4G3D4F3R4E3U4HUE7",                /* Conjunction */
   "BG3HL2G2D2F2R2E2U2HE6HU2E2R2F2D2G2L2H", /* Opposition  */
   "", /* Square           */
@@ -360,6 +365,7 @@ CONST char *szDrawAspect2[cAspect+3] = {"",
   "", /* Quatronovile */
   "", /* Parallel        */
   ""}; /* Contraparallel */
+CONST char *szDrawAspect2[cAspect2+1];
 
 CONST char *szDrawCh[256-32] = {"",
   "BR2D4BD2D0", "BRD2BR2U2", "BD2R4BD2L4BFU4BR2D4", "BR2D6BENL3EHL2HER3",

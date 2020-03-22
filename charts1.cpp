@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: charts1.cpp
+** Astrolog (Version 6.40) File: charts1.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -80,7 +80,7 @@ void PrintHeader(void)
       PrintSz("for ");
     sprintf(sz, "%s%s", ciMain.nam, fNam ? "\n" : ""); PrintSz(sz);
     day = DayOfWeek(Mon, Day, Yea);
-    sprintf(sz, "%.3s %s %s (%cT %s GMT)", szDay[day],
+    sprintf(sz, "%.3s %s %s (%cT %s UTC)", szDay[day],
       SzDate(Mon, Day, Yea, 3), SzTim(Tim), ChDst(Dst),
       SzZone(Zon)); PrintSz(sz);
     sprintf(sz, "%c%s%s%s\n", fLoc && !fNam ? '\n' : ' ', ciMain.loc,
@@ -188,6 +188,7 @@ void ChartListing(void)
           et.coElem[k]); PrintSz(sz);
         AnsiColor(kDefault);
       } else if (i == cSign+6) {
+        AnsiColor(kDefault);
         sprintf(sz, "  TOT %2d %3d %3d %3d",
           et.coMode[0], et.coMode[1], et.coMode[2], et.coSum); PrintSz(sz);
       } else if (i == cSign+7)
@@ -361,7 +362,7 @@ void PrintGrand(int ac, int i1, int i2, int i3, int i4)
   sprintf(sz, "%.3s: ", szObjDisp[i3]); PrintSz(sz);
   PrintZodiac(planet[i3]);
   if (ac == acGC || ac == acC || ac == acS4) {
-    PrintSz(ac == acS4 ? " and " : " to ");
+    PrintSz(ac == acS4 ? " and " : " to  ");
     AnsiColor(kObjA[i4]);
     sprintf(sz, "%.3s: ", szObjDisp[i4]); PrintSz(sz);
     PrintZodiac(planet[i4]);
@@ -380,46 +381,52 @@ void DisplayGrands(void)
   for (i = 0; i <= cObj; i++) if (!FIgnore(i))
     for (j = 0; j <= cObj; j++) if (j != i && !FIgnore(j))
       for (k = 0; k <= cObj; k++) if (k != i && k != j && !FIgnore(k)) {
+        if (!(us.objRequire >= 0 &&
+          i != us.objRequire && j != us.objRequire && k != us.objRequire)) {
 
-        /* Is there a Stellium among the current three planets? */
+          /* Is there a Stellium among the current three planets? */
 
-        if (i < j && j < k && grid->n[i][j] == aCon &&
-            grid->n[i][k] == aCon && grid->n[j][k] == aCon) {
-          for (l = 0; l <= cObj; l++)
-            if (!FIgnore(l) && l != i && l != j && l != k &&
-              grid->n[Min(i, l)][Max(i, l)] == aCon &&
-              grid->n[Min(j, l)][Max(j, l)] == aCon &&
-              grid->n[Min(k, l)][Max(k, l)] == aCon)
-              break;
-          if (l > cObj) {
+          if (i < j && j < k && grid->n[i][j] == aCon &&
+              grid->n[i][k] == aCon && grid->n[j][k] == aCon) {
+            for (l = 0; l <= cObj; l++)
+              if (!FIgnore(l) && l != i && l != j && l != k &&
+                grid->n[Min(i, l)][Max(i, l)] == aCon &&
+                grid->n[Min(j, l)][Max(j, l)] == aCon &&
+                grid->n[Min(k, l)][Max(k, l)] == aCon)
+                break;
+            if (l > cObj) {
+              cac++;
+              PrintGrand(acS3, i, j, k, 0);
+            }
+
+          /* Is there a Grand Trine? */
+
+          } else if (i < j && j < k && grid->n[i][j] == aTri &&
+              grid->n[i][k] == aTri && grid->n[j][k] == aTri) {
             cac++;
-            PrintGrand(acS3, i, j, k, l);
+            PrintGrand(acGT, i, j, k, 0);
+
+          /* Is there a T-Square? */
+
+          } else if (j < k && grid->n[j][k] == aOpp &&
+              grid->n[Min(i, j)][Max(i, j)] == aSqu &&
+              grid->n[Min(i, k)][Max(i, k)] == aSqu) {
+            cac++;
+            PrintGrand(acTS, i, j, k, 0);
+
+          /* Is there a Yod? */
+
+          } else if (j < k && grid->n[j][k] == aSex &&
+              grid->n[Min(i, j)][Max(i, j)] == aInc &&
+              grid->n[Min(i, k)][Max(i, k)] == aInc) {
+            cac++;
+            PrintGrand(acY, i, j, k, 0);
           }
-
-        /* Is there a Grand Trine? */
-
-        } else if (i < j && j < k && grid->n[i][j] == aTri &&
-            grid->n[i][k] == aTri && grid->n[j][k] == aTri) {
-          cac++;
-          PrintGrand(acGT, i, j, k, l);
-
-        /* Is there a T-Square? */
-
-        } else if (j < k && grid->n[j][k] == aOpp &&
-            grid->n[Min(i, j)][Max(i, j)] == aSqu &&
-            grid->n[Min(i, k)][Max(i, k)] == aSqu) {
-          cac++;
-          PrintGrand(acTS, i, j, k, l);
-
-        /* Is there a Yod? */
-
-        } else if (j < k && grid->n[j][k] == aSex &&
-            grid->n[Min(i, j)][Max(i, j)] == aInc &&
-            grid->n[Min(i, k)][Max(i, k)] == aInc) {
-          cac++;
-          PrintGrand(acY, i, j, k, l);
         }
         for (l = 0; l <= cObj; l++) if (!FIgnore(l)) {
+          if (us.objRequire >= 0 && i != us.objRequire &&
+            j != us.objRequire && k != us.objRequire && l != us.objRequire)
+            continue;
 
           /* Is there a Grand Cross among the current four planets? */
 
@@ -492,8 +499,10 @@ void PrintWheelCenter(int irow)
   char sz[cchSzDef], szT[cchSzDef];
   int cch, nT;
 
-  if (*ciMain.nam == chNull && *ciMain.loc == chNull)    /* Try to center */
-    irow--;
+  if (is.nWheelRows > 4)                     /* Try to center lines. */
+    irow -= (is.nWheelRows - 4);
+  if (*ciMain.nam == chNull && *ciMain.loc == chNull && is.nWheelRows >= 4)
+    irow--;                                  
   if (*ciMain.nam == chNull && irow >= 1)    /* Don't have blank lines if */
     irow++;                                  /* the name and/or location  */
   if (*ciMain.loc == chNull && irow >= 3)    /* strings are empty.        */
@@ -521,11 +530,13 @@ void PrintWheelCenter(int irow)
   case 5:
     nT = us.fEuroTime; us.fEuroTime = fTrue;
     sprintf(szT, "%s", SzTim(DFromR(is.RA)*(24.0/rDegMax)));
-    sprintf(sz, "UT: %s, Sid.T: %s", SzTim(Tim+Zon-Dst), szT);
+    sprintf(sz, "UT: %s, Sid.T: %s",
+      SzTim(Tim+Zon-(us.dstDef != dstAuto ? Dst : is.fDst)), szT);
     us.fEuroTime = nT;
     break;
   case 6:
-    sprintf(sz, "%s Houses", szSystem[us.nHouseSystem]);
+    sprintf(sz, "%s%s Houses", us.fHouse3D ? "3D " : "",
+      szSystem[us.nHouseSystem]);
     break;
   case 7:
     sprintf(sz, "%s, %s", us.fSidereal ? "Sidereal" : "Tropical",
@@ -574,18 +585,39 @@ void ChartWheel(void)
 {
   int wheel[cSign][WHEELROWS], wheelcols, count = 0, i, j, k, l;
 
+  /* Autodetect wheel house size, based on house with most planets in it. */
+
+  if (us.nWheelRows <= 0) {
+    k = 0;
+    for (i = 0; i < cSign; i++)
+      wheel[i][0] = 0;
+    for (i = 0; i <= cObj; i++) {
+      if (FIgnore(i) || (FCusp(i) &&
+        MinDistance(planet[i], chouse[i-oAsc+1]) < rRound/60.0))
+        continue;
+      j = inhouse[i]-1;
+      l = wheel[j][0] + 1;
+      wheel[j][0] = l;
+      if (l > k)
+        k = l;
+    }
+    k = Max(k, 4); k = Min(k, WHEELROWS);
+    is.nWheelRows = k;
+  } else
+    is.nWheelRows = us.nWheelRows;  
+
   /* If the seconds (-b0) flag is set, we'll print all planet and house    */
   /* locations to the nearest zodiac second instead of just to the minute. */
 
   wheelcols = WHEELCOLS + is.fSeconds*4;
 
   for (i = 0; i < cSign; i++)
-    for (j = 0; j < us.nWheelRows; j++)
+    for (j = 0; j < is.nWheelRows; j++)
       wheel[i][j] = -1;                    /* Clear out array. */
 
   /* This section of code places each object in the wheel house array. */
 
-  for (i = 0; i <= cObj && count < us.nWheelRows*12; i++) {
+  for (i = 0; i <= cObj && count < is.nWheelRows*12; i++) {
     if (FIgnore(i) || (FCusp(i) &&
       MinDistance(planet[i], chouse[i-oAsc+1]) < rRound/60.0))
       continue;
@@ -599,7 +631,7 @@ void ChartWheel(void)
       /* Now try to find the proper place in the house to put the object. */
       /* This is in sorted order, although a check is made for 0 Aries.   */
 
-      if (wheel[j][us.nWheelRows-1] >= 0)
+      if (wheel[j][is.nWheelRows-1] >= 0)
         continue;
       l = chouse[j+1] > chouse[Mod12(j+2)];
       for (k = 0; wheel[j][k] >= 0 && (planet[i] >= planet[wheel[j][k]] ||
@@ -612,7 +644,7 @@ void ChartWheel(void)
       if (wheel[j][k] < 0)
         wheel[j][k] = i;
       else {
-        for (l = us.nWheelRows-1; l > k; l--)
+        for (l = is.nWheelRows-1; l > k; l--)
           wheel[j][l] = wheel[j][l-1];
         wheel[j][k] = i;
       }
@@ -627,14 +659,14 @@ void ChartWheel(void)
 
   if (us.fVedic)
     for (i = 0; i < cSign; i++)
-      for (j = 0; j < us.nWheelRows/2; j++) {
-        k = us.nWheelRows-1-j;
+      for (j = 0; j < is.nWheelRows/2; j++) {
+        k = is.nWheelRows-1-j;
         l = wheel[i][j]; wheel[i][j] = wheel[i][k]; wheel[i][k] = l;
       }
   if (!us.fWheelReverse)
     for (i = 3; i < 9; i++)
-      for (j = 0; j < us.nWheelRows/2; j++) {
-        k = us.nWheelRows-1-j;
+      for (j = 0; j < is.nWheelRows/2; j++) {
+        k = is.nWheelRows-1-j;
         l = wheel[i][j]; wheel[i][j] = wheel[i][k]; wheel[i][k] = l;
       }
 
@@ -644,7 +676,7 @@ void ChartWheel(void)
   PrintTab(chH, WHEELCOLS-11+us.fVedic); PrintHouse(10, fTrue);
   PrintTab(chH, WHEELCOLS-10+us.fVedic); PrintHouse(9, fTrue);
   PrintTab(chH, wheelcols-4); PrintCh(chNE); PrintL();
-  for (i = 0; i < us.nWheelRows; i++) {
+  for (i = 0; i < is.nWheelRows; i++) {
     for (j = 10; j >= 7; j--) {
       PrintCh(chV); PrintWheelSlot(wheel[j][i]);
     }
@@ -654,18 +686,18 @@ void ChartWheel(void)
   PrintCh(chC); PrintTab(chH, wheelcols-1); PrintCh(chJN);
   PrintTab(chH, wheelcols-1); PrintCh(chC); PrintTab(chH, WHEELCOLS-10);
   PrintHouse(8, fFalse); PrintL();
-  for (i = 0; i < us.nWheelRows; i++) {
+  for (i = 0; i < is.nWheelRows; i++) {
     PrintCh(chV); PrintWheelSlot(wheel[11][i]); PrintCh(chV);
     PrintWheelCenter(i);
     PrintCh(chV); PrintWheelSlot(wheel[6][i]);
     PrintCh(chV); PrintL();
   }
   PrintHouse(1, fTrue); PrintTab(chH, WHEELCOLS-10-us.fVedic);
-  PrintCh(chJW); PrintWheelCenter(us.nWheelRows); PrintCh(chJE);
+  PrintCh(chJW); PrintWheelCenter(is.nWheelRows); PrintCh(chJE);
   PrintTab(chH, WHEELCOLS-10); PrintHouse(7, fFalse); PrintL();
-  for (i = 0; i < us.nWheelRows; i++) {
+  for (i = 0; i < is.nWheelRows; i++) {
     PrintCh(chV); PrintWheelSlot(wheel[0][i]); PrintCh(chV);
-    PrintWheelCenter(us.nWheelRows+1 + i);
+    PrintWheelCenter(is.nWheelRows+1 + i);
     PrintCh(chV); PrintWheelSlot(wheel[5][i]);
     PrintCh(chV); PrintL();
   }
@@ -673,7 +705,7 @@ void ChartWheel(void)
   PrintCh(chC); PrintTab(chH, wheelcols-1); PrintCh(chJS);
   PrintTab(chH, wheelcols-1); PrintCh(chC);
   PrintTab(chH, WHEELCOLS-10); PrintHouse(6, fFalse); PrintL();
-  for (i = 0; i < us.nWheelRows; i++) {
+  for (i = 0; i < is.nWheelRows; i++) {
     for (j = 1; j <= 4; j++) {
       PrintCh(chV); PrintWheelSlot(wheel[j][i]);
     }
@@ -698,7 +730,6 @@ void PrintAspectSummary(int *ca, int *co, int count, real rPowSum)
 
   if (!us.fAspSummary)
     return;
-  AnsiColor(kDefault);
   if (count == 0) {
     PrintSz("No aspects in list.\n");
     return;
@@ -729,6 +760,7 @@ void PrintAspectSummary(int *ca, int *co, int count, real rPowSum)
     j++;
   }
   PrintL();
+  AnsiColor(kDefault);
 }
 
 
@@ -741,13 +773,14 @@ void ChartAspect(void)
 {
   int ca[cAspect + 1], co[objMax];
   char sz[cchSzDef];
-  int pcut = 30000, icut, jcut, phi, ihi, jhi, ahi, p, i, j, k, count = 0;
+  int vcut = nLarge, icut, jcut, vhi, ihi, jhi, ahi, phi, v, i, j, k, p,
+    count = 0;
   real ip, jp, rPowSum = 0.0;
 
   ClearB((lpbyte)ca, (cAspect + 1)*(int)sizeof(int));
   ClearB((lpbyte)co, objMax*(int)sizeof(int));
   loop {
-    phi = -1;
+    vhi = -nLarge;
 
     /* Search for the next most powerful aspect in the aspect grid. */
 
@@ -758,14 +791,23 @@ void ChartAspect(void)
           jp = RObjInf(j);
           p = (int)(rAspInf[k]*(ip+jp)/2.0*
             (1.0-RAbs((real)(grid->v[j][i]))/3600.0/GetOrb(i, j, k))*1000.0);
-          if ((p < pcut || (p == pcut && (i > icut ||
-            (i == icut && j > jcut)))) && p > phi) {
-            ihi = i; jhi = j; phi = p; ahi = k;
+          switch (us.nAspectSort) {
+          default: v = p;                           break;
+          case 1:  v = -NAbs(grid->v[j][i]);        break;
+          case 2:  v = -grid->v[j][i];              break;
+          case 3:  v = -(j*cObj + i);               break;
+          case 4:  v = -(k*cObj*cObj + j*cObj + i); break;
+          case 5:  v = -(int)(planet[j]*3600.0);    break;
+          case 6:  v = -(int)(Midpoint(planet[j], planet[i])*3600.0); break;
+          }
+          if ((v < vcut || (v == vcut && (i > icut ||
+            (i == icut && j > jcut)))) && v > vhi) {
+            vhi = v; ihi = i; jhi = j; ahi = k; phi = p;
           }
         }
-    if (phi < 0)    /* Exit when no less powerful aspect found. */
+    if (vhi <= -nLarge)    /* Exit when no less powerful aspect found. */
       break;
-    pcut = phi; icut = ihi; jcut = jhi;
+    vcut = vhi; icut = ihi; jcut = jhi;
     count++;                               /* Display the current aspect.   */
     rPowSum += (real)phi/1000.0;
     ca[ahi]++;
@@ -808,7 +850,6 @@ void PrintMidpointSummary(int *cs, int count, long lSpanSum)
 
   if (!us.fMidSummary)
     return;
-  AnsiColor(kDefault);
   if (count == 0) {
     PrintSz("No midpoints in list.\n");
     return;
@@ -830,6 +871,7 @@ void PrintMidpointSummary(int *cs, int count, long lSpanSum)
     sprintf(sz, "%.3s:%3d", szSignName[i], cs[i]); PrintSz(sz);
   }
   PrintL();
+  AnsiColor(kDefault);
 }
 
 
@@ -862,6 +904,8 @@ void ChartMidpoint(void)
     if (mlo >= 360*60*60) /* Exit when no midpoint farther in zodiac found. */
       break;
     mcut = mlo; icut = ilo; jcut = jlo;
+    if (us.objRequire >= 0 && ilo != us.objRequire && jlo != us.objRequire)
+      continue;
     count++;                               /* Display the current midpoint. */
     cs[mlo/(3600*30)+1]++;
     m = (int)(MinDistance(planet[ilo], planet[jlo])*3600.0);
@@ -1059,10 +1103,10 @@ void ChartOrbit(void)
       continue;
     AnsiColor(kObjA[i]);
     sprintf(sz, "%-4.4s: ", szObjDisp[i]); PrintSz(sz);
-    x = spacex[i]; y = spacey[i]; z = spacez[i];
+    x = space[i].x; y = space[i].y; z = space[i].z;
     sprintf(sz, is.fSeconds ? "[%11.7f] [%11.7f] [%11.7f] [%11.7f] [%11.7f]" :
       "[%7.3f] [%7.3f] [%7.3f] [%7.3f] [%7.3f]",
-      planet[i], x, y, z, RSqr(x*x+y*y+z*z)); PrintSz(sz);
+      planet[i], x, y, z, RSqr(x*x + y*y + z*z)); PrintSz(sz);
     if (!is.fSeconds && i >= uranLo) {
       sprintf(sz, "  Uranian #%d", i-uranLo); PrintSz(sz);
     }
@@ -1588,7 +1632,7 @@ void ChartAstroGraph(void)
 
 void PrintChart(flag fProg)
 {
-  int fCall = fFalse;
+  int fCall = fFalse, nSav;
 
   if (us.fListing) {
     if (is.fMult)
@@ -1616,15 +1660,19 @@ void PrintChart(flag fProg)
       PrintL2();
     if (us.nRel > rcDual) {
       fCall = us.fSmartCusp; us.fSmartCusp = fFalse;
+      nSav = us.objRequire; us.objRequire = -1;
       if (!FCreateGrid(fFalse))
         return;
-      us.fSmartCusp = fCall;
+      us.fSmartCusp = fCall; us.objRequire = nSav;
       inv(fCall);
       ChartGrid();
       if (us.fGridConfig) {    /* If -g0 switch in effect, then  */
         PrintL();              /* display aspect configurations. */
-        if (!fCall)
+        if (!fCall) {
+          nSav = us.objRequire; us.objRequire = -1;
           FCreateGrid(fFalse);
+          us.objRequire = nSav;
+        }
         DisplayGrands();
       }
     } else {
@@ -1734,6 +1782,12 @@ void PrintChart(flag fProg)
     ChartInDayInfluence();
     is.fMult = fTrue;
   }
+  if (us.fInDayGra) {
+    if (is.fMult)
+      PrintL2();
+    ChartTransitGraph(fFalse, fProg);
+    is.fMult = fTrue;
+  }
   if (us.fEphemeris) {
     if (is.fMult)
       PrintL2();
@@ -1752,16 +1806,10 @@ void PrintChart(flag fProg)
     ChartTransitInfluence(fProg);
     is.fMult = fTrue;
   }
-  if (us.fInDayGra) {
-    if (is.fMult)
-      PrintL2();
-    ChartTransitGraph(fFalse);
-    is.fMult = fTrue;
-  }
   if (us.fTransitGra) {
     if (is.fMult)
       PrintL2();
-    ChartTransitGraph(fTrue);
+    ChartTransitGraph(fTrue, fProg);
     is.fMult = fTrue;
   }
 #ifdef ARABIC

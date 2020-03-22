@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: data.cpp
+** Astrolog (Version 6.40) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -66,13 +66,13 @@ US us = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Chart suboptions */
-  0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
 
   /* Table chart types */
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Main flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #ifdef EPHEM
   1,
 #else
@@ -86,21 +86,33 @@ US us = {
 #else
   1,
 #endif
-  0, 0, 0, 0, 0,
+  0, 0, 0, 0,
+#ifdef PLACALC
+#ifndef SWISS
+  1,
+#else
+  0,
+#endif
+#else
+  0,
+#endif
 #ifdef EPHEM
   0,
 #else
   1,
 #endif
-  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0,
 
   /* Rare flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
   0,
   0,
+  1,
+  0,
+  rcNone,
   DEFAULT_SYSTEM,
   DEFAULT_ASPECTS,
   oEar,
@@ -122,21 +134,24 @@ US us = {
 
   /* Value subsettings */
 
-  4, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0, 0L, oEar, oEar, 0, BIODAYS};
+  0, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0, 0L, oEar, oEar, 0, BIODAYS, 1};
 
 IS is = {
   fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
-  NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0.0, 0.0, 0.0,
+  NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0,
   NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
 
-CI ciCore = {11, 19, 1971, HM(11, 1),       0.0, 8.0, DEFAULT_LOC, "", ""};
-CI ciMain = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),   0.0, 0.0, DEFAULT_LOC, "", ""};
-CI ciThre = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciFour = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTran = {12, 31, 2016, HM(23, 59),      0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciSave = {10, 22, 2017, HMS(22, 26, 42), 1.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciCore = {11, 19, 1971, HM(11, 1),      0.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciMain = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),  0.0, 0.0, DEFAULT_LOC, "", ""};
+CI ciThre = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciFour = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciTran = {1,  1,  2018, 0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
+CI ciSave = {7,  22, 2018, HMS(14, 0, 21), 1.0, 8.0, DEFAULT_LOC, "", ""};
 CP cp0, cp1, cp2, cp3, cp4;
+
+CONST CI *rgpci[5] = {&ciCore, &ciMain, &ciTwin, &ciThre, &ciFour};
+CONST CP *rgpcp[5] = {&cp0, &cp1, &cp2, &cp3, &cp4};
 
 
 /*
@@ -145,7 +160,8 @@ CP cp0, cp1, cp2, cp3, cp4;
 ******************************************************************************
 */
 
-real spacex[oNorm+1], spacey[oNorm+1], spacez[oNorm+1], force[objMax];
+PT3R space[oNorm+1];
+real force[objMax];
 GridInfo *grid = NULL;
 int starname[cStar+1], kObjA[objMax];
 char *szMacro[48], *szWheel[4+1] = {"", "", "", "", ""};
@@ -239,45 +255,48 @@ CONST char *szObjDisp[objMax];
 CONST char *szSystem[cSystem] = {
   "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
   "Regiomontanus", "Porphyry", "Morinus", "Topocentric", "Alcabitius",
-  "Krusinski", "Equal (MC)", "Pullen (S-Ratio)", "Pullen (S-Delta)", "Whole",
-  "Vedic", "Sripati", "Null"};
+  "Krusinski", "Equal (MC)", "Pullen (S.Ratio)", "Pullen (S.Delta)", "Whole",
+  "Vedic", "Sripati", "Horizon", "APC", "Carter P.Equ.", "Null"};
 CONST StrLook rgSystem[] = {{"E-Asc", hsEqual}, {"E-MC", hsEqualMC},
   {"P-SR", hsSinewaveRatio}, {"P-SD", hsSinewaveDelta},
   {"Ratio", hsSinewaveRatio}, {"Delta", hsSinewaveDelta},
   {"S-Ratio", hsSinewaveRatio}, {"S-Delta", hsSinewaveDelta},
   {"", -1}};
 
-CONST char *szAspectName[cAspect+1] = {"",
+CONST char *szAspectName[cAspect2+1] = {"",
   "Conjunct", "Opposite", "Square", "Trine", "Sextile",
   "Inconjunct", "Semisextile", "Semisquare", "Sesquiquadrate",
   "Quintile", "Biquintile",
   "Semiquintile", "Septile", "Novile",
-  "Binovile", "Biseptile", "Triseptile", "Quatronovile"};
+  "Binovile", "Biseptile", "Triseptile", "Quatronovile",
+  "Parallel", "Contraparallel"};
 CONST StrLook rgAspectName[] = {{"Quincunx", aInc}, {"", -1}};
+CONST char *szAspectDisp[cAspect2+1];
 
-CONST char *szAspectAbbrev[cAspect+3] = {"",
+CONST char *szAspectAbbrev[cAspect2+1] = {"",
   "Con", "Opp", "Squ", "Tri", "Sex",
   "Inc", "SSx", "SSq", "Ses", "Qui", "BQn",
   "SQn", "Sep", "Nov", "BNv", "BSp", "TSp", "QNv",
   "Par", "CPr"};
+CONST char *szAspectAbbrevDisp[cAspect2+1];
 
-CONST char *szAspectGlyph[cAspect+1] = {"",
+CONST char *szAspectGlyph[cAspect2+1] = {"",
   "Circle with extending line", "Two circles joined by line",
   "Quadrilateral", "Triangle", "Six pointed asterisk",
   "'K' rotated right", "'K' rotated left", "Acute angle",
   "Square with extending lines", "Letter 'Q'", "'+' over '-'",
   "'-' over '+'", "Number '7'", "Number '9'", "'9' under Roman 'II'",
-  "'7' under Roman 'II'", "'7' under Roman 'III'", "'9' under Roman 'IV'"};
+  "'7' under Roman 'II'", "'7' under Roman 'III'", "'9' under Roman 'IV'",
+  "Parallel lines", "Crossed parallel lines"};
+CONST char *szAspectGlyphDisp[cAspect2+1];
 
 CONST char *szAspectConfig[cAspConfig] = {
   "Stellium-3", "Grand Trine", "T-Square", "Yod", "Grand Cross", "Cradle",
   "Stellium-4"};
-
 CONST int rgAspConfig[cAspConfig] = {
   aCon, aTri, aOpp, aInc, aSqu, aSex, aSSq};
 
 CONST char *szElem[cElem] = {"Fire", "Earth", "Air", "Water"};
-
 CONST char *szMode[3] = {"Cardinal", "Fixed", "Mutable"};
 
 CONST char *szMonth[cSign+1] = {"",
@@ -303,7 +322,7 @@ CONST real rZon[cZone] = {
   4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 2.0, 1.0,
   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -2.0, -4.0, -5.0,
   -5.30, -5.30, -5.30, -6.0, -6.30, -7.0, -8.0, -9.0, -9.0, -9.0,
-  -9.30, -10.0, -11.0, -11.30, -11.30, -11.30, -12.0, 24.0, 24.0, 24.0};
+  -9.30, -10.0, -11.0, -11.30, -11.30, -11.30, -12.0, zonLMT, zonLMT, zonLMT};
 
 CONST char *szDir[4] = {"North", "East", "South", "West"};
 
@@ -311,7 +330,7 @@ CONST char *szSuffix[cSign+1] = {"",
   "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "th", "th"};
 
 CONST char *szEphem[cmMax] = {
-  "Swiss Ephemeris", "Moshier Ephemeris", "Placalc Ephemeris",
+  "Swiss Ephemeris 2.07.01", "Moshier Formulas", "Placalc Ephemeris",
   "Matrix Formulas", "None"};
 
 real rAspAngle[cAspect+1] = {0,
@@ -409,6 +428,9 @@ CONST char *szColor[cColor+2] = {"Black",
   "Maroon", "DkGreen", "Orange", "DkBlue", "Purple", "DkCyan", "LtGray",
   "Gray", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
   "Element", "Ray"};
+CONST char *szColorHTML[cColor] = {"Black",
+  "#7f0000", "#007f00", "#7f7f00", "#00007f", "Purple", "#007f7f", "#bfbfbf",
+  "#7f7f7f", "Red", "00ff00", "Yellow", "Blue", "Magenta", "Cyan", "White"};
 int kMainA[9] = {kBlack, kWhite, kLtGray, kDkGray,
   kMaroon, kDkGreen, kDkCyan, kDkBlue, kMagenta};
 int kRainbowA[8] = {kWhite,

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: astrolog.cpp
+** Astrolog (Version 6.40) File: astrolog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -93,6 +93,7 @@ void Action(void)
 {
   char sz[cchSzDef];
   int iChart = 0, i;
+  flag fHTML, fHTMLClip;
 
   /* If the -os switch is in effect, open a file and set a global to */
   /* internally 'redirect' all screen output to.                     */
@@ -108,6 +109,26 @@ void Action(void)
     is.S = stdout;
   is.cchRow = 0;
 
+  /* If the -kh switch is in effect, start outputting a new HTML file. */
+
+  fHTML = us.fTextHTML && !us.fGraphics && is.S != stdout;
+  if (fHTML) {
+    fHTMLClip = is.nHTML < 0;
+    is.nHTML = 2;
+    if (fHTMLClip)
+      PrintSz("Version:0.9\n"
+        "StartHTML:00000094\n"
+        "EndHTML:00010000\n"
+        "StartFragment:00000129\n"
+        "EndFragment:00010000\n");
+    PrintSz("<html><body>");
+    if (fHTMLClip)
+      PrintSz("\n<!--StartFragment -->\n");
+    PrintSz("<font face=\"Courier\">");
+    is.nHTML = 3;
+  } else
+    is.nHTML = 0;
+
 LNext:
   if (iChart < us.cSequenceLine && is.rgszLine[iChart] != NULL)
     FProcessCommandLine(is.rgszLine[iChart]);
@@ -115,8 +136,8 @@ LNext:
   is.fMult = fFalse;    /* Cleared here because no InitVariables routine. */
 #endif
   is.fSzPersist = is.fNoEphFile = fFalse;
-  AnsiColor(kDefault);
   InitColors();
+  AnsiColor(kDefault);
 
   /* First let's adjust the restriction status of the cusps, Uranians, and */
   /* fixed stars based on whether -C, -u, and -U switches are in effect.   */
@@ -153,14 +174,15 @@ LNext:
     /* If chart info not in memory yet, then prompt the user for it. */
     if (!is.fHaveInfo && !FInputData(szTtyCore))
       return;
+    ciMain = ciCore;
     CastChart(fTrue);
 #else
+    ciMain = ciCore;
     if (wi.fCast || us.cSequenceLine > 0) {
       wi.fCast = fFalse;
       CastChart(fTrue);
     }
 #endif
-    ciMain = ciCore;
   } else
     CastRelation();
 #ifndef WIN
@@ -172,13 +194,33 @@ LNext:
     FActionX();             /* then go make a graphics chart...           */
   else
 #endif
+  {
+    if (gs.fInverse) {
+      SwapN(kMainA[0], kMainA[1]);
+      SwapN(kMainA[2], kMainA[3]);
+      AnsiColor(kDefault);
+    }
     PrintChart(is.fProgress);    /* Otherwise print chart on text screen. */
+    if (gs.fInverse) {
+      SwapN(kMainA[0], kMainA[1]);
+      SwapN(kMainA[2], kMainA[3]);
+    }
+  }
 
 LDone:
   iChart++;
   if (iChart < us.cSequenceLine && !us.fGraphics) {
     PrintL2();
     goto LNext;
+  }
+
+  if (fHTML) {        /* If -kh switch in effect, end the HTML file. */
+    is.nHTML = 2;
+    PrintSz("</font>\n</font>");
+    if (fHTMLClip)
+      PrintSz("\n<!--EndFragment-->\n");
+    PrintSz("</body></html>\n");
+    is.nHTML = 0;
   }
 
   if (us.fWriteFile)        /* If -o switch in effect, then write */
@@ -225,13 +267,12 @@ void InitVariables(void)
 flag FProcessCommandLine(char *szLine)
 {
   char szCommandLine[cchSzMax], *rgsz[MAXSWITCHES];
-  int argc, cb, fT = fFalse;
+  int argc, cb;
+  flag fT = fFalse, fSav;
   FILE *fileT;
 
   if (szLine == NULL || *szLine == chNull)
     return fTrue;
-  if (Mon != -1)
-    ciCore = ciMain;
   cb = CchSz(szLine)+1;
 
   /* Check for filename on command line */
@@ -247,8 +288,9 @@ flag FProcessCommandLine(char *szLine)
   if (!fT)
     CopyRgb((byte *)szLine, (byte *)szCommandLine, cb);
   argc = NParseCommandLine(szCommandLine, rgsz);
+  fSav = is.fSzPersist; is.fSzPersist = fFalse;
   fT = FProcessSwitches(argc, rgsz);
-  ciMain = ciCore;
+  is.fSzPersist = fSav;
   return fT;
 }
 
@@ -285,12 +327,13 @@ int NParseCommandLine(char *szLine, char **argv)
         chQuote = (*pch == '"' || *pch == '\'') ? *pch : chNull;
         argv[argc++] = pch + (chQuote != chNull);
         fSpace = fFalse;
-      } else
+      } else {
         /* Skip over the current string. */
         if (chQuote != chNull && *pch == chQuote) {
           *pch = chNull;
           fSpace = fTrue;
         }
+      }
     }
     pch++;
   }
@@ -339,7 +382,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 {
   int darg = 0, i, j, k, l;
   real r;
-  char ch1, ch2;
+  char ch1, ch2 = chNull;
   lpbyte lpb;
   int *lpn;
   real *lpr;
@@ -350,7 +393,10 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
   char *sz;
 #endif
 
-  ch1 = argv[0][pos+1]; ch2 = argv[0][pos+2];
+  ch1 = argv[0][pos+1];
+  if (ch1 != chNull)
+    ch2 = argv[0][pos+2];
+
   switch (argv[0][pos]) {
   case chNull:
     SwitchF(us.fSwitchRare);
@@ -362,6 +408,10 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
 
   case 'V':
     SwitchF(us.fTopoPos);
+    break;
+
+  case 'h':
+    SwitchF(us.fBarycenter);
     break;
 
   case 'n':
@@ -523,12 +573,19 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     }
     i -= uranLo;
     j = (ch1 == 'b') + (ch1 == 'O')*2;
-    if (j > 0)
-      ch1 = ch2;    
+    if (j > 0) {
+      ch1 = ch2;
+      if (ch1 != chNull)
+        ch2 = argv[0][pos+3];
+    }
     rgObjSwiss[i] = j == 2 ? NParseSz(argv[2], pmObject) : atoi(argv[2]);
     rgTypSwiss[i] = j;
     rgPntSwiss[i] =
       (ch1 == 'n') + (ch1 == 's')*2 + (ch1 == 'p')*3 + (ch1 == 'a')*4;
+    if (ch2 == chNull)
+      ch2 = ch1;
+    rgFlgSwiss[i] = (ch2 == 'H') + (ch2 == 'S')*2 + (ch2 == 'B')*4 +
+      (ch2 == 'N')*8 + (ch2 == 'T')*16 + (ch2 == 'V')*32;
     darg += 2;
     break;
 #endif
@@ -570,6 +627,15 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     break;
 
   case 'R':
+    if (ch1 == 'd') {
+      if (argc <= 1) {
+        ErrorArgc("YRd");
+        return tcError;
+      }
+      us.nSignDiv = atoi(argv[1]);
+      darg++;
+      break;
+    }
     if (argc <= 2 + (ch1 == 'Z')*2 + (ch1 == '7')*3) {
       ErrorArgc("YR");
       return tcError;
@@ -634,6 +700,31 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     break;
 
   case 'A':
+    if (ch1 == 'D') {
+      if (argc <= 4) {
+        ErrorArgc("YAD");
+        return tcError;
+      }
+      i = NParseSz(argv[1], pmAspect);
+      if (!FAspect2(i)) {
+        ErrorValN("YAD", i);
+        return tcError;
+      }
+      if (CchSz(argv[2]) >= 3)
+        szAspectDisp[i] = SzPersist(argv[2]);
+      else
+        szAspectDisp[i] = szAspectName[i];
+      if (CchSz(argv[3]) != 3)
+        szAspectAbbrevDisp[i] = SzPersist(argv[3]);
+      else
+        szAspectAbbrevDisp[i] = szAspectAbbrev[i];
+      if (CchSz(argv[4]) > 0)
+        szAspectGlyphDisp[i] = SzPersist(argv[4]);
+      else
+        szAspectGlyphDisp[i] = szAspectGlyph[i];
+      darg += 4;
+      break;
+    }
     if (argc <= 2) {
       ErrorArgc("YA");
       return tcError;
@@ -890,7 +981,7 @@ int NProcessSwitchesRare(int argc, char **argv, int pos,
     ret[i] = atof(argv[7]);
     if (i <= oNorm)
       SphToRec(atof(argv[8]), planet[i], planetalt[i],
-        &spacex[i], &spacey[i], &spacez[i]);
+        &space[i].x, &space[i].y, &space[i].z);
     MM = -1;
     darg += 8;
     break;
@@ -1080,10 +1171,22 @@ flag FProcessSwitches(int argc, char **argv)
         SwitchF(us.fAspSummary);
         ch1 = ch2;
       }
-      if (ch1 == 'a')
+      if (ch1 == 'a') {
         SwitchF(us.fAppSep);
-      else if (ch1 == 'p')
+        ch1 = ch2;
+      } else if (ch1 == 'p') {
         SwitchF(us.fParallel);
+        ch1 = ch2;
+      }
+      switch (ch1) {
+      case 'j': us.nAspectSort = 0; break;
+      case 'o': us.nAspectSort = 1; break;
+      case 'n': us.nAspectSort = 2; break;
+      case 'O': us.nAspectSort = 3; break;
+      case 'A': us.nAspectSort = 4; break;
+      case 'C': us.nAspectSort = 5; break;
+      case 'm': us.nAspectSort = 6; break;
+      }
       break;
 
     case 'm':
@@ -1165,7 +1268,7 @@ flag FProcessSwitches(int argc, char **argv)
           GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
 #endif
         if (i) {
-          MonT = 0;
+          us.fInDayYear = fTrue;
           if (!j)
             YeaT = NParseSz(argv[1], pmYea);
           us.nEphemYears = i == 2 ? atoi(argv[2]) : 1;
@@ -1204,7 +1307,7 @@ flag FProcessSwitches(int argc, char **argv)
           argc--; argv++;
         }
         SwitchF(us.fInDayMonth);
-        MonT = (ch1 == 'm');
+        us.fInDayYear = us.fInDayMonth && (ch1 != 'm');
       }
 #ifdef X11
       else if (ch1 == 'i') {    /* -display switch for X */
@@ -1233,7 +1336,8 @@ flag FProcessSwitches(int argc, char **argv)
       break;
 
     case 'E':
-      if (ch1 == 'Y' && argc <= 1) {
+      j = ch1 == '0' || ch2 == '0';
+      if (ch1 == 'Y' && argc <= 1 + j) {
         ErrorArgc("E");
         return fFalse;
       }
@@ -1249,6 +1353,15 @@ flag FProcessSwitches(int argc, char **argv)
         us.nEphemYears = i;
         argc--; argv++;
       }
+      if (j) {
+        ch1 = argv[1][0];
+        if (ch1) {
+          us.nEphemRate = ch1 == 'm' ? 1 : (ch1 == 'y' ? 2 : 0);
+          i = atoi(&argv[1][1]);
+          us.nEphemFactor = Max(i, 1);
+        }
+        argc--; argv++;
+      }
       break;
 
     case 'e':
@@ -1257,10 +1370,8 @@ flag FProcessSwitches(int argc, char **argv)
       SwitchF(us.fHorizon); SwitchF(us.fOrbit); SwitchF(us.fSector);
       SwitchF(us.fCalendar); SwitchF(us.fInfluence); SwitchF(us.fEsoteric);
       SwitchF(us.fAstroGraph);
-      SwitchF(us.fInDay); SwitchF(us.fInDayInf);
+      SwitchF(us.fInDay); SwitchF(us.fInDayInf); SwitchF(us.fInDayGra);
       SwitchF(us.fEphemeris);
-      SwitchF(us.fGridConfig); SwitchF(us.fInfluenceSign);
-      SwitchF(us.fLatitudeCross);
       break;
 
     case 't':
@@ -1282,11 +1393,12 @@ flag FProcessSwitches(int argc, char **argv)
 #ifdef TIME
       if (ch1 == 'n') {
         GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
-        if (i == 1)
-          MonT = 0;
-        else if (i > 1) {
-          MonT = -1; DayT = NParseSz(argv[1], pmDay);
-          argc--; argv++;
+        if (i >= 1) {
+          us.fInDayMonth = us.fInDayYear = fTrue;
+          if (i > 1) {
+            us.nEphemYears = atoi(argv[1]);
+            argc--; argv++;
+          }
         }
         break;
       }
@@ -1295,12 +1407,10 @@ flag FProcessSwitches(int argc, char **argv)
         ErrorArgc("t");
         return fFalse;
       }
-      if (i) {
-        if (i == 1)
-          MonT = 0;
-        else {
-          MonT = -1; DayT = NParseSz(argv[2], pmDay);
-        }
+      if (i >= 1) {
+        us.fInDayMonth = us.fInDayYear = fTrue;
+        if (i > 1)
+          us.nEphemYears = atoi(argv[2]);
       } else {
         MonT = NParseSz(argv[1], pmMon);
         if (!FValidMon(MonT)) {
@@ -1343,11 +1453,11 @@ flag FProcessSwitches(int argc, char **argv)
       if (!FValidMon(MonT)) {
         ErrorValN("T", MonT);
         return fFalse;
-      } else if (!FValidDay(DayT, MonT, YeaT)) {
-        ErrorValN("T", DayT);
-        return fFalse;
       } else if (!FValidYea(YeaT)) {
         ErrorValN("T", YeaT);
+        return fFalse;
+      } else if (!FValidDay(DayT, MonT, YeaT)) {
+        ErrorValN("T", DayT);
         return fFalse;
       } else if (i > 0 && !FValidTim(TimT)) {
         ErrorValR("T0", TimT);
@@ -1368,7 +1478,7 @@ flag FProcessSwitches(int argc, char **argv)
         else if (ch1 == 'Y')
           us.nEphemYears = 5;
         SwitchF(us.fInDayMonth);
-        MonT = (ch1 == 'm');
+        us.fInDayYear = us.fInDayMonth && (ch1 != 'm');
       }
       if (ch1 == '0' || ch2 == '0')
         SwitchF(us.fGraphAll);
@@ -1399,10 +1509,10 @@ flag FProcessSwitches(int argc, char **argv)
         SwitchF(us.fInDayMonth);
       }
 #ifdef TIME
-      if (ch1 == 'n') {
+      if (ch1 == 'n' || ch2 == 'n') {
         GetTimeNow(&MonT, &DayT, &YeaT, &TimT, DstT, ZonT);
         if (i >= 3)
-          MonT = 0;
+          us.fInDayYear = us.fInDayMonth;
         break;
       }
 #endif
@@ -1421,18 +1531,18 @@ flag FProcessSwitches(int argc, char **argv)
         DayT = 1;
       } else {
         YeaT = NParseSz(argv[1], pmYea);
-        MonT = 0; DayT = 1;
+        MonT = DayT = 1;
       }
-      if (MonT != 0 && !FValidMon(MonT)) {
+      if (!FValidMon(MonT)) {
         ErrorValN("V", MonT);
-        return fFalse;
-      }
-      if (!FValidDay(DayT, MonT, YeaT)) {
-        ErrorValN("V", DayT);
         return fFalse;
       }
       if (!FValidYea(YeaT)) {
         ErrorValN("V", YeaT);
+        return fFalse;
+      }
+      if (!FValidDay(DayT, MonT, YeaT)) {
+        ErrorValN("V", DayT);
         return fFalse;
       }
       argc -= j; argv += j;
@@ -1648,13 +1758,13 @@ flag FProcessSwitches(int argc, char **argv)
           ErrorValR("q", SS);
           return fFalse;
         } else if (!FValidZon(ZZ)) {
-          ErrorValR("a", ZZ);
+          ErrorValR("q", ZZ);
           return fFalse;
         } else if (!FValidLon(OO)) {
-          ErrorValR("a", OO);
+          ErrorValR("q", OO);
           return fFalse;
         } else if (!FValidLat(AA)) {
-          ErrorValR("a", AA);
+          ErrorValR("q", AA);
           return fFalse;
         }
       }
@@ -1681,6 +1791,12 @@ flag FProcessSwitches(int argc, char **argv)
         ciCore = ci;
       } else if (ch1 == '4') {
         ciFour = ciCore;
+        ciCore = ci;
+      } else if (ch1 == 's') {
+        ciSave = ciCore;
+        ciCore = ci;
+      } else if (ch1 == 't') {
+        ciTran = ciCore;
         ciCore = ci;
       }
       argc--; argv++;
@@ -1832,6 +1948,8 @@ flag FProcessSwitches(int argc, char **argv)
     case 'A':
       if (ch1 == '3')
         SwitchF(us.fAspect3D);
+      else if (ch1 == 'p')
+        SwitchF(us.fAspectLat);
       else if (ch1 != 'o' && ch1 != 'm' && ch1 != 'd' && ch1 != 'a') {
         if (argc <= 1) {
           ErrorArgc("A");
@@ -1989,7 +2107,7 @@ flag FProcessSwitches(int argc, char **argv)
       Mon = NParseSz(argv[1], pmMon);
       Day = NParseSz(argv[2], pmDay);
       Yea = NParseSz(argv[3], pmYea);
-      Tim = ch1 == 't' ? NParseSz(argv[4], pmTim) : 0.0;
+      Tim = ch1 == 't' ? RParseSz(argv[4], pmTim) : 0.0;
       if (!FValidMon(Mon)) {
         ErrorValN("p", Mon);
         return fFalse;
@@ -2049,6 +2167,18 @@ flag FProcessSwitches(int argc, char **argv)
 
     case '3':
       SwitchF(us.fDecan);
+      break;
+
+    case '4':
+      if (argc > 1 && (i = atoi(argv[1])) >= 0) {
+        argc--; argv++;
+      } else
+        i = 1;
+      if (!FValidDwad(i)) {
+        ErrorValN("4", i);
+        return fFalse;
+      }
+      us.nDwad = fAnd ? 0 : i;
       break;
 
     case 'f':
@@ -2203,6 +2333,10 @@ flag FProcessSwitches(int argc, char **argv)
     /* Switches to access graphics options: */
 
     case 'k':
+      if (ch1 == 'h') {
+        SwitchF(us.fTextHTML);
+        break;
+      }
       if (ch1 == '1') {     /* Undocumented subswitch. */
         us.fAnsiColor = 2;
         us.fAnsiChar  = 1;
@@ -2284,10 +2418,19 @@ void InitProgram()
   ClearB((lpbyte)szStarCustom, sizeof(szStarCustom));
   for (i = 0; i < objMax; i++)
     szObjDisp[i] = szObjName[i];
+  for (i = 1; i <= cAspect2; i++) {
+    szAspectDisp[i]       = szAspectName[i];
+    szAspectAbbrevDisp[i] = szAspectAbbrev[i];
+    szAspectGlyphDisp[i]  = szAspectGlyph[i];
+  }
 #ifdef GRAPH
   for (i = 0; i < oNorm+5; i++) {
     szDrawObject[i]  = szDrawObjectDef[i];
     szDrawObject2[i] = szDrawObjectDef2[i];
+  }
+  for (i = 1; i <= cAspect2; i++) {
+    szDrawAspect[i]  = szDrawAspectDef[i];
+    szDrawAspect2[i] = szDrawAspectDef2[i];
   }
 #endif
 }
@@ -2308,18 +2451,30 @@ int main()
   char **argv;
 #endif
   char szCommandLine[cchSzMax], *rgsz[MAXSWITCHES];
+#ifdef BETA
+  char sz[cchSzMax];
+#endif
 
   /* Read in info from the astrolog.as file. */
   InitProgram();
   FProcessSwitchFile(DEFAULT_INFOFILE, NULL);
+#ifdef BETA
+  sprintf(sz, "This is a beta version of %s %s! "
+    "That means changes are still being made and testing is not complete. "
+    "If this is being run after %s %d, %d, "
+    "it should be replaced with the finished release.\n\n",
+    szAppName, szVersionCore, szMonth[ciSave.mon], ciSave.day, ciSave.yea);
+  FieldWord(sz);
+#endif
 
 LBegin:
+  is.fSzPersist = !us.fNoSwitches;
   if (us.fNoSwitches) {                             /* Go prompt for    */
     argc = NPromptSwitches(szCommandLine, rgsz);    /* switches if we   */
     argv = rgsz;                                    /* don't have them. */
+    is.fSzPersist = fFalse;
   }
   is.szProgName = argv[0];
-  is.fSzPersist = fTrue;
   if (FProcessSwitches(argc, argv)) {
     if (!us.fNoSwitches && us.fLoopInit) {
       us.fNoSwitches = fTrue;

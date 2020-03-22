@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.30) File: io.cpp
+** Astrolog (Version 6.40) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2017 by
+** not enumerated below used in this program are Copyright (C) 1991-2018 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 10/22/2017.
+** Last code change made 7/22/2018.
 */
 
 #include "astrolog.h"
@@ -272,7 +272,7 @@ flag FOutputData(void)
           j%30, szSignName[j/30+1], RFract(rT)*60.0,
           (int)planetalt[i], RFract(RAbs(planetalt[i]))*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :
-          RSqr(spacex[i]*spacex[i]+spacey[i]*spacey[i]+spacez[i]*spacez[i]));
+          RSqr(Sq(space[i].x) + Sq(space[i].y) + Sq(space[i].z)));
         fprintf(file, "%14.9f%14.9f\n", ret[i], rT);
       }
     }
@@ -343,8 +343,8 @@ int NParseSz(CONST char *szEntry, int pm)
       break;
     /* Parse aspects, e.g. "Conjunct" or "Con" -> 1 for the Conjunction. */
     case pmAspect:
-      for (i = 1; i <= cAspect; i++)
-        if (FMatchSz(sz, SzAspectAbbrev(i)))
+      for (i = 1; i <= cAspect2; i++)
+        if (FMatchSz(sz, szAspectAbbrev[i]))
           return i;
       i = SzLookup(rgAspectName, szEntry);
       if (i >= 0)
@@ -380,10 +380,14 @@ int NParseSz(CONST char *szEntry, int pm)
   n = atoi(sz);
 
   if (pm == pmYea) {
-    /* For years, process any "BC" (or "B.C.", "b.c", and variations) and   */
+    /* For years, process any "BCE" (or "BC.", "b.c.e", and variations) and */
     /* convert an example such as "5BC" to -4. For negative years, note the */
-    /* difference of one, as 1AD was preceeded by 1BC, with no year zero.   */
+    /* difference of 1, as 1CE/AD was preceeded by 1BCE/BC, with no year 0. */
     i = Max(cch-1, 0);
+    if (i && sz[i] == '.')
+      i--;
+    if (i && ChCap(sz[i]) == 'E')
+      i--;
     if (i && sz[i] == '.')
       i--;
     if (i && ChCap(sz[i]) == 'C')
@@ -435,7 +439,7 @@ real RParseSz(CONST char *szEntry, int pm)
       return 0.0;
     /* Check for "Autodetect" Daylight time. */
     else if (ch == 'A')
-      return 24.0;
+      return dstAuto;
   } else if (pm == pmZon) {
     /* For time zones, see if the abbrev is in a table, e.g. "EST" -> 5. */
     for (i = 0; i < cZone; i++)
@@ -603,6 +607,11 @@ flag FInputData(CONST char *szFile)
     ciCore = ciSave;
     return fTrue;
   }
+  if (NCompareSz(szFile, "__t") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciTran;
+    return fTrue;
+  }
 
   /* If we are to read from the virtual file "__1" through "__4" then that */
   /* means copy the chart information from the specified chart slot.       */
@@ -664,11 +673,11 @@ flag FInputData(CONST char *szFile)
       1, 12, pmMon);
     DD = NInputRange("Enter day   for chart (e.g. '1' '31') ",
       1, DayInMonth(MM, 0), pmDay);
-    YY = NInputRange("Enter year  for chart (e.g. '2017')   ",
+    YY = NInputRange("Enter year  for chart (e.g. '2018')   ",
       -32000, 32000, pmYea);
     if (FBetween(YY, 0, 99)) {
       sprintf(sz,
-        "Assuming first century A.D. is really meant instead of %d.",
+        "Assuming first century C.E. is really meant instead of %d.",
         1900 + YY);
       PrintWarning(sz);
     }
@@ -732,7 +741,7 @@ flag FInputData(CONST char *szFile)
     }
     ciCore.nam = ciCore.loc = "";
 
-  /* Read the actual chart positions from a file produced with the -o0. */
+  /* Read the actual chart positions from a file produced with -o0 switch. */
 
   } else if (ch == 'S') {
     MM = -1;
