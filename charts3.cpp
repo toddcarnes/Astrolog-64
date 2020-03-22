@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: charts3.cpp
+** Astrolog (Version 6.50) File: charts3.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -90,13 +90,13 @@ void PrintInDays(InDayInfo *pid, int occurcount, flag fProg)
       pid[i].time / 60.0, Dst, Zon, Lon, Lat);
     k = DayOfWeek(pid[i].mon, pid[i].day, pid[i].yea);
     AnsiColor(kRainbowA[k + 1]);
-    sprintf(sz, "(%.3s) ", szDay[k]); PrintSz(sz);
+    sprintf(sz, "%.3s ", szDay[k]); PrintSz(sz);
     AnsiColor(kDefault);
     sprintf(sz, "%s %s ",
       SzDate(pid[i].mon, pid[i].day, pid[i].yea, fFalse),
       SzTime(s1, s2, s3)); PrintSz(sz);
-    PrintAspect(pid[i].source, pid[i].sign1, pid[i].ret1, pid[i].aspect,
-      pid[i].dest, pid[i].sign2, pid[i].ret2, (char)(fProg ? 'e' : 'd'));
+    PrintAspect(pid[i].source, pid[i].pos1, pid[i].ret1, pid[i].aspect,
+      pid[i].dest, pid[i].pos2, pid[i].ret2, (char)(fProg ? 'e' : 'd'));
     PrintInDayEvent(pid[i].source, pid[i].aspect, pid[i].dest, nVoid);
   }
 }
@@ -187,7 +187,8 @@ void ChartInDaySearch(flag fProg)
 
       /* Now search through the present segment for anything exciting. */
 
-      for (i = 0; i <= cObj; i++) if (!FIgnore(i) && (fProg || FThing(i))) {
+      for (i = 0; i <= cObj; i++)
+        if (!FIgnore(i) && (fProg || us.fGraphAll || FThing(i))) {
         s1 = SFromZ(cp1.obj[i])-1;
         s2 = SFromZ(cp2.obj[i])-1;
 
@@ -202,7 +203,7 @@ void ChartInDaySearch(flag fProg)
             pid[occurcount].time = MinDistance(cp1.obj[i],
               (real)(cp1.dir[i] >= 0.0 ? s2 : s1) * 30.0) / MinDistance(
               cp1.obj[i], cp2.obj[i])*divsiz + (real)(div-1)*divsiz;
-            pid[occurcount].sign1 = pid[occurcount].sign2 = s1+1;
+            pid[occurcount].pos1 = pid[occurcount].pos2 = ZFromS(s1+1);
             pid[occurcount].ret1 = pid[occurcount].ret2 =
               (int)RSgn(cp1.dir[i]) + (int)RSgn(cp2.dir[i]);
             pid[occurcount].mon = mon0;
@@ -226,7 +227,7 @@ void ChartInDaySearch(flag fProg)
               pid[occurcount].time = MinDistance(cp1.obj[i],
                 (real)l * (rDegMax / (real)divSign)) / MinDistance(cp1.obj[i],
                 cp2.obj[i])*divsiz + (real)(div-1)*divsiz;
-              pid[occurcount].sign1 = pid[occurcount].sign2 = s1+1;
+              pid[occurcount].pos1 = pid[occurcount].pos2 = cp1.obj[i];
               pid[occurcount].ret1 = pid[occurcount].ret2 = (l == k) ? 1 : -1;
               pid[occurcount].mon = mon0;
               pid[occurcount].day = day0;
@@ -245,7 +246,8 @@ void ChartInDaySearch(flag fProg)
           pid[occurcount].dest = cp2.dir[i] < 0.0;
           pid[occurcount].time = RAbs(cp1.dir[i])/(RAbs(cp1.dir[i])+
             RAbs(cp2.dir[i]))*divsiz + (real)(div-1)*divsiz;
-          pid[occurcount].sign1 = pid[occurcount].sign2 = s1+1;
+          pid[occurcount].pos1 = pid[occurcount].pos2 = (cp2.dir[i] < 0.0 ?
+            Max(cp1.obj[i], cp2.obj[i]) : Min(cp1.obj[i], cp2.obj[i]));
           pid[occurcount].ret1 = pid[occurcount].ret2 = 0;
           pid[occurcount].mon = mon0;
           pid[occurcount].day = day0;
@@ -255,7 +257,8 @@ void ChartInDaySearch(flag fProg)
 
         /* Now search for anything making an aspect to the current planet. */
 
-        for (j = i+1; j <= cObj; j++) if (!FIgnore(j) && (fProg || FThing(j)))
+        for (j = i+1; j <= cObj; j++)
+          if (!FIgnore(j) && (fProg || us.fGraphAll || FThing(j)))
           if (!us.fParallel) {
 
           for (k = 1; k <= us.nAsp; k++) if (FAcceptAspect(i, -k, j)) {
@@ -311,14 +314,14 @@ void ChartInDaySearch(flag fProg)
               g = (RAbs(d1-e1) > rDegHalf ?
                 (d1-e1)-RSgn(d1-e1)*rDegMax : d1-e1)/(f2-f1);
               pid[occurcount].time = g*divsiz + (real)(div-1)*divsiz;
-              pid[occurcount].sign1 = SFromZ(Mod(cp1.obj[i]+
+              pid[occurcount].pos1 = Mod(cp1.obj[i] +
                 RSgn(cp2.obj[i]-cp1.obj[i])*
                 (RAbs(cp2.obj[i]-cp1.obj[i]) > rDegHalf ? -1 : 1)*
-                RAbs(g)*MinDistance(cp1.obj[i], cp2.obj[i])));
-              pid[occurcount].sign2 = SFromZ(Mod(cp1.obj[j]+
+                RAbs(g)*MinDistance(cp1.obj[i], cp2.obj[i]));
+              pid[occurcount].pos2 = Mod(cp1.obj[j] +
                 RSgn(cp2.obj[j]-cp1.obj[j])*
                 (RAbs(cp2.obj[j]-cp1.obj[j]) > rDegHalf ? -1 : 1)*
-                RAbs(g)*MinDistance(cp1.obj[j], cp2.obj[j])));
+                RAbs(g)*MinDistance(cp1.obj[j], cp2.obj[j]));
               pid[occurcount].ret1 =
                 (int)RSgn(cp1.dir[i]) + (int)RSgn(cp2.dir[i]);
               pid[occurcount].ret2 =
@@ -369,14 +372,14 @@ void ChartInDaySearch(flag fProg)
               f2 = e2-e1;
               g = (d1-e1)/(f2-f1);
               pid[occurcount].time = g*divsiz + (real)(div-1)*divsiz;
-              pid[occurcount].sign1 = SFromZ(Mod(cp1.obj[i]+
+              pid[occurcount].pos1 = Mod(cp1.obj[i]+
                 RSgn(cp2.obj[i]-cp1.obj[i])*
                 (RAbs(cp2.obj[i]-cp1.obj[i]) > rDegHalf ? -1 : 1)*
-                RAbs(g)*MinDistance(cp1.obj[i], cp2.obj[i])));
-              pid[occurcount].sign2 = SFromZ(Mod(cp1.obj[j]+
+                RAbs(g)*MinDistance(cp1.obj[i], cp2.obj[i]));
+              pid[occurcount].pos2 = Mod(cp1.obj[j]+
                 RSgn(cp2.obj[j]-cp1.obj[j])*
                 (RAbs(cp2.obj[j]-cp1.obj[j]) > rDegHalf ? -1 : 1)*
-                RAbs(g)*MinDistance(cp1.obj[j], cp2.obj[j])));
+                RAbs(g)*MinDistance(cp1.obj[j], cp2.obj[j]));
               pid[occurcount].ret1 =
                 (int)RSgn(cp1.dir[i]) + (int)RSgn(cp2.dir[i]);
               pid[occurcount].ret2 =
@@ -443,10 +446,11 @@ void ChartTransitSearch(flag fProg)
 {
   real time[MAXINDAY];
   char sz[cchSzDef];
-  int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY], sign[MAXINDAY],
-    isret[MAXINDAY], M1, M2, Y1, Y2, counttotal = 0, occurcount, division,
-    div, nAsp, fCusp, i, j, k, s1, s2, s3, s4;
-  real divsiz, daysiz, d, e1, e2, f1, f2, mc = is.MC, ob = is.OB;
+  int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY], isret[MAXINDAY],
+    M1, M2, Y1, Y2, counttotal = 0, occurcount, division, div, nAsp, fCusp,
+    i, j, k, s1, s2, s3, s4;
+  real pos[MAXINDAY],
+    divsiz, daysiz, d, e1, e2, f1, f2, mc = is.MC, ob = is.OB;
   CP cpT = cp0;
   CI ciT;
 
@@ -546,7 +550,7 @@ void ChartTransitSearch(flag fProg)
             time[occurcount] = MinDistance(f1,
               (real)(cp1.dir[i] >= 0.0 ? s2 : s1) * 30.0) /
               MinDistance(f1, f2)*divsiz + (real)(div-1)*divsiz;
-            sign[occurcount] = SFromZ(cp1.obj[i]);
+            pos[occurcount] = cp1.obj[i];
             isret[occurcount] = (int)RSgn(cp1.dir[i]) +
               (int)RSgn(cp2.dir[i]);
             occurcount++;
@@ -594,10 +598,10 @@ void ChartTransitSearch(flag fProg)
               dest[occurcount] = i;
               time[occurcount] = RAbs(f1)/(RAbs(f1)+RAbs(f2))*divsiz +
                 (real)(div-1)*divsiz;
-              sign[occurcount] = SFromZ(Mod(
+              pos[occurcount] = Mod(
                 MinDistance(cp1.obj[j], Mod(d-rAspAngle[k])) <
                 MinDistance(cp2.obj[j], Mod(d+rAspAngle[k])) ?
-                d-rAspAngle[k] : d+rAspAngle[k]));
+                d-rAspAngle[k] : d+rAspAngle[k]);
               isret[occurcount] = (int)RSgn(cp1.dir[j]) +
                 (int)RSgn(cp2.dir[j]);
               occurcount++;
@@ -627,7 +631,7 @@ void ChartTransitSearch(flag fProg)
               dest[occurcount] = i;
               time[occurcount] = RAbs(f1)/(RAbs(f1)+RAbs(f2))*divsiz +
                 (real)(div-1)*divsiz;
-              sign[occurcount] = SFromZ(cpT.obj[i]);
+              pos[occurcount] = cpT.obj[i];
               isret[occurcount] = (int)RSgn(cp1.dir[j]) +
                 (int)RSgn(cp2.dir[j]);
               occurcount++;
@@ -646,7 +650,7 @@ void ChartTransitSearch(flag fProg)
           SwapN(aspect[j], aspect[j+1]);
           SwapN(dest[j], dest[j+1]);
           SwapR(&time[j], &time[j+1]);
-          SwapN(sign[j], sign[j+1]);
+          SwapR(&pos[j], &pos[j+1]);
           SwapN(isret[j], isret[j+1]);
           j--;
         }
@@ -667,19 +671,19 @@ void ChartTransitSearch(flag fProg)
         if (us.fSeconds) {
           k = DayOfWeek(MonT, s1+1, YeaT);
           AnsiColor(kRainbowA[k + 1]);
-          sprintf(sz, "(%.3s) ", szDay[k]); PrintSz(sz);
+          sprintf(sz, "%.3s ", szDay[k]); PrintSz(sz);
           AnsiColor(kDefault);
         }
         sprintf(sz, "%s %s ",
           SzDate(MonT, s1+1, YeaT, fFalse), SzTime(s2, s3, s4)); PrintSz(sz);
-        PrintAspect(source[i], sign[i], isret[i], aspect[i],
-          dest[i], SFromZ(cpT.obj[dest[i]]), (int)RSgn(cpT.dir[dest[i]]),
+        PrintAspect(source[i], pos[i], isret[i], aspect[i],
+          dest[i], cpT.obj[dest[i]], (int)RSgn(cpT.dir[dest[i]]),
           (char)(fProg ? 'u' : 't'));
 
         /* Check for a Solar, Lunar, or any other return. */
 
         if (aspect[i] == aCon && source[i] == dest[i]) {
-          AnsiColor(kMainA[1]);
+          AnsiColor(kWhiteA);
           sprintf(sz, " (%s Return)", source[i] == oSun ? "Solar" :
             (source[i] == oMoo ? "Lunar" : szObjDisp[source[i]]));
           PrintSz(sz);
@@ -729,13 +733,13 @@ void ChartTransitGraph(flag fTrans, flag fProg)
     "transit graph grid");
   if (rgEph == NULL)
     goto LDone;
-  ClearB((lpbyte)(*rgEph), sizeof(TransGraInfo));
+  ClearB((pbyte)(*rgEph), sizeof(TransGraInfo));
 
   if (!fTrans && !fProg)
     ciT = ciMain;
   else
     ciT = ciTran;
-  cAsp = is.fReturn ? aCon : us.nAsp;
+  cAsp = fTrans && is.fReturn ? aCon : us.nAsp;
   ymin = 1-fTrans;
 
   /* Determine character width of chart based on time period being graphed. */
@@ -822,7 +826,7 @@ void ChartTransitGraph(flag fTrans, flag fProg)
           if (*ppw == NULL)
             goto LDone;
           pw = *ppw;
-          ClearB((lpbyte)pw, cSlice * sizeof(word));
+          ClearB((pbyte)pw, cSlice * sizeof(word));
         } else
           pw = *ppw;
         n = grid->v[x][y];
@@ -834,7 +838,7 @@ void ChartTransitGraph(flag fTrans, flag fProg)
   }
 
   /* Print chart header row(s). */
-  AnsiColor(kMainA[1]);
+  AnsiColor(kWhiteA);
   if (!fMonth)
     sprintf(sz, SzDate(ciT.mon, ciT.day, ciT.yea, fFalse));
   else if (!fYear)
@@ -853,25 +857,32 @@ void ChartTransitGraph(flag fTrans, flag fProg)
     else
       sprintf(sz, "000102030405060708091011121314151617181920212223");
     for (iw = 0; sz[iw]; iw++) {
+      if (!FOdd(iw))
+        AnsiColor((iw & 2) == 0 ? kLtGrayA : kDkGrayA);
       PrintCh(sz[iw]);
-      if (FOdd(iw))
-        AnsiColor((iw & 2) != 0 ? kMainA[2] : kMainA[3]);
     }
   } else if (!fYear) {
     for (iw = 1; iw <= (cSlice >> 1); iw++) {
-      AnsiColor(FOdd(iw) ? kMainA[2] : kMainA[3]);
+      n = DayOfWeek(MM, iw, YY);
+      AnsiColor(kRainbowA[n+1]);
+      sprintf(sz, "%.2s", szDay[n]); PrintSz(sz);
+    }
+    PrintL();
+    PrintTab(' ', 12 + fTrans*4);
+    for (iw = 1; iw <= (cSlice >> 1); iw++) {
+      AnsiColor(FOdd(iw) ? kLtGrayA : kDkGrayA);
       sprintf(sz, "%02d", iw); PrintSz(sz);
     }
   } else if (us.nEphemYears <= 1) {
     for (iw = 1; iw <= 12; iw++) {
-      AnsiColor(FOdd(iw) ? kMainA[2] : kMainA[3]);
+      AnsiColor(FOdd(iw) ? kLtGrayA : kDkGrayA);
       sprintf(sz, "%3.3s", szMonth[iw]); PrintSz(sz);
       if (iw < 12)
         PrintSz("  ");
     }
   } else {
     for (iw = 0; iw < 5; iw++) {
-      AnsiColor(!FOdd(iw) ? kMainA[2] : kMainA[3]);
+      AnsiColor(!FOdd(iw) ? kLtGrayA : kDkGrayA);
       sprintf(sz, "%-12d", (fTrans || fProg ? YeaT : Yea) - 2 + iw);
       PrintSz(sz);
     }
@@ -879,7 +890,7 @@ void ChartTransitGraph(flag fTrans, flag fProg)
     PrintTab(' ', 12 + fTrans*4);
     for (iw = 0; iw < cSlice; iw++) {
       if ((iw % 12) == 0)
-        AnsiColor(iw % 24 == 0 ? kMainA[2] : kMainA[3]);
+        AnsiColor(iw % 24 == 0 ? kLtGrayA : kDkGrayA);
       PrintCh(szMonth[iw % 12 + 1][0]);
     }
   }
@@ -896,7 +907,7 @@ void ChartTransitGraph(flag fTrans, flag fProg)
 
         /* Print the name of the aspect in question. */
         if (fTrans) {
-          AnsiColor(kMainA[3]);
+          AnsiColor(kDkGrayA);
           PrintSz(!fProg ? "T." : "P.");
         }
         AnsiColor(kObjA[x]);
@@ -923,15 +934,21 @@ void ChartTransitGraph(flag fTrans, flag fProg)
           n = pw[iw];
           if (n >= nMax || ((iw <= 0 || n > pw[iw-1]) &&
             (iw >= cSlice-1 || n >= pw[iw+1]))) {
-            AnsiColor(kMainA[1]);
+            AnsiColor(kWhiteA);
             fMark = fTrue;
           }
           if (n == 0) {
-            if (iw != iwFocus)
-              ch = ' ';
-            else {
+            if (iw != iwFocus) {
+              if (fMonth && fYear &&
+                iw % (us.nEphemYears <= 1 ? 5 : 12) == 0) {
+                ch = '.';
+                AnsiColor(kDkGrayA);
+                fMark = fTrue;
+              } else
+                ch = ' ';
+            } else {
               ch = '|';
-              AnsiColor(kMainA[3]);
+              AnsiColor(kDkGreenA);
               fMark = fTrue;
             }
           } else
@@ -978,13 +995,45 @@ void ChartInDayHorizon(void)
     fRet[MAXINDAY], occurcount, division, div, s1, s2, s3, i, j, fT;
   real time[MAXINDAY], rgalt1[objMax], rgalt2[objMax], azialt[MAXINDAY],
     azi1, azi2, alt1, alt2, mc1, mc2, xA, yA, xV, yV, d, k;
-  CI ciT;
+  int yea0, yea1, yea2, mon0, mon1, mon2, day0, day1, day2, counttotal = 0;
+  flag fYear;
+  CI ciSav;
 
   fT = us.fSidereal; us.fSidereal = fFalse;
   division = us.nDivision;
-  occurcount = 0;
+  fYear = us.fInDayMonth && us.fInDayYear;
 
-  ciT = ciTwin; ciCore = ciMain; ciCore.tim = 0.0;
+  /* If -dY in effect, then search through a range of years. */
+
+  yea1 = yea2 = Yea;
+  if (fYear && us.nEphemYears != 0) {
+    if (us.nEphemYears < 0)
+      yea1 += (us.nEphemYears + 1);
+    else
+      yea2 += (us.nEphemYears - 1);
+  }
+  for (yea0 = yea1; yea0 <= yea2; yea0++) {
+
+  /* If -dy in effect, then search through the whole year, month by month. */
+
+  if (fYear) {
+    mon1 = 1; mon2 = 12;
+  } else
+    mon1 = mon2 = Mon;
+  for (mon0 = mon1; mon0 <= mon2; mon0++) {
+
+  /* If -dm in effect, then search through the whole month, day by day. */
+
+  if (us.fInDayMonth) {
+    day1 = 1;
+    day2 = DayInMonth(mon0, yea0);
+  } else
+    day1 = day2 = Day;
+  for (day0 = day1; day0 <= day2; day0 = AddDay(mon0, day0, yea0, 1)) {
+
+  occurcount = 0;
+  ciSav = ciTwin;
+  SetCI(ciCore, mon0, day0, yea0, 0.0, Dst, Zon, Lon, Lat);
   CastChart(fTrue);
   mc2 = planet[oMC]; k = planetalt[oMC];
   EclToEqu(&mc2, &k);
@@ -996,7 +1045,8 @@ void ChartInDayHorizon(void)
   /* For each segment we get the planet positions at its endpoints.       */
 
   for (div = 1; div <= division; div++) {
-    ciCore = ciMain; ciCore.tim = 24.0*(real)div/(real)division;
+    SetCI(ciCore, mon0, day0, yea0, 24.0*(real)div/(real)division,
+      Dst, Zon, Lon, Lat);
     CastChart(fTrue);
     mc1 = mc2;
     mc2 = planet[oMC]; k = planetalt[oMC];
@@ -1064,12 +1114,13 @@ void ChartInDayHorizon(void)
     ciSave.tim = time[i] / 60.0;
     j = DayOfWeek(Mon, Day, Yea);
     AnsiColor(kRainbowA[j + 1]);
-    sprintf(sz, "(%.3s) ", szDay[j]); PrintSz(sz);
+    sprintf(sz, "%.3s ", szDay[j]); PrintSz(sz);
     AnsiColor(kDefault);
     s1 = (int)time[i]/60;
     s2 = (int)time[i]-s1*60;
     s3 = is.fSeconds ? (int)(time[i]*60.0)-((s1*60+s2)*60) : -1;
-    sprintf(sz, "%s %s ", SzDate(Mon, Day, Yea, fFalse), SzTime(s1, s2, s3));
+    sprintf(sz, "%s %s ", SzDate(mon0, day0, yea0, fFalse),
+      SzTime(s1, s2, s3));
     PrintSz(sz);
     AnsiColor(kObjA[source[i]]);
     sprintf(sz, "%7.7s ", szObjDisp[source[i]]); PrintSz(sz);
@@ -1110,12 +1161,16 @@ void ChartInDayHorizon(void)
       PrintAltitude(azialt[i]);
     PrintL();
   }
-  if (occurcount == 0)
+  counttotal += occurcount;
+  } /* day0 */
+  } /* mon0 */
+  } /* yea0 */
+  if (counttotal == 0)
     PrintSz("No horizon events found.\n");
 
   /* Recompute original chart placements as we've overwritten them. */
 
-  ciCore = ciMain; ciTwin = ciT;
+  ciCore = ciMain; ciTwin = ciSav;
   us.fSidereal = fT;
   CastChart(fTrue);
 }
@@ -1211,8 +1266,10 @@ void ChartEphemeris(void)
             AnsiColor(kObjA[j]);
             PrintAltitude(planetalt[j]);
           }
-          if (ret[j] < 0.0)
-            PrintCh(is.fSeconds ? 'r' : '.');
+          if (ret[j] < 0.0) {
+            AnsiColor(kDefault);
+            PrintCh(chRet2);
+          }
           if (j < cObj)
             PrintTab(' ', 1 - (ret[j] < 0.0) + is.fSeconds);
         }

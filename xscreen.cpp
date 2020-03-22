@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: xscreen.cpp
+** Astrolog (Version 6.50) File: xscreen.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -101,17 +101,21 @@ void InitColorsX()
   int i;
   flag fInverse = gs.fInverse;
 #ifdef X11
+  char sz[cchSzDef];
   Colormap cmap;
   XColor xcol;
+  KV kv;
 
   if (!gi.fFile) {
     cmap = XDefaultColormap(gi.disp, gi.screen);
 
-    /* Allocate a color from the present X11 colormap. Given a string like */
-    /* "magenta", allocate this color and return a value specifying it.    */
+    /* Allocate colors from the present X11 colormap. Given strings like */
+    /* "magenta", allocate these colors and determine their values.      */
 
     for (i = 0; i < cColor; i++) {
-      XParseColor(gi.disp, cmap, szColorX[i], &xcol);
+      kv = rgbbmp[i];
+      sprintf(sz, "#%02x%02x%02x", RGBR(kv), RGBG(kv), RGBB(kv));
+      XParseColor(gi.disp, cmap, sz, &xcol);
       XAllocColor(gi.disp, cmap, &xcol);
       rgbind[i] = xcol.pixel;
     }
@@ -134,7 +138,7 @@ void InitColorsX()
   gi.kiGray = gs.fColor ? kMainA[3-fInverse] : gi.kiOn;
   for (i = 0; i <= 8; i++)
     kMainB[i]    = gs.fColor ? kMainA[i]    : gi.kiOn;
-  for (i = 0; i <= 7; i++)
+  for (i = 0; i <= cRainbow; i++)
     kRainbowB[i] = gs.fColor ? kRainbowA[i] : gi.kiOn;
   for (i = 0; i < cElem; i++)
     kElemB[i]    = gs.fColor ? kElemA[i]    : gi.kiOn;
@@ -274,7 +278,7 @@ void BeginX()
   if (!wi.fWndclass) {
     wi.fWndclass = fTrue;
     wi.hinst = GetModuleHandle(NULL);
-    ClearB((lpbyte)&wndclass, sizeof(WNDCLASS));
+    ClearB((pbyte)&wndclass, sizeof(WNDCLASS));
     wndclass.style = CS_HREDRAW | CS_VREDRAW | CS_BYTEALIGNWINDOW;
     wndclass.lpfnWndProc = WndProcWCLI;
     wndclass.hInstance = wi.hinst;
@@ -465,8 +469,8 @@ void CommandLineX()
     is.fMult = fFalse;
     FPrintTables();
     if (is.fMult) {
-      ClearB((lpbyte)&us.fCredit,
-        (int)((lpbyte)&us.fLoop - (lpbyte)&us.fCredit));
+      ClearB((pbyte)&us.fCredit,
+        (int)((pbyte)&us.fLoop - (pbyte)&us.fCredit));
       fPause = fTrue;
     }
   }
@@ -511,8 +515,12 @@ void ResizeWindowToChart()
   POINT pt;
   int xScr, yScr;
 
-  if (!us.fGraphics || gs.xWin == 0 || gs.yWin == 0)
+  if (!us.fGraphics)
     return;
+  if (gs.xWin == 0)
+    gs.xWin = DEFAULTX;
+  if (gs.yWin == 0)
+    gs.yWin = DEFAULTY;
   hdc = GetDC(wi.hwnd);
   xScr = GetDeviceCaps(hdc, HORZRES);
   yScr = GetDeviceCaps(hdc, VERTRES);
@@ -702,7 +710,7 @@ void InteractX()
 #endif
 #ifdef WCLI
       InvalidateRect(wi.hwnd, NULL, fFalse);
-      ClearB((lpbyte)&ps, sizeof(PAINTSTRUCT));
+      ClearB((pbyte)&ps, sizeof(PAINTSTRUCT));
       hdcWin = BeginPaint(wi.hwnd, &ps);
       wi.hdc = CreateCompatibleDC(hdcWin);
       hbmp = CreateCompatibleBitmap(hdcWin, wi.xClient, wi.yClient);
@@ -786,7 +794,7 @@ void InteractX()
           Lat = rDegQuad -
             (real)(xevent.xbutton.y-1)/(real)(gs.yWin-2)*181.0;
           sprintf(sz, "Mouse is at %s.", SzLocation(Lon, Lat));
-          PrintNotice(sz);
+          PrintProgress(sz);
         } else if (xevent.xbutton.button == Button3)
           fBreak = fTrue;
         break;
@@ -1390,6 +1398,8 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
 
   case 'U':
     SwitchF(gs.fAllStar);
+    if (FBetween(ch1, '0', '3'))
+      gs.nAllStar = (ch1 - '0');
     break;
 
   case 'C':
@@ -1397,6 +1407,10 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     break;
 
   case '1':
+    if (fAnd) {
+      gs.objLeft = 0;
+      break;
+    }
     if (argc <= 1) {
       ErrorArgc("X1");
       return tcError;
@@ -1411,6 +1425,10 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     break;
 
   case '2':
+    if (fAnd) {
+      gs.objLeft = 0;
+      break;
+    }
     if (argc <= 1) {
       ErrorArgc("X2");
       return tcError;
@@ -1562,11 +1580,9 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
   flag fOr, flag fAnd, flag fNot)
 {
   int darg = 0, i;
-#ifdef PS
-  char ch1;
+  char ch1, *pch = NULL;
 
   ch1 = argv[0][pos+1];
-#endif
   switch (argv[0][pos]) {
 
   /* No longer implemented, but still skip 2 parameters and do nothing for */
@@ -1719,6 +1735,56 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
     if (ch1 == '0')
       SwitchF(gs.fColorHouse);
     break;
+
+  case 'K':
+    if (argc <= 2) {
+      ErrorArgc("YXK");
+      return tcError;
+    }
+    i = NParseSz(argv[1], pmColor);
+    if (!FValidColor(i)) {
+      ErrorValN("YXK", i);
+      return tcError;
+    }
+    rgbbmp[i] = NParseSz(argv[2], pmRGB);
+    darg += 2;
+    break;
+
+  case 'e':
+    SwitchF(gs.fEcliptic);
+    break;
+
+  case 'a':
+    if (argc <= 1) {
+      ErrorArgc("YXa");
+      return tcError;
+    }
+    gs.nDashMax = atoi(argv[1]);
+    darg++;
+    break;
+
+#ifdef SWISS
+  case 'U':
+    if (argc <= 2) {
+      ErrorArgc("YXU");
+      return tcError;
+    }
+    gs.szStarsLin = SzPersist(argv[1]);
+    gs.szStarsLnk = SzPersist(argv[2]);
+    gi.cStarsLin = *gs.szStarsLin != chNull;
+    for (pch = gs.szStarsLin; *pch; pch++)
+      if (*pch == chSep)
+        gi.cStarsLin++;
+    if (gi.rges != NULL) {
+      DeallocateP(gi.rges);
+      gi.rges = NULL;
+    }
+    gi.rges = (ES *)PAllocate(gi.cStarsLin * sizeof(ES), "extra stars");
+    if (gi.rges == NULL)
+      gi.cStarsLin = 0;
+    darg++;
+    break;
+#endif
 
   case 'f':
     if (argc <= 1) {

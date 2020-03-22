@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: matrix.cpp
+** Astrolog (Version 6.50) File: matrix.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -245,7 +245,7 @@ void ComputeVariables(real *vtx)
 {
   real B, L, G, tim = TT;
 
-  if (us.fProgress && !us.fSolarArc) {
+  if (us.fProgress && us.nProgress != ptSolarArc) {
     tim = JulianDayFromTime(is.T) + 0.5;
     tim = RFract(tim)*24.0;
   }
@@ -558,7 +558,7 @@ void ComputePlanets(void)
   OE *poe;
 
   while (ind <= (us.fUranian ? oNorm : cPlanet)) {
-    if (ignore[ind] && ind > oSun)
+    if (ignore[ind] && ind > oSun && ind != us.objCenter)
       goto LNextPlanet;
     poe = &rgoe[IoeFromObj(ind)];
 
@@ -611,7 +611,7 @@ LNextPlanet:
   /* relation to Pluto until we know the position of Pluto in relation to  */
   /* the Sun, and since Mercury is calculated first, another pass needed.  */
 
-  ind = us.objCenter;
+  ind = us.objCenter != oMoo ? us.objCenter : oEar;
   for (i = 0; i <= oNorm; i++) {
     helioret[i] = ret[i];
     if (i != oMoo && i != ind) {

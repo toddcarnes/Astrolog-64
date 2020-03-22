@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: extern.h
+** Astrolog (Version 6.50) File: extern.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 /*
@@ -126,7 +126,7 @@ extern CP cp0, cp1, cp2, cp3, cp4;
 extern CONST CP *rgpcp[5];
 extern CONST CI *rgpci[5];
 
-extern PT3R space[oNorm+1];
+extern PT3R space[cObj+1];
 extern real force[objMax];
 extern GridInfo *grid;
 extern int starname[cStar+1], kObjA[objMax];
@@ -136,9 +136,31 @@ extern byte ignore[objMax], ignore2[objMax], ignorea[cAspect+1],
 extern real rAspAngle[cAspect+1], rAspOrb[cAspect+1], rObjOrb[oNorm+2],
   rObjAdd[oNorm+2];
 extern int ruler1[oNorm+1], ruler2[oNorm+1], exalt[oNorm+1], rules[cSign+1],
-  kMainA[9], kRainbowA[8], kElemA[cElem], kAspA[cAspect+1], kObjU[oNorm+1];
+  kMainA[9], kRainbowA[cRainbow+1], kElemA[cElem], kAspA[cAspect+1],
+  kObjU[oNorm+1];
 extern real rObjInf[oNorm1+6], rHouseInf[cSign+6], rAspInf[cAspect+1],
   rTransitInf[oNorm1+1];
+
+#define kBlackA   kMainA[0]
+#define kWhiteA   kMainA[1]
+#define kLtGrayA  kMainA[2]
+#define kDkGrayA  kMainA[3]
+#define kMaroonA  kMainA[4]
+#define kDkGreenA kMainA[5]
+#define kDkCyanA  kMainA[6]
+#define kDkBlueA  kMainA[7]
+#define kMagentaA kMainA[8]
+
+#define kRedA    kRainbowA[1]
+#define kOrangeA kRainbowA[2]
+#define kYellowA kRainbowA[3]
+#define kGreenA  kRainbowA[4]
+#define kCyanA   kRainbowA[5]
+#define kBlueA   kRainbowA[6]
+#define kPurpleA kRainbowA[7]
+
+#define KStarA(mag) \
+  ((mag) < 2.0 ? kWhiteA : ((mag) < 4.0 ? kLtGrayA : kDkGrayA))
 
 extern CONST char *szAppName, *szSignName[cSign+1], *szSignAbbrev[cSign+1],
   *szSignEnglish[cSign+1], *szHouseTradition[cSign+1], *szSystem[cSystem],
@@ -156,7 +178,7 @@ extern char *szMindPart[oNorm+1], *szDesc[cSign+1], *szDesire[cSign+1],
   *szLifeArea[cSign+1], *szInteract[cAspect+1], *szTherefore[cAspect+1],
   *szModify[3][cAspect];
 extern CONST StrLook rgObjName[], rgSystem[], rgAspectName[];
-extern real rStarBright[cStar+1];
+extern real rStarBright[cStar+1], rStarDist[cStar+1];
 extern char *szStarCustom[cStar+1];
 extern CONST char *szObjDisp[objMax], *szAspectDisp[cAspect2+1],
   *szAspectAbbrevDisp[cAspect2+1], *szAspectGlyphDisp[cAspect2+1];
@@ -196,8 +218,9 @@ extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 extern void SwapR P((real *, real *));
 extern int CchSz P((CONST char *));
 extern int NCompareSz P((CONST char *, CONST char *));
-extern int FMatchSz P((CONST char *, CONST char *));
-extern void ClearB P((lpbyte, int));
+extern flag FMatchSz P((CONST char *, CONST char *));
+extern CONST char *SzInList P((CONST char *, CONST char *, int *));
+extern void ClearB P((pbyte, int));
 extern void CopyRgb P((byte *, byte *, int));
 extern real RSgn P((real));
 extern real Angle P((real, real));
@@ -205,6 +228,7 @@ extern real Mod P((real));
 extern real ModRad P((real));
 extern long Dvd P((long, long));
 extern int SzLookup P((CONST StrLook *, CONST char *));
+extern void FormatR P((char *, real, int));
 extern int Mod12 P((int));
 extern real DecToDeg P((real));
 extern real DegToDec P((real));
@@ -222,10 +246,12 @@ extern int AddDay P((int, int, int, int));
 extern real GetOrb P((int, int, int));
 extern CONST char *SzAspect P((int));
 extern CONST char *SzAspectAbbrev P((int));
+extern void SetCentric P((int));
 extern void Terminate P((int));
 extern void PrintSz P((CONST char *));
 extern void PrintCh P((char));
 extern void PrintSzScreen P((CONST char *));
+extern void PrintProgress P((CONST char *));
 extern void PrintNotice P((CONST char *));
 extern void PrintWarning P((CONST char *));
 extern void PrintError P((CONST char *));
@@ -249,9 +275,9 @@ extern char *SzElevation P((real));
 extern char *SzLength P((real));
 extern void GetTimeNow P((int *, int *, int *, real *, real, real));
 extern int NFromAltN P((int));
-extern char *ProcessProgname P((char *));
+extern char *SzProcessProgname P((char *));
 extern char *SzPersist P((char *));
-extern lpbyte PAllocate P((long, CONST char *));
+extern pbyte PAllocate P((long, CONST char *));
 
 
 /* From io.cpp */
@@ -298,7 +324,7 @@ extern flag FSwissPlanet
 extern void SwissHouse P((real, real, real, int,
   real *, real *, real *, real *, real *, real *, real *));
 extern void SwissComputeStars P((real, flag));
-extern flag SwissComputeStar P((real, int, real *, real *, real *));
+extern flag SwissComputeStar P((real, ES *));
 extern double SwissJulDay P((int, int, int, real, int));
 extern void SwissRevJul P((real, int, int *, int *, int *, double *));
 #endif
@@ -313,6 +339,7 @@ extern void SwissRevJul P((real, int, int *, int *, int *, double *));
 #define IoeFromObj(obj) \
   ((obj) < oMoo ? 0 : ((obj) <= cPlanet ? (obj)-2 : (obj)-uranLo+cPlanet-2))
 #define Tropical(deg) ((deg) - is.rSid + us.rZodiacOffset)
+#define Untropical(deg) ((deg) + is.rSid - us.rZodiacOffset)
 
 extern real MC, Asc, RA, OB;
 
@@ -413,7 +440,7 @@ extern void ChartAspectRelation P((void));
 extern void ChartMidpointRelation P((void));
 extern void CastRelation P((void));
 extern void PrintInDayEvent P((int, int, int, int));
-extern void PrintAspect P((int, int, int, int, int, int, int, char));
+extern void PrintAspect P((int, real, int, int, int, real, int, char));
 extern void ChartInDayInfluence P((void));
 extern void ChartTransitInfluence P((flag));
 extern void ChartTransitGraph P((flag, flag));
@@ -465,7 +492,6 @@ extern GI gi;
 #ifdef X11
 extern XSizeHints hint;
 extern char xkey[];
-extern CONST char *szColorX[cColor];
 extern KV rgbind[cColor];
 extern KV fg, bg;
 #endif
@@ -477,16 +503,40 @@ extern WI wi;
 #endif
 extern char *szWheelX[4+1];
 
-extern CONST KV rgbbmp[cColor];
-extern KI kMainB[9], kRainbowB[8], kElemB[cElem], kAspB[cAspect+1],
+extern CONST KV rgbbmpDef[cColor];
+extern KV rgbbmp[cColor];
+extern KI kMainB[9], kRainbowB[cRainbow+1], kElemB[cElem], kAspB[cAspect+1],
   kObjB[objMax], kRayB[cRay+2];
 extern CONST char szObjectFont[oNorm+1], szAspectFont[cAspect+1],
-  *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawObjectDef[oNorm+5],
-  *szDrawObjectDef2[oNorm+5], *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1],
+  *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawSign3[cSign+2],
+  *szDrawObjectDef[oNorm+5], *szDrawObjectDef2[oNorm+5],
+  *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1], *szDrawHouse3[cSign+1],
   *szDrawAspectDef[cAspect2+1], *szDrawAspectDef2[cAspect2+1],
   *szDrawCh[256-32], *szWorldData[62*3], *szDrawConstel[cCnstl+1];
 extern CONST char *szDrawObject[oNorm+5], *szDrawObject2[oNorm+5],
   *szDrawAspect[cAspect2+1], *szDrawAspect2[cAspect2+1];
+
+#define kBlackB   kMainB[0]
+#define kWhiteB   kMainB[1]
+#define kLtGrayB  kMainB[2]
+#define kDkGrayB  kMainB[3]
+#define kMaroonB  kMainB[4]
+#define kDkGreenB kMainB[5]
+#define kDkCyanB  kMainB[6]
+#define kDkBlueB  kMainB[7]
+#define kMagentaB kMainB[8]
+
+#define kRedB    kRainbowB[1]
+#define kOrangeB kRainbowB[2]
+#define kYellowB kRainbowB[3]
+#define kGreenB  kRainbowB[4]
+#define kCyanB   kRainbowB[5]
+#define kBlueB   kRainbowB[6]
+#define kPurpleB kRainbowB[7]
+
+#define KStarB(mag) \
+  ((mag) < 2.0 ? gi.kiOn : ((mag) < 4.0 ? gi.kiLite : gi.kiGray))
+
 
 /* From xgeneral.cpp */
 
@@ -508,10 +558,10 @@ extern CONST char *szDrawObject[oNorm+5], *szDrawObject2[oNorm+5],
 
 extern void DrawColor P((KI));
 extern void DrawPoint P((int, int));
-extern void DrawPointStar P((int, int, real));
 extern void DrawSpot P((int, int));
 extern void DrawBlock P((int, int, int, int));
 extern void DrawBox P((int, int, int, int, int, int));
+extern void WinClearScreen P((KI));
 extern void DrawClearScreen P((void));
 extern void DrawDash P((int, int, int, int, int));
 extern void DrawWrap P((int, int, int, int, int, int));
@@ -523,6 +573,9 @@ extern void DrawSz P((CONST char *, int, int, int));
 extern void DrawSign P((int, int, int));
 extern void DrawHouse P((int, int, int));
 extern void DrawObject P((int, int, int));
+#ifdef SWISS
+extern void DrawStar P((int, int, ES *));
+#endif
 extern void DrawAspect P((int, int, int));
 extern int NFromPch P((CONST char **));
 extern void DrawTurtle P((CONST char *, int, int));
@@ -597,10 +650,14 @@ extern void DrawWheel
   P((real *, real *, int, int, real, real, real,real,real,real,real));
 extern void DrawSymbolRing
   P((real *, real *, real *, int, int, real, real, real,real,real,real));
+extern void DrawObjects P((ObjDraw *, int, int));
 extern flag FReadWorldData P((char **, char **, char **));
 extern flag FGlobeCalc P((real, real, int *, int *, int, int, int, int, int));
 extern flag FMapCalc P((real, real, int *, int *, flag, flag, real, real,
   int, int, int, int, int, int));
+#ifdef SWISS
+extern flag EnumStarsLines(flag, ES **, ES **);
+#endif
 
 extern void DrawLeyLine P((real, real, real, real));
 extern void DrawLeyLines P((int));
@@ -610,12 +667,25 @@ extern void DrawChartX P((void));
 
 /* From xcharts1.cpp */
 
+extern void LocToHorizon P((real, real, real, real, int, int, int, int,
+  int *, int *));
+extern void EquToHorizon P((real, real, real, real, int, int, int, int,
+  int *, int *));
+extern void EclToHorizon P((real, real, real, real, int, int, int, int,
+  int *, int *));
+extern void LocToHorizonSky P((real, real, real, real, int, int, real, real,
+  int *, int *));
+extern void EquToHorizonSky P((real, real, real, real, int, int, real, real,
+  int *, int *));
+extern void EclToHorizonSky P((real, real, real, real, int, int, real, real,
+  int *, int *));
+
 extern void XChartWheel P((void));
 extern void XChartAstroGraph P((void));
 extern void XChartGrid P((void));
 extern void XChartHorizon P((void));
 extern void XChartHorizonSky P((void));
-extern void OrbitPlot P((real *, real *, real *, real));
+extern void OrbitPlot P((real *, real *, real *, real, int, PT3R *));
 extern void OrbitRecord P((void));
 extern void XChartOrbit P((void));
 extern void XChartSector P((void));
@@ -668,8 +738,7 @@ extern OPENFILENAME ofn;
 extern PRINTDLG prd;
 extern char szFileName[cchSzMaxFile], szFileTitle[cchSzMaxFile], *szFileTemp;
 
-#define TextClearScreen() PatBlt(wi.hdc, 0, 0, wi.xClient, wi.yClient, \
-  !gs.fInverse ? BLACKNESS : WHITENESS);
+#define TextClearScreen() WinClearScreen(gs.fInverse ? kWhiteA : kBlackA)
 #define CheckMenu(cmd, f) \
   CheckMenuItem(wi.hmenu, (uint)cmd, f ? MF_CHECKED : MF_UNCHECKED);
 #define WiCheckMenu(cmd, f) CheckMenu(cmd, f); wi.fMenu = fTrue

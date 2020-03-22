@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: charts2.cpp
+** Astrolog (Version 6.50) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -65,10 +65,11 @@ void ChartListingRelation(void)
   int cChart, i, j, k, n;
   real r, rT;
 
-  cChart = 2 + (us.nRel <= rcTriWheel) + (us.nRel <= rcQuadWheel);
+  cChart = 2 + (us.nRel == rcTriWheel || us.nRel == rcQuadWheel) +
+    (us.nRel == rcQuadWheel);
 
   /* Print header rows. */
-  AnsiColor(kMainA[1]);
+  AnsiColor(kWhiteA);
   PrintTab(' ', 5);
   n = us.fSeconds ? 23 : 16;
   sprintf(szT, " %%-%d.%ds", n, n);
@@ -79,13 +80,16 @@ void ChartListingRelation(void)
   PrintSz("\n      ");
   for (i = 1; i <= cChart; i++) {
     AnsiColor(kMainA[FOdd(i) ? 1 : 3]);
-    PrintSz(SzDate(rgpci[i]->mon, rgpci[i]->day, rgpci[i]->yea,
-      us.fSeconds-1));
-    PrintCh(' ');
-    PrintSz(SzTim(rgpci[i]->tim));
-    PrintTab(' ', us.fSeconds ? 3 : 1);
+    if (!FNoTimeOrSpace(*rgpci[i])) {
+      PrintSz(SzDate(rgpci[i]->mon, rgpci[i]->day, rgpci[i]->yea,
+        us.fSeconds-1));
+      PrintCh(' ');
+      PrintSz(SzTim(rgpci[i]->tim));
+      PrintTab(' ', us.fSeconds ? 3 : 1);
+    } else
+      PrintSz(us.fSeconds ? "(No time or space)      " : "(No time/space)  ");
   }
-  AnsiColor(kMainA[3]);
+  AnsiColor(kDkGrayA);
   PrintSz("\nBody");
   for (i = 1; i <= cChart; i++) {
     AnsiColor(kMainA[FOdd(i) ? 1 : 3]);
@@ -122,7 +126,7 @@ void ChartListingRelation(void)
             rgpcp[j]->alt[i], rgpcp[k]->alt[i]);
         r = Max(r, rT);
       }
-    AnsiColor(kMainA[3]);
+    AnsiColor(kDkGrayA);
     PrintCh(' ');
     PrintSz(SzDegree(r));
     PrintL();
@@ -255,13 +259,14 @@ void ChartAspectRelation(void)
 {
   int ca[cAspect + 1], co[objMax];
   char sz[cchSzDef];
-  int pcut = nLarge, icut, jcut, phi, ihi, jhi, ahi, p, i, j, k, count = 0;
+  int vcut = nLarge, icut, jcut, vhi, ihi, jhi, ahi, phi, v, i, j, k, p,
+    count = 0;
   real ip, jp, rPowSum = 0.0;
 
-  ClearB((lpbyte)ca, (cAspect + 1)*(int)sizeof(int));
-  ClearB((lpbyte)co, objMax*(int)sizeof(int));
+  ClearB((pbyte)ca, (cAspect + 1)*(int)sizeof(int));
+  ClearB((pbyte)co, objMax*(int)sizeof(int));
   loop {
-    phi = -nLarge;
+    vhi = -nLarge;
 
     /* Search for the next most powerful aspect in the aspect grid. */
 
@@ -272,14 +277,25 @@ void ChartAspectRelation(void)
           jp = RObjInf(j);
           p = (int)(rAspInf[k]*(ip+jp)/2.0*
             (1.0-RAbs((real)(grid->v[i][j]))/3600.0/GetOrb(i, j, k))*1000.0);
-          if ((p < pcut || (p == pcut && (i > icut ||
-            (i == icut && j > jcut)))) && p > phi) {
-            ihi = i; jhi = j; phi = p; ahi = k;
+          switch (us.nAspectSort) {
+          default:  v = p;                           break;
+          case aso: v = -NAbs(grid->v[i][j]);        break;
+          case asn: v = -grid->v[i][j];              break;
+          case asO: v = -(j*cObj + i);               break;
+          case asP: v = -(i*cObj + j);               break;
+          case asA: v = -(k*cObj*cObj + j*cObj + i); break;
+          case asC: v = -(int)(cp1.obj[j]*3600.0);   break;
+          case asD: v = -(int)(cp2.obj[i]*3600.0);   break;
+          case asM: v = -(int)(Midpoint(cp1.obj[j], cp2.obj[i])*3600.0); break;
+          }
+          if ((v < vcut || (v == vcut && (i > icut ||
+            (i == icut && j > jcut)))) && v > vhi) {
+            vhi = v; ihi = i; jhi = j; ahi = k; phi = p;
           }
         }
-    if (phi <= -nLarge)    /* Exit when no less powerful aspect found. */
+    if (vhi <= -nLarge)    /* Exit when no less powerful aspect found. */
       break;
-    pcut = phi; icut = ihi; jcut = jhi;
+    vcut = vhi; icut = ihi; jcut = jhi;
     count++;                              /* Display the current aspect.   */
     rPowSum += (real)phi/1000.0;
     ca[ahi]++;
@@ -287,21 +303,22 @@ void ChartAspectRelation(void)
 #ifdef INTERPRET
     if (us.fInterpret) {                  /* Interpret it if -I in effect. */
       InterpretAspectRelation(jhi, ihi);
+      AnsiColor(kDefault);
       continue;
     }
 #endif
     sprintf(sz, "%3d: ", count); PrintSz(sz);
-    PrintAspect(jhi, SFromZ(cp1.obj[jhi]), (int)RSgn(cp1.dir[jhi]), ahi,
-      ihi, SFromZ(cp2.obj[ihi]), (int)RSgn(cp2.dir[ihi]), 'A');
+    PrintAspect(jhi, cp1.obj[jhi], (int)RSgn(cp1.dir[jhi]), ahi,
+      ihi, cp2.obj[ihi], (int)RSgn(cp2.dir[ihi]), 'A');
     k = grid->v[ihi][jhi];
-    AnsiColor(k < 0 ? kMainA[1] : kMainA[2]);
-    sprintf(sz, "- orb: %c%d,%02d'",
+    AnsiColor(k < 0 ? kWhiteA : kLtGrayA);
+    sprintf(sz, "- orb: %c%d%c%02d'",
       us.fAppSep ? (k < 0 ? 'a' : 's') : (k < 0 ? '-' : '+'),
-      NAbs(k)/3600, NAbs(k)%3600/60); PrintSz(sz);
+      NAbs(k)/3600, chDeg1, NAbs(k)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
       sprintf(sz, "%02d\"", NAbs(k)%60); PrintSz(sz);
     }
-    AnsiColor(kMainA[5]);
+    AnsiColor(kDkGreenA);
     sprintf(sz, " - power:%6.2f\n", (real)phi/1000.0); PrintSz(sz);
     AnsiColor(kDefault);
   }
@@ -321,7 +338,7 @@ void ChartMidpointRelation(void)
   int mcut = -1, icut, jcut, mlo, ilo, jlo, m, i, j, count = 0;
   long lSpanSum = 0;
 
-  ClearB((lpbyte)cs, (cSign + 1)*(int)sizeof(int));
+  ClearB((pbyte)cs, (cSign + 1)*(int)sizeof(int));
   loop {
     mlo = 360*60*60;
 
@@ -347,14 +364,15 @@ void ChartMidpointRelation(void)
 #ifdef INTERPRET
     if (us.fInterpret) {                   /* Interpret it if -I in effect. */
       InterpretMidpointRelation(ilo, jlo);
+      AnsiColor(kDefault);
       continue;
     }
 #endif
     sprintf(sz, "%4d: ", count); PrintSz(sz);
     PrintZodiac((real)mlo/3600.0);
     PrintCh(' ');
-    PrintAspect(ilo, SFromZ(cp1.obj[ilo]), (int)RSgn(cp1.dir[ilo]), 0,
-      jlo, SFromZ(cp2.obj[jlo]), (int)RSgn(cp2.dir[jlo]), 'M');
+    PrintAspect(ilo, cp1.obj[ilo], (int)RSgn(cp1.dir[ilo]), 0,
+      jlo, cp2.obj[jlo], (int)RSgn(cp2.dir[jlo]), 'M');
     AnsiColor(kDefault);
     sprintf(sz, "-%4d%c%02d'", m/3600, chDeg1, m%3600/60); PrintSz(sz);
     if (is.fSeconds) {
@@ -376,14 +394,26 @@ void CastRelation(void)
 {
   byte ignoreT[objMax];
   int i, j;
-  real ratio, t1, t2, t;
+  real ratio, t1, t2, t, rSav;
+  flag fSav;
 
   /* Cast the first chart. */
 
-  ciMain = ciCore;
+  ciCore = ciMain;
+  if (us.nRel == rcProgress) {
+    fSav = us.fProgress;
+    us.fProgress = fFalse;
+  }
+#ifdef WIN
+  else if (us.nRel == rcMidpoint)
+    ciCore = ciMain = ciSave;
+#endif
   FProcessCommandLine(szWheel[1]);
+  if (FNoTimeOrSpace(ciCore))
+    cp0 = cp1;
   t1 = CastChart(fTrue);
   cp1 = cp0;
+  rSav = is.MC;
 
   /* Cast the second chart. */
 
@@ -399,12 +429,14 @@ void CastRelation(void)
     ciCore = ciMain;
   }
   FProcessCommandLine(szWheel[2]);
+  if (FNoTimeOrSpace(ciCore))
+    cp0 = cp2;
   t2 = CastChart(fTrue);
   if (us.nRel == rcTransit) {
     for (i = 0; i <= cObj; i++)
       ignore[i] = ignoreT[i];
   } else if (us.nRel == rcProgress)
-    us.fProgress = fFalse;
+    us.fProgress = fSav;
   cp2 = cp0;
 
   /* Cast the third and fourth charts. */
@@ -412,17 +444,22 @@ void CastRelation(void)
   if (us.nRel == rcTriWheel || us.nRel == rcQuadWheel) {
     ciCore = ciThre;
     FProcessCommandLine(szWheel[3]);
+    if (FNoTimeOrSpace(ciCore))
+      cp0 = cp3;
     CastChart(fTrue);
     cp3 = cp0;
     if (us.nRel == rcQuadWheel) {
       ciCore = ciFour;
       FProcessCommandLine(szWheel[4]);
+      if (FNoTimeOrSpace(ciCore))
+        cp0 = cp4;
       CastChart(fTrue);
       cp4 = cp0;
     }
   }
   ciCore = ciMain;
   FProcessCommandLine(szWheel[0]);
+  is.MC = rSav;
 
   /* Now combine the two charts based on what relation we are doing.   */
   /* For the standard -r synastry chart, use the house cusps of chart1 */
@@ -480,13 +517,17 @@ void CastRelation(void)
     AA = Ratio(Lat, ciTwin.lat, ratio);
     ciMain = ciCore;
     CastChart(fTrue);
+#ifndef WIN
     us.nRel = rcNone;  /* Turn off so don't move to midpoint again. */
+#endif
 
   /* There are a couple of non-astrological charts, which only require the */
   /* number of days that have passed between the two charts to be done.    */
 
-  } else
+  } else {
     is.JD = RAbs(t2-t1)*36525.0;
+    cp0 = cp1;
+  }
 
   ComputeInHouses();
 }
@@ -510,7 +551,7 @@ void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
   /* If the Sun changes sign, then print out if this is a season change. */
   if (aspect == aSig) {
     if (source == oSun) {
-      AnsiColor(kMainA[1]);
+      AnsiColor(kWhiteA);
       if (dest == sAri || dest == sLib) {
         if ((dest == sAri) == (AA >= 0.0))
           PrintSz(" (Spring Equinox)");
@@ -528,7 +569,7 @@ void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
   } else if (aspect > 0) {
     if (source == oSun && dest == oMoo && !us.fParallel) {
       if (aspect <= aSqu)
-        AnsiColor(kMainA[1]);
+        AnsiColor(kWhiteA);
       if (aspect == aCon)
         PrintSz(" (New Moon)");
       else if (aspect == aOpp)
@@ -563,22 +604,35 @@ void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
 /* the -a aspect lists, -m midpoint lists, -d aspect in day search and    */
 /* -D influence charts, and -t transit search and -T influence charts.    */
 
-void PrintAspect(int obj1, int sign1, int ret1, int asp,
-  int obj2, int sign2, int ret2, char chart)
+void PrintAspect(int obj1, real pos1, int ret1, int asp,
+  int obj2, real pos2, int ret2, char chart)
 {
   char sz[cchSzDef];
+  KI ki;
+  flag fSav = is.fSeconds;
 
+  is.fSeconds = fFalse;
   AnsiColor(kObjA[obj1]);
   if (chart == 't' || chart == 'T')
     PrintSz("trans ");
   else if (chart == 'e' || chart == 'u' || chart == 'U')
     PrintSz("progr ");
   sprintf(sz, "%7.7s", szObjDisp[obj1]); PrintSz(sz);
-  AnsiColor(kSignA(sign1));
-  sprintf(sz, " %c%.3s%c",
-    ret1 > 0 ? '(' : (ret1 < 0 ? '[' : '<'), szSignName[sign1],
-    ret1 > 0 ? ')' : (ret1 < 0 ? ']' : '>')); PrintSz(sz);
-  AnsiColor(asp > 0 ? kAspA[asp] : kMainA[1]);
+  ki = kSignA(SFromZ(pos1));
+  AnsiColor(ki);
+  sprintf(sz, " %c", ret1 > 0 ? '(' : (ret1 < 0 ? '[' : '<')); PrintSz(sz);
+  if (!us.fSeconds) {
+    sprintf(sz, "%.3s", szSignName[SFromZ(pos1)]); PrintSz(sz);
+  } else {
+    if ((asp == aSig || asp == aHou) && ret1 > 0)
+      pos1 += 29.999;
+    else if (asp == aDeg)
+      pos1 = (real)obj2 * (rDegMax / (real)(cSign * us.nSignDiv));
+    PrintZodiac(pos1);
+    AnsiColor(ki);
+  }
+  sprintf(sz, "%c", ret1 > 0 ? ')' : (ret1 < 0 ? ']' : '>')); PrintSz(sz);
+  AnsiColor(asp > 0 ? kAspA[asp] : kWhiteA);
   PrintCh(' ');
 
   if (asp == aSig || asp == aHou)
@@ -601,23 +655,31 @@ void PrintAspect(int obj1, int sign1, int ret1, int asp,
     AnsiColor(kSignA(obj2));
     sprintf(sz, "%s", szSignName[obj2]); PrintSz(sz);
   } else if (asp == aDeg) {
+    is.fSeconds = fSav;
     PrintZodiac((real)obj2 * (rDegMax / (real)(cSign * us.nSignDiv)));
   } else if (asp == aHou) {
     AnsiColor(kSignA(obj2));
     sprintf(sz, "%d%s 3D House", obj2, szSuffix[obj2]); PrintSz(sz);
   } else if (asp >= 0) {
-    AnsiColor(kSignA(sign2));
+    ki = kSignA(SFromZ(pos2));
+    AnsiColor(ki);
     if (chart == 't' || chart == 'u' || chart == 'T' || chart == 'U')
       PrintSz("natal ");
-    sprintf(sz, "%c%.3s%c ",
-      ret2 > 0 ? '(' : (ret2 < 0 ? '[' : '<'), szSignName[sign2],
-      ret2 > 0 ? ')' : (ret2 < 0 ? ']' : '>')); PrintSz(sz);
+    sprintf(sz, "%c", ret2 > 0 ? '(' : (ret2 < 0 ? '[' : '<')); PrintSz(sz);
+    if (!us.fSeconds) {
+      sprintf(sz, "%.3s", szSignName[SFromZ(pos2)]); PrintSz(sz);
+    } else {
+      PrintZodiac(pos2);
+      AnsiColor(ki);
+    }
+    sprintf(sz, "%c ", ret2 > 0 ? ')' : (ret2 < 0 ? ']' : '>')); PrintSz(sz);
     AnsiColor(kObjA[obj2]);
     sprintf(sz, "%.10s", szObjDisp[obj2]); PrintSz(sz);
   }
   if (chart == 'D' || chart == 'T' || chart == 'U' ||
     chart == 'a' || chart == 'A' || chart == 'm' || chart == 'M')
     PrintTab(' ', 10-CchSz(szObjDisp[obj2]));
+  is.fSeconds = fSav;
 }
 
 
@@ -634,6 +696,7 @@ void ChartInDayInfluence(void)
   real power[MAXINDAY];
   char sz[cchSzDef];
   int occurcount = 0, i, j, k, l, m;
+  flag f;
 
   /* Go compute the aspects in the chart. */
 
@@ -662,7 +725,27 @@ void ChartInDayInfluence(void)
 
   for (i = 1; i < occurcount; i++) {
     j = i-1;
-    while (j >= 0 && power[j] < power[j+1]) {
+    while (j >= 0) {
+      k = j+1;
+      switch (us.nAspectSort) {
+      default:  f = power[j] > power[k]; break;
+      case aso: f = NAbs(grid->v[source[j]][dest[j]]) <
+                    NAbs(grid->v[source[k]][dest[k]]); break;
+      case asn: f = grid->v[source[j]][dest[j]] <
+                    grid->v[source[k]][dest[k]]; break;
+      case asO: f = source[j]*cObj + dest[j] <
+                    source[k]*cObj + dest[k]; break;
+      case asP: f = dest[j]*cObj + source[j] <
+                    dest[k]*cObj + source[k]; break;
+      case asA: f = aspect[j]*cObj*cObj + source[j]*cObj + dest[j] <
+                    aspect[k]*cObj*cObj + source[k]*cObj + dest[k]; break;
+      case asC: f = planet[source[j]] < planet[source[k]]; break;
+      case asD: f = planet[dest[j]] < planet[dest[k]]; break;
+      case asM: f = Midpoint(planet[dest[j]], planet[source[j]]) <
+                    Midpoint(planet[dest[k]], planet[source[k]]); break;
+      }
+      if (f)
+        break;
       SwapN(source[j], source[j+1]);
       SwapN(aspect[j], aspect[j+1]);
       SwapN(dest[j], dest[j+1]);
@@ -676,17 +759,16 @@ void ChartInDayInfluence(void)
   for (i = 0; i < occurcount; i++) {
     sprintf(sz, "%3d: ", i+1); PrintSz(sz);
     j = source[i]; k = aspect[i]; l = dest[i];
-    PrintAspect(
-      j, SFromZ(planet[j]), (int)RSgn(ret[j]), k,
-      l, SFromZ(planet[l]), (int)RSgn(ret[l]), 'D');
+    PrintAspect(j, planet[j], (int)RSgn(ret[j]), k,
+      l, planet[l], (int)RSgn(ret[l]), 'D');
     m = grid->v[j][l];
-    AnsiColor(m < 0 ? kMainA[1] : kMainA[2]);
+    AnsiColor(m < 0 ? kWhiteA : kLtGrayA);
     sprintf(sz, " - %s%2d%c%02d'", m < 0 ? "app" : "sep",
       NAbs(m)/3600, chDeg1, NAbs(m)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
       sprintf(sz, "%02d\"", NAbs(m)%60); PrintSz(sz);
     }
-    AnsiColor(kMainA[5]);
+    AnsiColor(kDkGreenA);
     sprintf(sz, " - power:%6.2f", power[i]); PrintSz(sz);
     PrintInDayEvent(j, k, l, -1);
   }
@@ -706,6 +788,7 @@ void ChartTransitInfluence(flag fProg)
   byte ignore3[objMax];
   char sz[cchSzDef];
   int occurcount = 0, fProgress = us.fProgress, i, j, k, l, m;
+  flag f;
 
   /* Cast the natal and transiting charts as with a relationship chart. */
 
@@ -767,11 +850,31 @@ void ChartTransitInfluence(flag fProg)
 
   for (i = 1; i < occurcount; i++) {
     j = i-1;
-    while (j >= 0 && power[j] < power[j+1]) {
-      SwapN(source[j], source[j+1]);
-      SwapN(aspect[j], aspect[j+1]);
-      SwapN(dest[j], dest[j+1]);
-      SwapR(&power[j], &power[j+1]);
+    while (j >= 0) {
+      k = j+1;
+      switch (us.nAspectSort) {
+      default:  f = power[j] > power[k]; break;
+      case aso: f = NAbs(grid->v[source[j]][dest[j]]) <
+                    NAbs(grid->v[source[k]][dest[k]]); break;
+      case asn: f = grid->v[source[j]][dest[j]] <
+                    grid->v[source[k]][dest[k]]; break;
+      case asO: f = source[j]*cObj + dest[j] <
+                    source[k]*cObj + dest[k]; break;
+      case asP: f = dest[j]*cObj + source[j] <
+                    dest[k]*cObj + source[k]; break;
+      case asA: f = aspect[j]*cObj*cObj + source[j]*cObj + dest[j] <
+                    aspect[k]*cObj*cObj + source[k]*cObj + dest[k]; break;
+      case asC: f = cp2.obj[source[j]] < cp2.obj[source[k]]; break;
+      case asD: f = cp1.obj[dest[j]] < cp1.obj[dest[k]]; break;
+      case asM: f = Midpoint(cp1.obj[dest[j]], cp2.obj[source[j]]) <
+                    Midpoint(cp1.obj[dest[k]], cp2.obj[source[k]]); break;
+      }
+      if (f)
+        break;
+      SwapN(source[j], source[k]);
+      SwapN(aspect[j], aspect[k]);
+      SwapN(dest[j], dest[k]);
+      SwapR(&power[j], &power[k]);
       j--;
     }
   }
@@ -782,21 +885,20 @@ void ChartTransitInfluence(flag fProg)
     k = aspect[i];
     l = source[i];
     sprintf(sz, "%3d: ", i+1); PrintSz(sz);
-    j = SFromZ(cp2.obj[l]);
-    PrintAspect(l, j, (int)RSgn(cp2.dir[l]), k,
-      dest[i], SFromZ(cp1.obj[dest[i]]), (int)RSgn(cp1.dir[dest[i]]),
+    PrintAspect(l, cp2.obj[l], (int)RSgn(cp2.dir[l]), k,
+      dest[i], cp1.obj[dest[i]], (int)RSgn(cp1.dir[dest[i]]),
       (char)(fProg ? 'U' : 'T'));
     m = grid->v[l][dest[i]];
-    AnsiColor(m < 0 ? kMainA[1] : kMainA[2]);
+    AnsiColor(m < 0 ? kWhiteA : kLtGrayA);
     sprintf(sz, "- %s%2d%c%02d'", m < 0 ? "app" : "sep",
       NAbs(m)/3600, chDeg1, NAbs(m)%3600/60); PrintSz(sz);
     if (is.fSeconds) {
       sprintf(sz, "%02d\"", NAbs(m)%60); PrintSz(sz);
     }
-    AnsiColor(kMainA[5]);
+    AnsiColor(kDkGreenA);
     sprintf(sz, " - power:%6.2f", power[i]); PrintSz(sz);
     if (k == aCon && l == dest[i]) {    /* Print a small "R" for returns. */
-      AnsiColor(kMainA[1]);
+      AnsiColor(kWhiteA);
       PrintSz(" R");
     }
     PrintL();
@@ -841,7 +943,7 @@ void ChartCalendarMonth(void)
   char sz[cchSzDef];
   int i, j, k;
 
-  AnsiColor(kMainA[1]);
+  AnsiColor(kWhiteA);
   PrintTab(' ', (16-CchSz(szMonth[Mon])) >> 1);
   sprintf(sz, "%s%5d\n", szMonth[Mon], Yea); PrintSz(sz);
   for (i = 0; i < cWeek; i++) {
@@ -852,7 +954,7 @@ void ChartCalendarMonth(void)
   AnsiColor(kDefault);
   for (i = 0; i < j; i++) {
     if (i == 0)
-      AnsiColor(kRainbowA[1]);
+      AnsiColor(kRedA);
     PrintSz("-- ");
     if (i == 0)
       AnsiColor(kDefault);
@@ -860,9 +962,9 @@ void ChartCalendarMonth(void)
   k = DayInMonth(Mon, Yea);
   for (i = 1; i <= k; i = AddDay(Mon, i, Yea, 1)) {
     if (i == (int)Day)
-      AnsiColor(kRainbowA[4]);
+      AnsiColor(kGreenA);
     else if (j == 0 || j == cWeek-1)
-      AnsiColor(kRainbowA[1]);
+      AnsiColor(kRedA);
     sprintf(sz, "%2d", i); PrintSz(sz);
     if (j == 0 || j == cWeek-1 || i == Day)
       AnsiColor(kDefault);
@@ -876,7 +978,7 @@ void ChartCalendarMonth(void)
   }
   while (j > 0 && j < cWeek) {
     if (j == cWeek-1)
-      AnsiColor(kRainbowA[1]);
+      AnsiColor(kRedA);
     j++;
     sprintf(sz, "--%c", j < cWeek ? ' ' : '\n'); PrintSz(sz);
   }
@@ -895,7 +997,7 @@ void ChartCalendarYear(void)
 
   dy = DayOfWeek(1, 1, Yea);
   for (r = 0; r < 4; r++) {     /* Loop over one set of three months */
-    AnsiColor(kMainA[1]);
+    AnsiColor(kWhiteA);
     for (c = 0; c < 3; c++) {
       m = r*3+c+1;
       PrintTab(' ', (16-CchSz(szMonth[m])) >> 1);
@@ -925,7 +1027,7 @@ void ChartCalendarYear(void)
         if (w == 0)
           while (d < p[c]) {
             if (d == 0)
-              AnsiColor(kRainbowA[1]);
+              AnsiColor(kRedA);
             PrintSz("-- ");
             if (d == 0)
               AnsiColor(kDefault);
@@ -935,9 +1037,9 @@ void ChartCalendarYear(void)
         while (d < cWeek && n[c] < l[c]) {
           n[c] = AddDay(m, n[c], Yea, 1);
           if (n[c] == Day && m == Mon)
-            AnsiColor(kRainbowA[4]);
+            AnsiColor(kGreenA);
           else if (d == 0 || d == cWeek-1)
-            AnsiColor(kRainbowA[1]);
+            AnsiColor(kRedA);
           sprintf(sz, "%2d%c", n[c], d < cWeek-1 || c < 2 ? ' ' : '\n');
           PrintSz(sz);
           if (d == 0 || d == cWeek-1 || (n[c] == Day && m == Mon))
@@ -946,7 +1048,7 @@ void ChartCalendarYear(void)
         }
         while (d < cWeek) {
           if (d == 0 || d == cWeek-1)
-            AnsiColor(kRainbowA[1]);
+            AnsiColor(kRedA);
           sprintf(sz, "--%c", d < cWeek-1 || c < 2 ? ' ' : '\n'); PrintSz(sz);
           if (d == 0)
             AnsiColor(kDefault);
@@ -985,13 +1087,13 @@ void DisplayRelation(void)
     k = RAbs(ciMain.lon - ciTwin.lon);
     l = RAbs(ciMain.lat - ciTwin.lat);
     for (i = 1; i <= 10; i++) {
-      if (i <= 7)
+      if (i <= cRainbow)
         AnsiColor(kRainbowA[i]);
       else
         AnsiColor(kDefault);
       switch (i) {
-      case 1: sprintf(sz, "Years  : %.2f", is.JD/365.25);        break;
-      case 2: sprintf(sz, "Months : %.2f", is.JD/(365.25/12.0)); break;
+      case 1: sprintf(sz, "Years  : %.2f", is.JD/rDayInYear);    break;
+      case 2: sprintf(sz, "Months : %.2f", is.JD/(rDayInYear/12.0)); break;
       case 3: sprintf(sz, "Weeks  : %.2f", is.JD/7.0);           break;
       case 4: sprintf(sz, "Days   : %.2f", is.JD);               break;
       case 5: sprintf(sz, "Hours  : %.2f", is.JD*24.0);          break;
@@ -1021,7 +1123,7 @@ void DisplayRelation(void)
   for (is.JD -= (real)(us.nBioday/2), i = -us.nBioday/2; i <= us.nBioday/2;
     i++, is.JD += 1.0) {
     if (i == 0)
-      AnsiColor(kMainA[1]);
+      AnsiColor(kWhiteA);
     else if (i == 1)
       AnsiColor(kDefault);
     j = NAbs(i);
@@ -1029,13 +1131,13 @@ void DisplayRelation(void)
       j < 10 ? " " : "", j != 1 ? 's' : ' '); PrintSz(sz);
     for (j = 1; j <= 3; j++) {
       PrintCh(' ');
-      AnsiColor(kRainbowA[j <= 1 ? 1 : (j == 2 ? 6 : 4)]);
+      AnsiColor(j <= 1 ? kRedA : (j == 2 ? kBlueA : kYellowA));
       switch (j) {
       case 1: k = brPhy; PrintSz("Physical");     break;
       case 2: k = brEmo; PrintSz("Emotional");    break;
       case 3: k = brInt; PrintSz("Intellectual"); break;
       }
-      AnsiColor(i ? kDefault : kMainA[1]);
+      AnsiColor(i ? kDefault : kWhiteA);
 
       /* The biorhythm calculation is below. */
 
@@ -1044,10 +1146,10 @@ void DisplayRelation(void)
 
       /* Print smiley face, medium face, or sad face based on current cycle. */
 
-      AnsiColor(kRainbowA[7]);
+      AnsiColor(kDkGreenA);
       sprintf(sz, " :%c", l > 50.0 ? ')' : (l < -50.0 ? '(' : '|'));
       PrintSz(sz);
-      AnsiColor(i ? kDefault : kMainA[1]);
+      AnsiColor(i ? kDefault : kWhiteA);
       if (j < 3)
         PrintCh(',');
     }

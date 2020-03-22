@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: data2.cpp
+** Astrolog (Version 6.50) File: data2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -247,7 +247,7 @@ CONST real rStarData[cStar*6] = {
 22,57,39.0,-29,37,20,   0,42, 7.0, 41,16, 0};
 #endif /* MATRIX */
 
-real rStarBright[cStar+1] = {-1.0};
+real rStarBright[cStar+1] = {-1.0}, rStarDist[cStar+1] = {-1.0};
 char *szStarCustom[cStar+1];
 
 #ifdef INTERPRET

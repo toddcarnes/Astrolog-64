@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: general.cpp
+** Astrolog (Version 6.50) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -92,7 +92,7 @@ int NCompareSz(CONST char *sz1, CONST char *sz2)
 /* Return whether the first string matches the second, case insensitively.  */
 /* The first string may be truncated, but the first three chars must match. */
 
-int FMatchSz(CONST char *sz1, CONST char *sz2)
+flag FMatchSz(CONST char *sz1, CONST char *sz2)
 {
   CONST char *szStart = sz1;
 
@@ -102,9 +102,42 @@ int FMatchSz(CONST char *sz1, CONST char *sz2)
 }
 
 
+/* Return whether the first string matches any string in the second, case */
+/* sensitively. The second string is subdivided by semicolon characters.  */
+
+CONST char *SzInList(CONST char *sz1, CONST char *sz2, int *pisz)
+{
+  CONST char *szStart = sz1;
+  int isz = 0;
+
+  loop {
+    for (sz1 = szStart; *sz1 && *sz1 == *sz2; sz1++, sz2++)
+      ;
+    if (*sz2 == chNull || *sz2 == chSep) {
+      if (*sz1 == chNull) {
+        if (pisz != NULL)
+          *pisz = isz;
+        return sz2 + (*sz2 == chSep);
+      }
+    } else {
+      while (*sz2 && *sz2 != chSep)
+        sz2++;
+    }
+    if (*sz2 == chSep)
+      sz2++;
+    else
+      break;
+    isz++;
+  }
+  if (pisz != NULL)
+    *pisz = -1;
+  return NULL;
+}
+
+
 /* Set a given number of bytes to zero given a starting pointer. */
 
-void ClearB(lpbyte pb, int cb)
+void ClearB(pbyte pb, int cb)
 {
   while (cb-- > 0)
     *pb++ = 0;
@@ -210,6 +243,24 @@ int SzLookup(CONST StrLook *rgStrLook, CONST char *sz)
       return rgStrLook[irg].isz;
   }
   return -1;
+}
+
+
+/* Set a string to a floating point value, with at most 'n' significant */
+/* fractional digits, and dropping trailing '0' characters.             */
+
+void FormatR(char *sz, real r, int n)
+{
+  char szT[8], *pch;
+
+  sprintf(szT, "%%.%df", NAbs(n));
+  sprintf(sz, szT, r);
+  for (pch = sz; *pch; pch++)
+    ;
+  while (pch > sz && *(--pch) == '0')  /* Drop off any trailing 0 digits. */
+    ;
+  /* Positive n means ensure at least one fractional digit. */
+  pch[n > 0 ? 1 + (*pch == '.') : (*pch != '.')] = chNull;
 }
 
 
@@ -528,6 +579,19 @@ CONST char *SzAspectAbbrev(int asp)
 }
 
 
+/* Set the central planet (e.g. geocentric or heliocentric). */
+
+void SetCentric(int obj)
+{
+  if (!us.fIgnoreAuto && ignore[us.objCenter] && !ignore[obj]) {
+    /* If -YRh switch in effect, might auto(un)restrict central object. */
+    inv(ignore[us.objCenter]);
+    inv(ignore[obj]);
+  }
+  us.objCenter = obj;
+}
+
+
 /*
 ******************************************************************************
 ** String Procedures.
@@ -546,7 +610,7 @@ void Terminate(int tc)
     return;
   if (tc == tcForce) {
     is.S = stdout;
-    AnsiColor(kMainA[1]);
+    AnsiColor(kWhiteA);
     sprintf(sz, "\n%s %s exited.\n", szAppName, szVersionCore);
     PrintSz(sz);
   }
@@ -684,16 +748,36 @@ void PrintSzScreen(CONST char *sz)
 }
 
 
+/* Print a partial progress message given a string. This is meant to be     */
+/* used in the middle of long operations such as creating and saving files. */
+
+void PrintProgress(CONST char *sz)
+{
+#ifndef WIN
+  /* Progress messages are ignored in the Windows version. */
+  AnsiColor(kYellowA);
+  fprintf(stderr, "%s\n", sz);
+  AnsiColor(kDefault);
+#endif
+}
+
+
 /* Print a general user message given a string. This is just like the */
 /* warning displayer below just that we print in a different color.   */
 
 void PrintNotice(CONST char *sz)
 {
 #ifndef WIN
-  /* Notice messages are ignored in the Windows version. */
-  AnsiColor(kRainbowA[3]);
+  AnsiColor(kYellowA);
   fprintf(stderr, "%s\n", sz);
   AnsiColor(kDefault);
+#else
+  char szT[cchSzDef];
+
+  if (wi.fNoPopup)
+    return;
+  sprintf(szT, "%s Notice", szAppName);
+  MessageBox(wi.hwndMain, sz, szT, MB_ICONINFORMATION);
 #endif
 }
 
@@ -704,12 +788,14 @@ void PrintNotice(CONST char *sz)
 void PrintWarning(CONST char *sz)
 {
 #ifndef WIN
-  AnsiColor(kRainbowA[1]);
+  AnsiColor(kRedA);
   fprintf(stderr, "%s\n", sz);
   AnsiColor(kDefault);
 #else
   char szT[cchSzDef];
 
+  if (wi.fNoPopup)
+    return;
   sprintf(szT, "%s Warning", szAppName);
   MessageBox(wi.hwndMain, sz, szT, MB_ICONSTOP);
 #endif
@@ -723,13 +809,15 @@ void PrintWarning(CONST char *sz)
 void PrintError(CONST char *sz)
 {
 #ifndef WIN
-  AnsiColor(kRainbowA[1]);
+  AnsiColor(kRedA);
   fprintf(stderr, "%s: %s\n", szAppName, sz);
   AnsiColor(kDefault);
   Terminate(tcError);
 #else
   char szT[cchSzDef];
 
+  if (wi.fNoPopup)
+    return;
   sprintf(szT, "%s Error", szAppName);
   MessageBox(wi.hwndMain, sz, szT, MB_ICONEXCLAMATION);
 #endif
@@ -820,8 +908,8 @@ void AnsiColor(int k)
 #ifdef WIN
   if (is.S == stdout) {
     if (k < 0)
-      k = kMainA[2];
-    SetTextColor(wi.hdc, (COLORREF)rgbbmp[us.fAnsiColor ? k : kMainA[2]]);
+      k = kLtGrayA;
+    SetTextColor(wi.hdc, (COLORREF)rgbbmp[us.fAnsiColor ? k : kLtGrayA]);
     return;
   }
 #endif
@@ -852,7 +940,7 @@ void AnsiColor(int k)
     } else
       is.nHTML = 2;
     if (k < 0)
-      k = kMainA[2];
+      k = kLtGrayA;
     sprintf(sz, "<font color=\"%s\">", szColorHTML[k]);
     PrintSz(sz);
     is.nHTML = 1;
@@ -889,7 +977,7 @@ char *SzZodiac(real deg)
 
   switch (us.nDegForm) {
   case 0:
-    /* Normally, we format the position in degrees/sign/minutes format: */
+    /* Normally, we format the position in degrees/sign/minutes format. */
 
     sign = (int)deg / 30;
     d = (int)deg - sign*30;
@@ -902,7 +990,7 @@ char *SzZodiac(real deg)
     break;
 
   case 1:
-    /* However, if -sh switch in effect, get position in hours/minutes: */
+    /* However, if -sh switch in effect, get position in hours/minutes. */
 
     d = (int)deg / 15;
     m = (int)((deg - (real)d*15.0)*4.0);
@@ -914,7 +1002,7 @@ char *SzZodiac(real deg)
     break;
 
   default:
-    /* Otherwise, if -sd in effect, format position as a simple degree: */
+    /* Otherwise, if -sd in effect, format position as a simple degree. */
 
     sprintf(szZod, is.fSeconds ? "%11.7f" : "%7.3f", deg);
     break;
@@ -998,7 +1086,7 @@ char *SzDate(int mon, int day, int yea, int nFormat)
 
   if (us.fEuroDate) {
     switch (nFormat) {
-    case  2: sprintf(szDat, "%2d %.3s%5d", day, szMonth[mon], yea);  break;
+    case  2: sprintf(szDat, "%2d %.3s %4d", day, szMonth[mon], yea); break;
     case  1: sprintf(szDat, "%d %s %d", day, szMonth[mon], yea);     break;
     case -1: sprintf(szDat, "%2d-%2d-%2d", day, mon, NAbs(yea)%100); break;
     default: sprintf(szDat, "%2d-%2d-%4d", day, mon, yea);           break;
@@ -1006,7 +1094,7 @@ char *SzDate(int mon, int day, int yea, int nFormat)
   } else {
     switch (nFormat) {
     case  3: sprintf(szDat, "%.3s %2d, %d", szMonth[mon], day, yea); break;
-    case  2: sprintf(szDat, "%.3s %2d%5d", szMonth[mon], day, yea);  break;
+    case  2: sprintf(szDat, "%.3s %2d %4d", szMonth[mon], day, yea); break;
     case  1: sprintf(szDat, "%s %d, %d", szMonth[mon], day, yea);    break;
     case -1: sprintf(szDat, "%2d/%2d/%2d", mon, day, NAbs(yea)%100); break;
     default: sprintf(szDat, "%2d/%2d/%4d", mon, day, yea);           break;
@@ -1247,28 +1335,28 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
 /* all the path information leaving just the filename itself. This is called */
 /* by the main program to determine the name of the Astrolog executable.     */
 
-char *ProcessProgname(char *szPath)
+char *SzProcessProgname(char *szPath)
 {
-  char *b, *c, *e;
+  char *pchStart, *pch, *pchEnd;
 
-  b = c = szPath;
-  while (*c) {
+  pchStart = pch = szPath;
+  while (*pch) {
 #ifdef PC
-    *c = ChUncap(*c);    /* Because DOS filenames are case insensitive. */
+    *pch = ChUncap(*pch);    /* Because PC filenames are case insensitive. */
 #endif
-    c++;
+    pch++;
   }
-  e = c;
-  while (c > b && *c != '.')
-    c--;
-  if (c > b)
-    *c = 0;
+  pchEnd = pch;
+  while (pch > pchStart && *pch != '.')
+    pch--;
+  if (pch > pchStart)
+    *pch = 0;
   else
-    c = e;
-  while (c > b && *c != chDirSep)
-    c--;
-  if (c > b)
-    szPath = c+1;
+    pch = pchEnd;
+  while (pch > pchStart && *pch != chDirSep)
+    pch--;
+  if (pch > pchStart)
+    szPath = pch+1;
   return szPath;
 }
 
@@ -1300,18 +1388,18 @@ char *SzPersist(char *szSrc)
 /* This is Astrolog's memory allocation routine, returning a pointer given  */
 /* a size, and a string to use when printing error if the allocation fails. */
 
-lpbyte PAllocate(long lcb, CONST char *szType)
+pbyte PAllocate(long lcb, CONST char *szType)
 {
   char szT[cchSzDef];
-  lpbyte lp;
+  pbyte pb;
 
-  lp = (lpbyte)PAllocateCore(lcb);
-  if (lp == NULL && szType) {
+  pb = (pbyte)PAllocateCore(lcb);
+  if (pb == NULL && szType) {
     sprintf(szT, "%s: Not enough memory for %s (%ld bytes).",
       szAppName, szType, lcb);
     PrintWarning(szT);
   }
-  return lp;
+  return pb;
 }
 
 /* general.cpp */

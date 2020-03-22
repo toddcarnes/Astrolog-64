@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: wdriver.cpp
+** Astrolog (Version 6.50) File: wdriver.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -116,6 +116,14 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
     SwitchF(wi.fNoUpdate);
     break;
 
+  case 'h':
+    SwitchF(wi.fHourglass);
+    break;
+
+  case 't':
+    SwitchF(wi.fNoPopup);
+    break;
+
   case 'o':
     if (ch1 == '0' || ch2 == '0') {
       SwitchF(wi.fAutoSaveNum);
@@ -152,16 +160,16 @@ int NProcessSwitchesW(int argc, char **argv, int pos,
 
 void BootExternal(CONST char *szApp, CONST char *szFile)
 {
-  char szCmd[cchSzDef], sz[cchSzDef];
+  char szCmd[cchSzDef], szPath[cchSzDef];
 
-  if (FileOpen(szFile, 2, sz) != NULL) {
+  if (FileOpen(szFile, 2, szPath) != NULL) {
     if (szApp != NULL) {
-      sprintf(szCmd, "%s %s", szApp, sz);
+      sprintf(szCmd, "%s %s", szApp, szPath);
       WinExec(szCmd, SW_SHOW);
     } else
-      ShellExecute(NULL, NULL, sz, NULL, NULL, SW_SHOW);
+      ShellExecute(NULL, NULL, szPath, NULL, NULL, SW_SHOW);
   } else {
-    sprintf(szCmd, "File %s not found!", szFile);
+    sprintf(szCmd, "File '%s' not found!", szFile);
     PrintWarning(szCmd);
   }
 }
@@ -169,7 +177,7 @@ void BootExternal(CONST char *szApp, CONST char *szFile)
 
 /* Given a relationship chart mode, return the menu command that sets it. */
 
-WORD WCmdFromRc(int rc)
+int CmdFromRc(int rc)
 {
   switch (rc) {
   case rcTriWheel: case rcQuadWheel: /* Fall through */
@@ -191,11 +199,18 @@ WORD WCmdFromRc(int rc)
 
 void SetRel(int rc)
 {
-  CheckMenu(WCmdFromRc(us.nRel), fFalse);
+  CI ciT;
+
+  CheckMenu(CmdFromRc(us.nRel), fFalse);
+  if (us.nRel == rcMidpoint) {  /* Restore chart when leave midpoint mode. */
+    ciT = ciMain;
+    ciCore = ciMain = ciSave;
+    ciSave = ciT;
+  }
+  if (rc == rcMidpoint)         /* Remember chart so can restore it later. */
+    ciSave = ciMain;
   us.nRel = rc;
-  if (rc == rcMidpoint)  /* Turn off so don't move to midpoint again. */
-    rc = rcNone;
-  CheckMenu(WCmdFromRc(rc), fTrue);
+  CheckMenu(CmdFromRc(rc), fTrue);
   wi.fCast = fTrue;
 }
 
@@ -217,7 +232,7 @@ int PASCAL WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
   wi.hinst = hInstance;
   if (!hPrevInstance) {
-    ClearB((lpbyte)&wndclass, sizeof(WNDCLASS));
+    ClearB((pbyte)&wndclass, sizeof(WNDCLASS));
     wndclass.style = CS_HREDRAW | CS_VREDRAW | CS_BYTEALIGNWINDOW;
     wndclass.lpfnWndProc = WndProc;
     wndclass.cbClsExtra = 0;
@@ -383,11 +398,11 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
       if (wMsg == WM_MOUSEMOVE) {
 
         /* Dragging with right mouse down rotates and tilts globes. */
-        if ((wParam & MK_RBUTTON) != 0 && us.fGraphics &&
-          (gi.nMode == gSphere || gi.nMode == gGlobe || gi.nMode == gPolar ||
-          (gi.nMode == gWorldMap && (gs.fConstel || gs.fMollewide)))) {
+        if ((wParam & MK_RBUTTON) != 0 && us.fGraphics && (fMap ||
+          gi.nMode == gSphere || gi.nMode == gGlobe || gi.nMode == gPolar)) {
           gs.rRot += (real)(x-WLo(wi.lParamRC)) * rDegHalf / (real)gs.xWin;
-          gs.rTilt += (real)(y-WHi(wi.lParamRC)) * rDegHalf / (real)gs.yWin;
+          gs.rTilt += (real)(y-WHi(wi.lParamRC)) * rDegHalf / (real)gs.yWin *
+            (gi.nMode == gGlobe ? -1 : 1);
           while (gs.rRot >= rDegMax)
             gs.rRot -= rDegMax;
           while (gs.rRot < 0.0)
@@ -411,8 +426,9 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
 
       /* Alt+click on a world map chart means relocate the chart there. */
       if (wMsg == WM_LBUTTONDOWN && GetKeyState(VK_MENU) < 0) {
-        if (fMap && gs.rRot == 0.0 && !gs.fConstel && !gs.fMollewide) {
-          Lon = rDegHalf-(real)(x-gi.xOffset)/(real)gs.xWin*rDegMax;
+        if (fMap && !gs.fConstel && !gs.fMollewide) {
+          Lon = rDegHalf -
+            Mod((real)(x-gi.xOffset) / (real)gs.xWin*rDegMax - gs.rRot);
           if (Lon < -rDegHalf)
             Lon = -rDegHalf;
           else if (Lon > rDegHalf)
@@ -461,29 +477,13 @@ LRESULT API WndProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM lParam)
       ReleaseDC(hwnd, hdc);
       break;
 
-    /* The mouse has been right clicked on the window. If on a world map  */
-    /* or astro-graph chart, relocate the chart to the mouse coordinates. */
+    /* The mouse has been right clicked on the window. */
 
     case WM_RBUTTONDOWN:
       x = WLo(lParam);
       y = WHi(lParam);
-      if (us.fGraphics && fMap && !gs.fConstel && !gs.fMollewide) {
-        Lon = rDegHalf -
-          Mod((real)(x-gi.xOffset) / (real)gs.xWin*rDegMax - gs.rRot);
-        if (Lon < -rDegHalf)
-          Lon = -rDegHalf;
-        else if (Lon > rDegHalf)
-          Lon = rDegHalf;
-        Lat = rDegQuad - (real)(y-gi.yOffset) / (real)gs.yWin*rDegHalf;
-        if (Lat < -rDegQuad)
-          Lat = -rDegQuad;
-        else if (Lat > rDegQuad)
-          Lat = rDegQuad;
-        ciCore = ciMain;
-        wi.fCast = fTrue;
-        ProcessState();
-      } else if (us.fGraphics && (gi.nMode == gSphere || gi.nMode == gGlobe ||
-        gi.nMode == gPolar || gi.nMode == gWorldMap))
+      if (us.fGraphics && (fMap || gi.nMode == gSphere || gi.nMode == gGlobe ||
+        gi.nMode == gPolar))
         wi.lParamRC = lParam;
       break;
 
@@ -614,10 +614,11 @@ void ProcessState()
   /* the appropriate core switch settings based on the new chart type.    */
 
   if (wi.nMode) {
-    ClearB((lpbyte)&us.fListing,
-      (int)((lpbyte)&us.fVelocity - (lpbyte)&us.fListing));
-    ClearB((lpbyte)&us.fCredit,
-      (int)((lpbyte)&us.fLoop - (lpbyte)&us.fCredit));
+    ClearB((pbyte)&us.fListing,
+      (int)((pbyte)&us.fVelocity - (pbyte)&us.fListing));
+    ClearB((pbyte)&us.fCredit,
+      (int)((pbyte)&us.fLoop - (pbyte)&us.fCredit));
+    us.fHorizonSearch = fFalse;
     us.nArabic = gi.nMode = 0;
     switch (wi.nMode) {
       case gBiorhythm:
@@ -650,7 +651,7 @@ void ProcessState()
       case gObscure:    us.fSwitchRare = fTrue; break;
       case gKeystroke:  us.fKeyGraph   = fTrue; break;
       case gCredit:     us.fCredit     = fTrue; break;
-      case gRising:     us.fHorizon = us.fHorizonSearch = fTrue; break;
+      case gRising:     us.fHorizonSearch = fTrue; break;
       case gTraTraTim:  us.fInDay      = fTrue; break;
       case gTraTraInf:  us.fInDayInf   = fTrue; break;
       case gTraTraGra:  us.fInDayGra   = fTrue; break;
@@ -954,7 +955,7 @@ int NWmCommand(WORD wCmd)
     break;
 
   case cmdHeliocentric:
-    inv(us.objCenter);
+    SetCentric(!us.objCenter);
     WiCheckMenu(cmdHeliocentric, us.objCenter != oEar);
     wi.fCast = fTrue;
     break;
@@ -980,6 +981,7 @@ int NWmCommand(WORD wCmd)
   case cmdHouse18:
   case cmdHouse19:
   case cmdHouse20:
+  case cmdHouse21:
     WiCheckMenu(cmdHouse00 + us.nHouseSystem, fFalse);
     us.nHouseSystem = (int)(wCmd - cmdHouse00);
     WiCheckMenu(wCmd, fTrue);
@@ -995,6 +997,16 @@ int NWmCommand(WORD wCmd)
   case cmdHouseSet3D:
     inv(us.fHouse3D);
     WiCheckMenu(cmdHouseSet3D, us.fHouse3D);
+    if (us.fGraphics) {
+      if (gi.nMode == gAstroGraph) {
+        wi.nMode = gGlobe;
+        if (gs.fAlt) {
+          gs.fAlt = fFalse;
+          WiCheckMenu(cmdGraphicsModify, fFalse);
+        }
+      } else if (gi.nMode == gGlobe && !gs.fAlt)
+        wi.nMode = gAstroGraph;
+    }
     wi.fCast = fTrue;
     break;
 
@@ -1019,12 +1031,6 @@ int NWmCommand(WORD wCmd)
   case cmdHouseSetGeodetic:
     inv(us.fGeodetic);
     WiCheckMenu(cmdHouseSetGeodetic, us.fGeodetic);
-    wi.fCast = fTrue;
-    break;
-
-  case cmdGraphicsHouse:
-    inv(gs.fHouseExtra);
-    WiCheckMenu(cmdGraphicsHouse, gs.fHouseExtra);
     wi.fCast = fTrue;
     break;
 
@@ -1151,6 +1157,13 @@ int NWmCommand(WORD wCmd)
 
   case cmdChartAstroGraph:
     wi.nMode = gAstroGraph;
+    if (us.fGraphics && us.fHouse3D) {
+      wi.nMode = gGlobe;
+      if (gs.fAlt) {
+        gs.fAlt = fFalse;
+        WiCheckMenu(cmdGraphicsModify, fFalse);
+      }
+    }
     break;
 
   case cmdChartEphemeris:
@@ -1213,15 +1226,27 @@ int NWmCommand(WORD wCmd)
     break;
 #endif
 
+  case cmdGraphicsAllStar:
+    inv(gs.fAllStar);
+    WiCheckMenu(cmdGraphicsAllStar, gs.fAllStar);
+    us.fGraphics = wi.fRedraw = fTrue;
+    break;
+
+  case cmdGraphicsHouse:
+    inv(gs.fHouseExtra);
+    WiCheckMenu(cmdGraphicsHouse, gs.fHouseExtra);
+    wi.fCast = fTrue;
+    break;
+
   case cmdGraphicsEquator:
     inv(gs.fEquator);
     WiCheckMenu(cmdGraphicsEquator, gs.fEquator);
     us.fGraphics = wi.fRedraw = fTrue;
     break;
 
-  case cmdGraphicsAllStar:
-    inv(gs.fAllStar);
-    WiCheckMenu(cmdGraphicsAllStar, gs.fAllStar);
+  case cmdGraphicsAxis:
+    inv(gs.fEcliptic);
+    WiCheckMenu(cmdGraphicsAxis, gs.fEcliptic);
     us.fGraphics = wi.fRedraw = fTrue;
     break;
 
@@ -1640,10 +1665,10 @@ void API RedoMenu()
   CheckMenu(cmdParallel, us.fParallel);
   for (cmd = cmdRelNo; cmd <= cmdRelProgressed; cmd++)
     CheckMenu(cmd, fFalse);
-  CheckMenu(WCmdFromRc(us.nRel), fTrue);
+  CheckMenu(CmdFromRc(us.nRel), fTrue);
   CheckMenu(cmdSidereal, us.fSidereal);
   CheckMenu(cmdHeliocentric, us.objCenter != oEar);
-  for (cmd = cmdHouse00; cmd <= cmdHouse13; cmd++)
+  for (cmd = cmdHouse00; cmd <= cmdHouse00 + cSystem - 1; cmd++)
     CheckMenu(cmd, fFalse);
   CheckMenu(cmdHouse00 + us.nHouseSystem, fTrue);
   CheckMenu(cmdHouseSetSolar, us.objOnAsc);
@@ -1658,12 +1683,14 @@ void API RedoMenu()
   CheckMenu(cmdResCusp, us.fCusp);
   CheckMenu(cmdResUranian, us.fUranian);
   CheckMenu(cmdResStar, us.nStar);
+  CheckMenu(cmdProgress, us.fProgress);
 #ifdef CONSTEL
   CheckMenu(cmdConstellation, gs.fConstel);
 #endif
-  CheckMenu(cmdGraphicsEquator, gs.fEquator);
   CheckMenu(cmdGraphicsAllStar, gs.fAllStar);
   CheckMenu(cmdGraphicsHouse, gs.fHouseExtra);
+  CheckMenu(cmdGraphicsEquator, gs.fEquator);
+  CheckMenu(cmdGraphicsAxis, gs.fEcliptic);
   CheckMenu(cmdGraphicsReverse, gs.fInverse);
   CheckMenu(cmdGraphicsMonochrome, !gs.fColor);
   CheckMenu(cmdGraphicsBorder, gs.fBorder);
@@ -1724,7 +1751,7 @@ flag API FRedraw(void)
   }
   if (wi.fHourglass)
     hcurOld = SetCursor(LoadCursor((HINSTANCE)NULL, IDC_WAIT));
-  ClearB((lpbyte)&ps, sizeof(PAINTSTRUCT));
+  ClearB((pbyte)&ps, sizeof(PAINTSTRUCT));
   if (wi.hdcPrint != hdcNil)
     wi.hdc = wi.hdcPrint;
   else {
@@ -1950,7 +1977,7 @@ flag FCreateShortcut(CONST char *szDir, CONST char *szName,
     IID_IShellLink, (LPVOID *)&pisl);
   if (FAILED(hr))
     goto LExit;
-  GetModuleFileName(wi.hinst, sz, cchSzDef);
+  GetModuleFileName(wi.hinst, sz, cchSzMax);
   if (nIcon >= 0) {
     hr = pisl->SetIconLocation(sz, nIcon);
     if (FAILED(hr))
@@ -2051,6 +2078,8 @@ flag FCreateProgramGroup(flag fAll)
   DeleteShortcut(szDir, "Astrolog 6.00");
   DeleteShortcut(szDir, "Astrolog 6.10");
   DeleteShortcut(szDir, "Astrolog 6.20");
+  DeleteShortcut(szDir, "Astrolog 6.30");
+  DeleteShortcut(szDir, "Astrolog 6.40");
 
   /* Add main shortcuts in folder */
   sprintf(szName, "%s %s", szAppName, szVersionCore);
@@ -2067,7 +2096,8 @@ flag FCreateProgramGroup(flag fAll)
 
   return fTrue;
 LError:
-  PrintError("Failed to create program group.");
+  PrintError("Failed to create program group.\n"
+    "Astrolog can still be run from other icons or directly from its folder.");
   return fFalse;
 }
 
@@ -2081,7 +2111,7 @@ flag FRegisterExtensions()
   HKEY hkey;
   char szExe[cchSzMax], szIco[cchSzMax], *pch;
 
-  GetModuleFileName(wi.hinst, szExe, cchSzDef);
+  GetModuleFileName(wi.hinst, szExe, cchSzMax);
   sprintf(szIco, "%s,1", szExe);
   for (pch = szExe; *pch; pch++)
     ;
@@ -2130,6 +2160,8 @@ flag FRegisterExtensions()
     goto LError;
   RegCloseKey(hkey);
 
+  if (wi.wCmd == cmdSetupExtension)
+    PrintNotice("Registered Astrolog as owner of file extension \".as\".\n");
   return fTrue;
 LError:
   PrintError("Failed to register Astrolog file extensions.\n"
@@ -2152,6 +2184,8 @@ flag FUnregisterExtensions()
     "Software\\Classes\\Astrolog.as") != ERROR_SUCCESS)
     goto LError;
 
+  if (wi.wCmd == cmdUnsetup)
+    PrintNotice("Unregistered Astrolog as owner of file extension \".as\".\n");
   return fTrue;
 LError:
   PrintError("Failed to unregister Astrolog file extensions.");

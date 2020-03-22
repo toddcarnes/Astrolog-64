@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: data.cpp
+** Astrolog (Version 6.50) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -72,7 +72,7 @@ US us = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Main flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 #ifdef EPHEM
   1,
 #else
@@ -101,10 +101,10 @@ US us = {
 #else
   1,
 #endif
-  0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
 
   /* Rare flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
@@ -117,11 +117,13 @@ US us = {
   DEFAULT_ASPECTS,
   oEar,
   0,
+  0,
   1.0,
   0,
   -1,
   0,
   0,
+  ptCast,
   DIVISIONS,
   SCREENWIDTH,
   0.0,
@@ -131,23 +133,27 @@ US us = {
   0.0,
   "",
   "",
+  {0,0,0,0,0,0,0,0,0,0},
+  "",
+  "",
 
   /* Value subsettings */
 
-  0, 5, cPart, 0.0, 365.24219, 1, 1, 24, 0, 0L, oEar, oEar, 0, BIODAYS, 1};
+  0, 5, cPart, 0.0, rDayInYear, 1.0, 1, 1, 24, 0, 0, oEar, oEar, 0, BIODAYS,
+  1};
 
 IS is = {
   fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
-  NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0,
-  NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
+  fFalse, NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
 
-CI ciCore = {11, 19, 1971, HM(11, 1),      0.0, 8.0, DEFAULT_LOC, "", ""};
-CI ciMain = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),  0.0, 0.0, DEFAULT_LOC, "", ""};
-CI ciThre = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciFour = {-1, 0,  0,    0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciTran = {1,  1,  2018, 0.0,            0.0, 0.0, 0.0, 0.0, "", ""};
-CI ciSave = {7,  22, 2018, HMS(14, 0, 21), 1.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciCore = {11, 19, 1971, HM(11, 1),       0.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciMain = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
+CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),   0.0, 0.0, DEFAULT_LOC, "", ""};
+CI ciThre = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
+CI ciFour = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
+CI ciTran = {1,  1,  2019, 0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
+CI ciSave = {7,  22, 2019, HMS(19, 50, 23), 1.0, 8.0, DEFAULT_LOC, "", ""};
 CP cp0, cp1, cp2, cp3, cp4;
 
 CONST CI *rgpci[5] = {&ciCore, &ciMain, &ciTwin, &ciThre, &ciFour};
@@ -160,7 +166,7 @@ CONST CP *rgpcp[5] = {&cp0, &cp1, &cp2, &cp3, &cp4};
 ******************************************************************************
 */
 
-PT3R space[oNorm+1];
+PT3R space[cObj+1];
 real force[objMax];
 GridInfo *grid = NULL;
 int starname[cStar+1], kObjA[objMax];
@@ -245,7 +251,7 @@ CONST char *szObjName[objMax] = {
   "Procyon", "Pollux", "Suhail", "Avior", "Miaplacidus",
   "Alphard", "Regulus", "Dubhe", "Acrux", "Gacrux",
   "Becrux", "Alioth", "Spica", "Alkaid", "Agena",
-  "Arcturus", "Rigel Kent.", "Antares", "Shaula", "Sargas",
+  "Arcturus", "Rigil Kent.", "Antares", "Shaula", "Sargas",
   "Kaus Austr.", "Vega", "Altair", "Peacock", "Deneb",
   "Alnair", "Fomalhaut", "Andromeda"};
 CONST StrLook rgObjName[] = {{"Node", oNod}, {"Nod:", oNod},
@@ -256,7 +262,7 @@ CONST char *szSystem[cSystem] = {
   "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
   "Regiomontanus", "Porphyry", "Morinus", "Topocentric", "Alcabitius",
   "Krusinski", "Equal (MC)", "Pullen (S.Ratio)", "Pullen (S.Delta)", "Whole",
-  "Vedic", "Sripati", "Horizon", "APC", "Carter P.Equ.", "Null"};
+  "Vedic", "Sripati", "Horizon", "APC", "Carter P.Equ.", "Sunshine", "Null"};
 CONST StrLook rgSystem[] = {{"E-Asc", hsEqual}, {"E-MC", hsEqualMC},
   {"P-SR", hsSinewaveRatio}, {"P-SD", hsSinewaveDelta},
   {"Ratio", hsSinewaveRatio}, {"Delta", hsSinewaveDelta},
@@ -316,13 +322,13 @@ CONST char *szZon[cZone] = {
   "SAS", "GST", "UZ1", "NZT", "ZT", "Z", "IDL", "LMT", "LT", "L"};
 
 CONST real rZon[cZone] = {
-  10.30, 10.30, 10.30, 10.0, 10.0, 9.30, 9.0, 9.0, 9.0, 9.0, 8.0,
+  10.5, 10.5, 10.5, 10.0, 10.0, 9.5, 9.0, 9.0, 9.0, 9.0, 8.0,
   8.0, 8.0, 8.0, 7.0, 7.0, 7.0, 7.0, 7.0, 6.0, 6.0,
   6.0, 6.0, 6.0, 5.0, 5.0, 5.0, 5.0, 5.0, 4.0, 4.0,
   4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 2.0, 1.0,
   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -2.0, -4.0, -5.0,
-  -5.30, -5.30, -5.30, -6.0, -6.30, -7.0, -8.0, -9.0, -9.0, -9.0,
-  -9.30, -10.0, -11.0, -11.30, -11.30, -11.30, -12.0, zonLMT, zonLMT, zonLMT};
+  -5.5, -5.5, -5.5, -6.0, -6.5, -7.0, -8.0, -9.0, -9.0, -9.0,
+  -9.5, -10.0, -11.0, -11.5, -11.5, -11.5, -12.0, zonLMT, zonLMT, zonLMT};
 
 CONST char *szDir[4] = {"North", "East", "South", "West"};
 
@@ -330,7 +336,7 @@ CONST char *szSuffix[cSign+1] = {"",
   "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "th", "th"};
 
 CONST char *szEphem[cmMax] = {
-  "Swiss Ephemeris 2.07.01", "Moshier Formulas", "Placalc Ephemeris",
+  "Swiss Ephemeris 2.08", "Moshier Formulas", "Placalc Ephemeris",
   "Matrix Formulas", "None"};
 
 real rAspAngle[cAspect+1] = {0,
@@ -433,7 +439,7 @@ CONST char *szColorHTML[cColor] = {"Black",
   "#7f7f7f", "Red", "00ff00", "Yellow", "Blue", "Magenta", "Cyan", "White"};
 int kMainA[9] = {kBlack, kWhite, kLtGray, kDkGray,
   kMaroon, kDkGreen, kDkCyan, kDkBlue, kMagenta};
-int kRainbowA[8] = {kWhite,
+int kRainbowA[cRainbow+1] = {kWhite,
   kRed, kOrange, kYellow, kGreen, kCyan, kBlue, kPurple};
 int kElemA[cElem] = {kRed, kYellow, kGreen, kBlue};
 int kAspA[cAspect+1] = {kWhite,

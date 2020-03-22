@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: charts0.cpp
+** Astrolog (Version 6.50) File: charts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -69,7 +69,7 @@ void PrintW(CONST char *sz, int col)
     /* Null string means print the top, bottom, or a separator row. */
 
     if (col < 0)
-      AnsiColor(kRainbowA[1]);
+      AnsiColor(kRedA);
     PrintCh((char)(col ? (col > 0 ? chSW : chNW) : chJE));
     PrintTab(chH, CREDITWIDTH);
     PrintCh((char)(col ? (col > 0 ? chSE : chNE) : chJW));
@@ -80,7 +80,7 @@ void PrintW(CONST char *sz, int col)
     AnsiColor(col);
     PrintSz(sz);
     PrintTab(' ', (CREDITWIDTH-i)/2);
-    AnsiColor(kRainbowA[1]);
+    AnsiColor(kRedA);
     PrintCh(chV);
   }
   PrintL();
@@ -102,52 +102,52 @@ void DisplayCredits(void)
   *szT = chNull;
 #endif
   sprintf(sz, "** %s version %s%s **", szAppName, szVersionCore, szT);
-  PrintW(sz, kMainA[1]);
+  PrintW(sz, kWhiteA);
   sprintf(sz, "Released %s - By Walter D. Pullen", szDateCore);
-  PrintW(sz, kMainA[2]);
-  PrintW(szAddressCore, kRainbowA[5]);
+  PrintW(sz, kLtGrayA);
+  PrintW(szAddressCore, kCyanA);
   PrintW(NULL, 0);
   PrintW(
     "Main ephemeris databases and calculation routines are from the library",
-    kRainbowA[4]);
+    kGreenA);
   PrintW("'Swiss Ephemeris' by Astrodienst AG, subject to license for Swiss",
-    kRainbowA[4]);
+    kGreenA);
   PrintW(
     "Ephemeris Free Edition at http://www.astro.com/swisseph. Old 'Placalc'",
-    kRainbowA[4]);
+    kGreenA);
   PrintW(
     "library and formulas are by Alois Treindl, also from Astrodienst AG.",
-    kRainbowA[4]);
+    kGreenA);
   PrintW("Original planetary calculation formulas were converted from",
-    kRainbowA[3]);
+    kYellowA);
   PrintW(
     "routines by James Neely, as listed in 'Manual of Computer Programming",
-    kRainbowA[3]);
+    kYellowA);
   PrintW(
     "for Astrologers' by Michael Erlewine, available from Matrix Software.",
-    kRainbowA[3]);
-  PrintW("PostScript graphics routines by Brian D. Willoughby.", kMainA[8]);
+    kYellowA);
+  PrintW("PostScript graphics routines by Brian D. Willoughby.", kMagentaA);
   PrintW(
     "IMPORTANT: Astrolog is free software. You can distribute and/or modify",
-    kMainA[2]);
+    kLtGrayA);
   PrintW(
     "it under the terms of the GNU General Public License, as described at",
-    kMainA[2]);
+    kLtGrayA);
   PrintW("http://www.gnu.org and in the license.htm file included with the",
-    kMainA[2]);
+    kLtGrayA);
   PrintW("program. Astrolog is distributed without any warranty expressed or",
-    kMainA[2]);
+    kLtGrayA);
   PrintW(
     "implied of any kind. These license and copyright notices must not be",
-    kMainA[2]);
+    kLtGrayA);
   PrintW("changed or removed by any user or editor of the program.",
-    kMainA[2]);
+    kLtGrayA);
   PrintW(NULL, 0);
   PrintW("Special thanks to all those unmentioned, seen and unseen, who have",
-    kRainbowA[6]);
+    kBlueA);
   PrintW(
     "pointed out problems, suggested features, & sent many positive vibes! :)",
-    kRainbowA[6]);
+    kBlueA);
   PrintW(NULL, 1);
   AnsiColor(kDefault);
 }
@@ -168,11 +168,11 @@ void PrintS(CONST char *sz)
   /* Determine color for first part of line. */
   ch1 = sz[1]; ch2 = sz[2]; ch3 = sz[3];
   if (*sz != ' ')
-    AnsiColor(kRainbowA[1]);
+    AnsiColor(kRedA);
   else if (ch1 != ' ')
     AnsiColor(ch1 == 'P' || ch2 != ch2Prev ||
       ((ch2 == 'Y' || ch2 == 'X' || ch2 == 'W') && ch3 != ch3Prev) ?
-      kRainbowA[4] : kMainA[5]);
+      kGreenA : kDkGreenA);
   else {
     AnsiColor(kDefault);
     PrintSz("   ");
@@ -259,26 +259,31 @@ void DisplaySwitches(void)
   PrintS(" _g: Display aspect and midpoint grid among planets.");
   PrintS(" _g0: Like _g but flag aspect configurations (e.g. Yod's) too.");
   PrintS(" _gm: For comparison charts, show midpoints instead of aspects.");
-  PrintS(" _ga: Like _g but indicate applying instead of difference orbs.");
+  PrintS(
+    " _ga: Like _g but indicate applying/separating instead of offset orbs.");
   PrintS(" _gp: Like _g but generate parallel and contraparallel aspects.");
   PrintS(" _a: Display list of all aspects ordered by influence.");
   PrintS(" _a0: Like _a but display aspect summary too.");
-  PrintS(" _aa: Like _a but indicate applying and separating orbs.");
+  PrintS(
+    " _aa: Like _a but indicate applying/separating instead of offset orbs.");
   PrintS(" _ap: Like _a but do parallel and contraparallel aspects.");
   PrintS(
-    " _a[jonOACm]: Sort by power, orb, diff, planet, aspect, pos, midpoint.");
+    " _a[jonOPACDm]: Sort aspects by power, orb, orb difference, 1st planet,");
+  PrintS("  2nd planet, aspect, 1st position, 2nd position, midpoint.");
   PrintS(" _m: Display all object midpoints in sorted zodiac order.");
   PrintS(" _m0: Like _m but display midpoint summary too.");
   PrintS(" _ma: Like _m but show aspects from midpoints to planets as well.");
   PrintS(" _Z: Display planet locations with respect to the local horizon.");
   PrintS(" _Z0: Like _Z but express coordinates relative to polar center.");
   PrintS(" _Zd: Search day for object local rising and setting times.");
+  PrintS(
+    " _Zd[m,y,Y] [<years>]: Like _Zd but for entire month, year, or years.");
   PrintS(" _S: Display x,y,z coordinate positions of planets in space.");
   PrintS(" _l: Display Gauquelin sectors for each planet in chart.");
   PrintS(" _l0: Like _l but approximate sectors using Placidus cusps.");
   PrintS(" _j: Display astrological influences of each object in chart.");
   PrintS(" _j0: Like _j but include influences of each zodiac sign as well.");
-  PrintS(" _7: Display esoteric astrology and ray summary for chart.");
+  PrintS(" _7: Display esoteric astrology and Ray summary for chart.");
   PrintS(" _L [<step>]: Display astro-graph locations of planetary angles.");
   PrintS(" _L0 [..]: Like _L but display list of latitude crossings too.");
   PrintS(" _K: Display a calendar for given month.");
@@ -300,7 +305,7 @@ void DisplaySwitches(void)
   PrintS(" _EY <years>: Display planetary ephemeris for a number of years.");
   PrintS(" _E[]0 <step>: Display ephemeris times for days, months, or years.");
   PrintS(
-    " _e: Print all charts together (_v_w_g0_a_m_Z_S_l_j0_7_L0_K_d_D_B_E).");
+    " _e: Print all charts together (_v_w_g_a_m_Z_S_l_j_7_L_K_Zd_d_D_B_E).");
   PrintS(
     " _t <month> <year>: Compute all transits to natal planets in month.");
   PrintS(
@@ -371,7 +376,8 @@ void DisplaySwitches(void)
   PrintS(" _C: Include angular and non-angular house cusps in charts.");
   PrintS(" _u: Include transneptunian/Uranian bodies in charts.");
   PrintS(" _U: Include locations of fixed background stars in charts.");
-  PrintS(" _U[z,l,n,b]: Order by azimuth, altitude, name, or brightness.");
+  PrintS(
+    " _U[z,l,n,b,d]: Sort by position, lati, name, brightness, or distance.");
   PrintS(" _A <0-18>: Specify the number of aspects to use in charts.");
   PrintS(
     " _A3: Aspects calculated by latitude combined with zodiac position.");
@@ -400,24 +406,28 @@ void DisplaySwitches(void)
   PrintS(" _c <value>: Select a different system of house division.");
   PrintS("  0 = Placidus, 1 = Koch, 2 = Equal, 3 = Campanus, 4 = Meridian,");
   PrintS("  5 = Regiomontanus, 6 = Porphyry, 7 = Morinus, 8 = Topocentric,");
-  PrintS(
-    "  9 = Alcabitius, 10 = Krusinski, 11 = Equal MC, 12 = Pullen S-Ratio,");
-  PrintS("  13 = Pullen S-Delta, 14 = Whole, 15 = Vedic, 16 = Sripati,");
-  PrintS("  17 = Horizon, 18 = APC, 19 = Carter Poli Equatorial, 20 = Null.");
+  PrintS("  9 = Alcabitius, 10 = Krusinski, 11 = Equal (Midheaven),");
+  PrintS("  12 = Pullen Sinusoidal Ratio, 13 = Pullen Sinusoidal Delta,");
+  PrintS("  14 = Whole, 15 = Vedic, 16 = Sripati, 17 = Horizon, 18 = APC,");
+  PrintS("  19 = Carter Poli Equatorial, 20 = Sunshine, 21 = Null.");
   PrintS(" _c3: Place in houses using latitude as well as zodiac position.");
   PrintS(" _s [..]: Compute a sidereal instead of standard tropical chart.");
   PrintS(" _sr: Compute right ascension locations relative to equator.");
   PrintS(
     " _s[z,h,d]: Display locations as in zodiac, hours/minutes, or degrees.");
   PrintS(" _h [<objnum>]: Compute positions centered on specified object.");
-  PrintS(" _p <month> <day> <year>: Cast 2ndary progressed chart for date.");
+  PrintS(
+    " _p <month> <day> <year>: Cast secondary progressed chart for date.");
   PrintS(" _p0 <month> <day> <year>: Cast solar arc chart for date.");
+  PrintS(" _p1 <month> <day> <year>: Like _p but with solar arc cusps only.");
   PrintS(" _p[0]t <month> <day> <year> <time>: Like _p but specify time too.");
 #ifdef TIME
   PrintS(" _p[0]n: Cast progressed chart based on current date now.");
 #endif
   PrintS(
-    " _pd <days>: Set no. of days to progress / day (default 365.24219).");
+    " _pd <days>: Set num of days to progress / day (default 365.24219).");
+  PrintS(
+    " _pC <days>: Set factor to use when progressing cusps (default 1.0).");
   PrintS(" _x <value>: Cast harmonic chart based on specified factor.");
   PrintS(" _1 [<objnum>]: Cast chart with specified object on Ascendant.");
   PrintS(" _2 [<objnum>]: Cast chart with specified object on Midheaven.");
@@ -429,13 +439,13 @@ void DisplaySwitches(void)
   PrintS(" _9: Display objects in their zodiac navamsa positions.");
   PrintS(" _F <objnum> <sign> <deg>: Force object's position to be value.");
   PrintS(" _Fm <objnum> <obj1> <obj2>: Force object's position to midpoint.");
-  PrintS(" _+ [<days>]: Cast chart for specified no. of days in the future.");
-  PrintS(" _- [<days>]: Cast chart for specified no. of days in the past.");
-  PrintS(" _+[m,y] [<value>]: Cast chart for no. of months/years in future.");
+  PrintS(" _+ [<days>]: Cast chart for specified num of days in the future.");
+  PrintS(" _- [<days>]: Cast chart for specified num of days in the past.");
+  PrintS(" _+[m,y] [<value>]: Cast chart for num of months/years in future.");
   PrintS("\nSwitches for relationship and comparison charts:");
   PrintS(" _r <file1> <file2>: Compute a relationship synastry chart.");
   PrintS(" _rc <file1> <file2>: Compute a composite chart.");
-  PrintS(" _rm <file1> <file2>: Compute a time space midpoint chart.");
+  PrintS(" _rm <file1> <file2>: Compute a time / space midpoint chart.");
   PrintS(" _r[c,m]0 <file1> <file2> <ratio1> <ratio2>: Weighted chart.");
   PrintS(" _rd <file1> <file2>: Print time span between files' dates.");
 #ifdef BIORHYTHM
@@ -485,6 +495,7 @@ void DisplaySwitchesRare(void)
   PrintS(
     " _YV: Compute topocentric positions instead of from center of body.");
   PrintS(" _Yh: Compute location of solar system barycenter instead of Sun.");
+  PrintS(" _Ys: Sidereal zodiac positions are in plane of solar system.");
   PrintS(" _Yn: Compute location of true instead of mean node.");
   PrintS(" _Yd: Display dates in D/M/Y instead of M/D/Y format.");
   PrintS(" _Yt: Display times in 24 hour instead of am/pm format.");
@@ -496,6 +507,7 @@ void DisplaySwitchesRare(void)
   PrintS(" _YQ <rows>: Pause text scrolling after a page full has printed.");
   PrintS(
     " _Yq[0-9] <strings>: Define command lines to run and show in sequence.");
+  PrintS(" _Yi[0-9] <path>: Specify directory to search within for files.");
   PrintS(" _Yo: Output chart info and position files in old style format.");
   PrintS(" _Yc: Angular cusp objects are house positions instead of angles.");
   PrintS(" _Yp: Fix polar houses by preserving Ascendant instead of MC.");
@@ -541,10 +553,10 @@ void DisplaySwitchesRare(void)
     " _YR7 <ruler> <exalt> <eso> <hier> <ray>: Set rulership restrictions.");
   PrintS(
     " _YRd <div>: Set divisions within signs to search for degree changes.");
-  PrintS(
-    " _YAo <asp1> <asp2> <orb1>..<orb2>: Set aspect orbs for range.");
-  PrintS(
-    " _YAm <obj1> <obj2> <orb1>..<orb2>: Set max planet orbs for range.");
+  PrintS(" _YRh: Don't auto(un)restrict central planet when changing it.");
+  PrintS(" _YRU[0] <starlist>: Restrict or focus on list of extra stars.");
+  PrintS(" _YAo <asp1> <asp2> <orb1>..<orb2>: Set aspect orbs for range.");
+  PrintS(" _YAm <obj1> <obj2> <orb1>..<orb2>: Set max planet orbs for range.");
   PrintS(
     " _YAd <obj1> <obj2> <orb1>..<orb2>: Set planet orb additions for range.");
   PrintS(
@@ -586,6 +598,9 @@ void DisplaySwitchesRare(void)
   PrintS(" _Yk7 <1..7> <1..7> <col1>..<col2>: Customize Ray colors.");
   PrintS(" _Yk0 <1..7> <1..7> <col1>..<col2>: Customize 'rainbow' colors.");
   PrintS(" _Yk <0..8> <0..8> <col1>..<col2>: Customize 'general' colors.");
+#ifdef SWISS
+  PrintS(" _YkU <starlist>: Customize list of extra star colors.");
+#endif
   PrintS(" _YD <obj> <name>: Customize display name of object.");
   PrintS(
     " _YF <obj> <deg><sign><min> <deg><min> <velocity> <au>: Set position.");
@@ -602,6 +617,12 @@ void DisplaySwitchesRare(void)
   PrintS(" _YXk: Use more color for sign boundaries in graphics charts.");
   PrintS(
     " _YXk0: Use more color for house boundaries in graphics charts too.");
+  PrintS(" _YXK <col> <rgb>: Customize RGB value of color index.");
+  PrintS(" _YXe: Align certain charts to ecliptic.");
+  PrintS(" _YXa <num>: Set limit to dashedness in aspect lines drawn.");
+#ifdef SWISS
+  PrintS(" _YXU <starlist> <linklist>: Define lines between extra stars."); 
+#endif
   PrintS(" _YXf <val>: Set usage of actual system fonts in graphic file.");
   PrintS(" _YXp <-1,0,1>: Set paper orientation for PostScript files.");
   PrintS(" _YXp0 <hor> <ver>: Set paper size for PostScript files.");
@@ -620,15 +641,11 @@ void DisplaySwitchesRare(void)
 void PrintObjects(void)
 {
   char sz[cchSzDef];
-  CI ci;
   int i, j, k;
+#ifdef SWISSGRAPH
+  ES es;
+#endif
 
-  if (!us.fCusp)
-    for (i = cuspLo; i <= cuspHi; i++)    /* Set up restrictions properly: */
-      ignore[i] = fTrue;                  /* Minor cusps and Uranians      */
-  if (!us.fUranian)                       /* included only if -C and -u    */
-    for (i = uranLo; i <= uranHi; i++)    /* switches are in effect.       */
-      ignore[i] = fTrue;
   sprintf(sz, "%s planets and objects:\n", szAppName); PrintSz(sz);
   PrintSz("No. Name       Rulers   Detriments Exalt Fall ");
   PrintSz("Esoteric Hierarchical Ray\n\n");
@@ -704,9 +721,7 @@ void PrintObjects(void)
   /* Now, if -U in effect, read in and display stars in specified order. */
 
   if (us.nStar) {
-    ci = ciCore;
     CastChart(fTrue);
-    ciCore = ci;
     for (i = starLo; i <= starHi; i++) if (!ignore[i]) {
       j = oNorm+starname[i-oNorm];
       AnsiColor(kObjA[j]);
@@ -720,6 +735,27 @@ void PrintObjects(void)
     }
   }
   AnsiColor(kDefault);
+
+#ifdef SWISSGRAPH
+  /* Print extra stars. */
+  if (gs.fAllStar) {
+    PrintL();
+    SwissComputeStar(0.0, NULL);
+    for (i = 1; SwissComputeStar(is.T, &es); i++) {
+      AnsiColor(es.ki != kDefault ? es.ki : KStarA(es.mag));
+      if (es.mag == 0.0 || es.mag >= 999.0)
+        es.mag = 99.99;
+      sprintf(sz, "%4d %-8.8s ", i, es.pchDes); PrintSz(sz);
+      PrintZodiac(es.lon);
+      PrintTab(' ', 3);
+      PrintAltitude(es.lat);
+      AnsiColor(es.ki != kDefault ? es.ki : KStarA(es.mag));
+      sprintf(sz, " %5.2f%s%s", es.mag, *es.pchNam ? " " : "", es.pchNam);
+      PrintSz(sz);
+      PrintL();
+    }
+  }
+#endif
 }
 
 
@@ -965,29 +1001,46 @@ void PrintConstellations(void)
 void PrintOrbit(void)
 {
   char sz[cchSzDef];
-  int i;
+  int i, j;
   real r;
+  char chSav;
 
+  /* Fill out star data arrays if necessary. */
+  if (us.nStar) {
+    chSav = us.nStar;
+    us.nStar = 'd';
+    CastChart(fTrue);
+    us.nStar = chSav;
+    if (us.nStar != 'd')
+      CastChart(fTrue);
+  }
+
+  /* Loop over each object and print its data. */
   sprintf(sz, "%s planets:\n", szAppName); PrintSz(sz);
   PrintSz("   Name: Distance   Year Diameter     Day       Mass Density  ");
   PrintSz("Axis Satellites\n\n");
-  for (i = 0; i <= oNorm; i++) {
+  for (i = 0; i <= cObj; i++) {
     if (ignore[i] || (i > oLil && i < uranLo))
       continue;
-    AnsiColor(kObjA[i]);
-    sprintf(sz, "%7.7s:%9.3f%7.2f",
-      szObjDisp[i], rObjDist[i]/rObjDist[oEar], rObjYear[i]);
+    j = i <= oNorm ? i : oNorm+starname[i-oNorm];
+    AnsiColor(kObjA[j]);
+    sprintf(sz, "%7.7s: %8.3f", szObjDisp[j],
+      j < starLo ? rObjDist[j]/rObjDist[oEar] : rStarDist[j-oNorm]/rLYToAU);
     PrintSz(sz);
-    if (i <= oVes) {
-      sprintf(sz, "%9.3f", rObjDiam[i]/rObjDiam[oEar]);
+    if (j < starLo) {
+      sprintf(sz, "%7.2f", rObjYear[j]);
       PrintSz(sz);
-      if (i <= oPlu) {
-        r = rObjDiam[i]*1000.0/2.0;
-        sprintf(sz, "%8.2f%11.3f%8.2f%6.2f%11d",
-          rObjDay[i], rObjMass[i],
-          (rObjMass[i]*5.974E24/1000.0)/((4.0/3.0)*(r*r*r)*rPi),
-          rObjAxis[i], cSatellite[i]);
+      if (j <= oVes) {
+        sprintf(sz, "%9.3f", rObjDiam[j]/rObjDiam[oEar]);
         PrintSz(sz);
+        if (j <= oPlu) {
+          r = rObjDiam[j]*1000.0/2.0;
+          sprintf(sz, "%8.2f%11.3f%8.2f%6.2f%11d",
+            rObjDay[j], rObjMass[j],
+            (rObjMass[j]*5.974E24/1000.0)/((4.0/3.0)*(r*r*r)*rPi),
+            rObjAxis[j], cSatellite[j]);
+          PrintSz(sz);
+        }
       }
     }
     PrintL();
@@ -1217,7 +1270,7 @@ LNextPart:
     ch = ai[l].form[9];
     switch (ch) {
     case 'F': PrintSz("Y"); break;
-    default: AnsiColor(kMainA[1]); PrintSz("N"); AnsiColor(kDefault); break;
+    default: AnsiColor(kWhiteA); PrintSz("N"); AnsiColor(kDefault); break;
     }
     PrintSz(") ");
     ch = ai[l].form[10];
@@ -1355,6 +1408,8 @@ void DisplaySwitchesX(void)
   PrintS(" _Xj: Don't clear screen between chart updates, drawing trails.");
   PrintS(" _Xe: Draw Earth's equator in certain charts.");
   PrintS(" _XU: Draw all stars from sefstars.txt file in certain charts.");
+  PrintS(
+    " _XU[0-3]: Like _XU but set whether to show larger star dot and name.");
   PrintS(" _XC: Draw house boundaries or alternate info in certain charts.");
   PrintS(" _X1 <object>: Rotate wheel charts so object is at left edge.");
   PrintS(" _X2 <object>: Rotate wheel charts so object is at top edge.");
@@ -1394,6 +1449,8 @@ void DisplaySwitchesW(void)
   PrintS(" _WN <1-32000>: Set animation update delay in milliseconds.");
   PrintS(" _WM <1-48> <text>: Set Windows menu text for macro command.");
   PrintS(" _Wn: Don't redraw screen until user forces update.");
+  PrintS(" _Wh: Set hourglass cursor when redrawing chart.");
+  PrintS(" _Wt: Don't display warning and error popup messages.");
   PrintS(" _Wo: Continually autosave graphics screen to bitmap file.");
   PrintS(" _Wo0: Continually autosave graphics screen to numbered files.");
   PrintS(" _Wo3: Autosave graphics screen to wireframe instead of bitmap.");

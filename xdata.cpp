@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: xdata.cpp
+** Astrolog (Version 6.50) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -65,20 +65,23 @@ GS gs = {
 #endif
   fFalse, fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse, fTrue,
   fTrue, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
-  fTrue, fTrue, DEFAULTX, DEFAULTY,
+  fFalse, fTrue, fFalse, DEFAULTX, DEFAULTY,
 #ifdef WIN
   -10,
 #else
   0,
 #endif
-  200, 100, 0, 0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
-  0, 25, 11, oCore, 0.0, 1000, 0, 600, 1111, fFalse, fFalse};
+  200, 100, 0, 0, 0.0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
+  0, 25, 11, oCore, 0.0, 1000, 0, 600, 1111, fFalse, fFalse, 7, "", ""};
 
 GI gi = {
   0, fFalse, -1,
   NULL, 0, NULL, NULL, 0.0, fFalse, fFalse,
   2, 1, 1, 20, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1,
   NULL, 0, 0,
+#ifdef SWISS
+  NULL, 0,
+#endif
 #ifdef X11
   NULL, 0, 0, 0, 0, 0, 0, 0, 0,
 #endif
@@ -101,7 +104,7 @@ WI wi = {
   0, 0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
 
   /* Window user settings. */
-  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse, fFalse,
+  fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse, fFalse, fFalse,
   0, kBlack, 1, 1000};
 
 OPENFILENAME ofn = {
@@ -128,17 +131,13 @@ WI wi = {
 
 /* Color tables for Astrolog's graphics palette. */
 
-CONST KV rgbbmp[cColor] = {
+CONST KV rgbbmpDef[cColor] = {
   0x000000, 0x00007F, 0x007F00, 0x007F7F,
   0x7F0000, 0x7F007F, 0x7F7F00, 0xBFBFBF,
   0x7F7F7F, 0x0000FF, 0x00FF00, 0x00FFFF,
   0xFF0000, 0xFF00FF, 0xFFFF00, 0xFFFFFF};
+KV rgbbmp[cColor];
 #ifdef X11
-CONST char *szColorX[cColor] = {
-  "black",  "red4",    "green4", "yellow4",
-  "blue4",  "purple1", "cyan4",  "grey75",
-  "grey50", "red1",    "green1", "yellow1",
-  "blue1",  "magenta", "cyan1",  "white"};
 KV rgbind[cColor], fg, bg;
 #endif
 #ifdef WIN
@@ -151,8 +150,8 @@ char *szWheelX[4+1] = {NULL, NULL, NULL, NULL, NULL};
 /* Technically, Astrolog always assumes we are drawning on a color terminal. */
 /* For B/W graphics, all the values below are filled with black or white.    */
 
-KI kMainB[9], kRainbowB[8], kElemB[cElem], kAspB[cAspect+1], kObjB[objMax],
-  kRayB[cRay+2];
+KI kMainB[9], kRainbowB[cRainbow+1], kElemB[cElem], kAspB[cAspect+1],
+  kObjB[objMax], kRayB[cRay+2];
 
 /* Some physical X window variables dealing with the window itself. */
 
@@ -169,9 +168,9 @@ char xkey[10];
 */
 
 #ifdef VECTOR
-//                                  ESMMVMJSUNPccpjvnslpveA23I56789M12
+//                                  ESMMVMJSUNPccpjvnslpveA23I56D89M12
 CONST char szObjectFont[oNorm+1] = ";QRSTUVWXYZ     <>    a  c     b  ";
-//                                    C OSTSisssqbssnbbts
+//                                    C OSTSisssqbssnbbtq
 CONST char szAspectFont[cAspect+1] = "!\"#$'&%()+*       ";
 #endif
 
@@ -193,7 +192,7 @@ CONST char *szDrawSign[cSign+2] = {"",
 CONST char *szDrawSign2[cSign+2] = {"",
   "BD8U7HU3HU2H2L2G2D2F2BR12E2U2H2L2G2D2GD3G",     /* Aries  */
   "BH6BU2FDFRFNR4GLGDGD4FDFRFR4EREUEU4HUHLHEREUE", /* Taurus */
-  "BL2U6LHLHBR14GLGLNL6D12NL6RFRFBL14ERERU6",      /* Gemini */
+  "BL3U6LHLHBR14GLGLNL6D12NL6RFRFBL14ERERU6",      /* Gemini */
   "BF5NLRE2U2H2L2G2D2F2G2L4HL2H3BE6NH2D2G2L2H2U2E2R2E2R4FR2F3", /* Cancer */
   "BF8H4U2E2U4HUHLHL4GLGDGD4FDFD2GL2HU",           /* Leo   */
   "BF8BL2H3UHU5E4D9GDG3BU10U4H2G2ND12H2G2ND12H2",  /* Virgo */
@@ -202,9 +201,28 @@ CONST char *szDrawSign2[cSign+2] = {"",
   "", /* Sagittarius  */
   "BH6BL2E2D4FD4FND4EU2EUEU2EUF2ND2E2R2F2D2G2L2NH2F4D4G2", /* Capricorn #1 */
   "BG8EUE2UEDFD2FDEUE2UEDFD2FDEUE2UEBU10GDG2DGUHU2HUGDG2DGUHU2HUGDG2DG",
-  /* Aquarius */
+    /* Aquarius */
   "NL8NR8BH8F3DFD6GDG3BR16H3UHU6EUE3",             /* Pisces */
   "BH8RFRFR4ER2ER4G5DGD2GDGD2F2R4E2U4H2L6G4DGDG"}; /* Capricorn #2 */
+
+CONST char *szDrawSign3[cSign+2] = {"",
+  "BD12U10HU4HU2HU2H3L3G3D3F3BR18E3U3H3L3G3D2GD2GD4",     /* Aries  */
+  "BL9D6FDF3RFR6ERE3UEU6HUH3LHNL6ERE3UEBL18FDF3RFGLG3DG", /* Taurus */
+  "BL4U9L2HLH2BR21G2LGL2NL9D18NL9R2FRF2BL21E2RER2U9",     /* Gemini */
+  "BF3ND3E3R3F3D3G3L3NH3G2LGL6HLHLH4BU9NE3D3F3R3E3U3H3NL3E2RER6FRFRF4",
+    /* Cancer */
+  "BF12H6U3E2UEU5HUH3LHL6GLG3DGD5FDFDFD3G2L2H2U",        /* Leo   */
+  "BF12BL3H5UHU8E6D14GDG5BU15U7H2L2G2ND19H2L2G2ND19H2L", /* Virgo */
+  "", /* Libra        */
+  "BH12RF2ND19E2R2F2ND19E2R2F2D20F2R3E2U5NG2F2", /* Scorpio */
+  "", /* Sagittarius  */
+  "BH9BL3E3D4FD4FD4FND6EU2EUEU2EUEU2EUF3ND3E3R3F3D3G3L3NH3F5DFD4GDG2",
+    /* Capricorn #1 */
+  "BG12E2UEUEUE2D2FDFDFD2E2UEUEUE2D2FDFDFD2E2UEUEUE2BU15"
+    "G2DGDGDG2U2HUHUHU2G2DGDGDG2U2HUHUHU2G2DGDGDG2", /* Aquarius */
+  "NL12NR12BH12F4DFDFD8GDGDG4BR24H4UHUHU8EUEUE4", /* Pisces */
+  "BH12RFRFR2FR6ER2ER2ER4G8DGD3GDGDGD3F3R6E3U6H3L8GLG4DGDGDG2"};
+    /* Capricorn #2 */
 
 CONST char *szDrawObjectDef[oNorm+5] = {
   "ND4NL4NR4U4LGLDGD2FDRFR2ERUEU2HULHL",    /* Earth   */
@@ -216,7 +234,7 @@ CONST char *szDrawObjectDef[oNorm+5] = {
   "BH3RFDGDGDR5NDNR2U6E",                   /* Jupiter */
   "BH3R2NUNR2D4ND2E2RFDGDF",                /* Saturn  */
   "BD4NEHURBFULU3NUNR2L2NU2DGBU5NFBR6GD3F", /* Uranus #1 */
-  "BD4U2NL2NR2U5NUNRLBL2NUNLDF2R2E2UNRU",   /* Neptune   */
+  "BD4U2NL2NR2U6NFNGBL3NGD2F2R2E2U2F",      /* Neptune   */
   "D2NL2NR2D2BU8GFEHBL3D2F2R2E2U2",         /* Pluto  #1 */
   "BG2LDFEULU3NURFRFBU5GLGLU2",             /* Chiron          */
   "BD4UNL3NR3U2RE2UH2L2G",                  /* Ceres           */
@@ -267,7 +285,7 @@ CONST char *szDrawObjectDef2[oNorm+5] = {
   "BH6BRRF2D2GDGDGDGDR10ND2NR4U12E2", /* Jupiter */
   "", /* Saturn  */
   "BD4LGD2FR2EU2HLU6NU2NR4L4NU4D2G2BU10NF2BR12G2D6F2",     /* Uranus #1 */
-  "BD8U4NL4NR4U10NU2NR2L2BL3LNU2NLD2FDFRFR4EREUEU2NLNRU2", /* Neptune   */
+  "BD8U4NL4NR4U12NF2NG2BL6DNFNGD3FDFRFR4EREUEU3NGNFU",     /* Neptune   */
   "D4NL4NR4D4BU16LGD2FR2EU2HLBL6D4FDFRFR4EREUEU4",         /* Pluto  #1 */
   "BG4LGD2FR2EU2HLU7RF2RF2RFBU10GLG2LG2BLU5",     /* Chiron        */
   "BD8U2NL6NR6U4R3E3U4H3L4G2",                    /* Ceres         */
@@ -320,6 +338,13 @@ CONST char *szDrawHouse2[cSign+1] = {"",
   "", "NRLHU2ER2FD2GFD2GL2HU2E", "NR2LHU2ER2FD6GL2H",
   "BH4NG2D8NL2R2BR5HU6ER2FD6GL2", "BH4NG2D8NL2R2BR4R2NR2U8G2",
   "BH4NG2D8NL2R2BR4NR4UE4U2HL2G"};
+
+CONST char *szDrawHouse3[cSign+1] = {"",
+  "BD6NL3NR3U12G3", "BH3BU2ER4FD4G6DR6", "BH3BU2ER4FD3G2NL2F2D3GL4H",
+  "BH3BU3D6R5NU6NRD6", "BE3BU3L6D6R5FD4GL4H", "NL3R2FD4GL4HU10ER4F",
+  "", "NR2L2HU4ER4FD4GFD4GL4HU4E", "NR3L2HU4ER4FD10GL4H",
+  "BH6NG3D12NL3R3BR7HU10ER4FD10GL4", "BH6NG3D12NL3R3BR6R3NR3U12G3",
+  "BH6NG3D12NL3R3BR6NR6UE6U4HL4G"};
 
 CONST char *szDrawAspectDef[cAspect2+1] = {"",
   "HLG2DF2RE2UHE4",                        /* Conjunction      */

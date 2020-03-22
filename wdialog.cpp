@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: wdialog.cpp
+** Astrolog (Version 6.50) File: wdialog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -72,16 +72,9 @@ void SetEditSz(HWND hdlg, int id, CONST char *sz)
 
 void SetEditR(HWND hdlg, int id, real r, int n)
 {
-  char sz[cchSzDef], szT[8], *pch;
+  char sz[cchSzDef];
 
-  sprintf(szT, "%%.%df", NAbs(n));
-  sprintf(sz, szT, r);
-  for (pch = sz; *pch; pch++)
-    ;
-  while (pch > sz && *(--pch) == '0')  /* Drop off any trailing 0 digits. */
-    ;
-  /* Positive n means ensure at least one fractional digit. */
-  pch[n > 0 ? 1 + (*pch == '.') : (*pch != '.')] = chNull;
+  FormatR(sz, r, n);
   SetEdit(id, sz);
 }
 
@@ -112,7 +105,7 @@ void SetEditMDYT(HWND hdlg, int idMon, int idDay, int idYea, int idTim,
     sprintf(sz, "%d", Max(i, 1)); SetCombo(idDay, sz);
   }
   SetEditN(idYea, yea);
-  for (i = 2010; i < 2020; i++) {
+  for (i = 2015; i < 2025; i++) {
     sprintf(sz, "%d", i); SetCombo(idYea, sz);
   }
   sprintf(sz, "%s", SzTim(tim));
@@ -142,7 +135,7 @@ void SetEditSZOA(HWND hdlg, int idDst, int idZon, int idLon, int idLat,
     sprintf(sz, "%s",
       dst == 0.0 ? "No" : (dst == 1.0 ? "Yes" : "Autodetect"));
   else
-    sprintf(sz, "%.2f", dst);
+    sprintf(sz, "%s", SzZone(dst));
   SetEdit(idDst, sz);
   SetCombo(idDst, "No"); SetCombo(idDst, "Yes");
   sprintf(sz, "%s", SzZone(zon));
@@ -204,7 +197,7 @@ void ErrorEnsure(int n, CONST char *sz)
 /* Take many of the user visible settings, and write them out to a new   */
 /* command switch file, which may be read in to restore those settings.  */
 /* Most often this would be used to create a new astrolog.as default     */
-/* settings file. This is called from File \ Save Settings menu command. */
+/* settings file. This is called from File / Save Settings menu command. */
 
 flag FOutputSettings()
 {
@@ -252,9 +245,9 @@ flag FOutputSettings()
   sprintf(sz, "%cs      ", ChDashF(us.fSidereal)); PrintFSz();
   PrintF(
     "; Zodiac selection          [\"_s\" is tropical, \"=s\" is sidereal]\n");
-  sprintf(sz, ":s %.0f    ", us.rZodiacOffset); PrintFSz();
+  PrintF(":s "); FormatR(sz, us.rZodiacOffset, 6); PrintFSz();
   PrintF(
-    "; Zodiac offset value       [Change \"0\" to desired ayanamsa    ]\n");
+    "  ; Zodiac offset value       [Change \"0.0\" to desired ayanamsa  ]\n");
   sprintf(sz, "-A %d    ", us.nAsp); PrintFSz();
   PrintF(
     "; Number of aspects         [Change \"5\" to desired number      ]\n");
@@ -308,6 +301,13 @@ flag FOutputSettings()
   sprintf(sz, "%cY8     ", ChDashF(us.fClip80)); PrintFSz();
   PrintF(
     "; Clip text to end of line  [\"=Y8\" clips, \"_Y8\" doesn't clip   ]\n");
+
+  PrintF("\n\n; FILE PATHS:\n; For example, "
+    "point -Yi1 to ephemeris dir, and -Yi2 to chart files dir.\n\n");
+  for (i = 0; i < 10; i++)
+    if (us.rgszPath[i] && *us.rgszPath[i]) {
+      sprintf(sz, "-Yi%d \"%s\"\n", i, us.rgszPath[i]); PrintFSz();
+    }
 
   PrintF("\n\n; DEFAULT RESTRICTIONS:\n\n-YR 0 10     ");
   for (i = 0; i <= 10; i++) PrintF(SzNumF(ignore[i]));
@@ -369,7 +369,7 @@ flag FOutputSettings()
 
   PrintF("; DEFAULT INFLUENCES:\n\n-Yj 0 10   ");
   for (i = 0; i <= 10; i++) { sprintf(sz, " %.0f", rObjInf[i]); PrintFSz(); }
-  PrintF("     ; Planets\n-Yj 11 21  ");
+  PrintF("        ; Planets\n-Yj 11 21  ");
   for (i = 11; i <= 21; i++) { sprintf(sz, " %.0f", rObjInf[i]); PrintFSz(); }
   PrintF("                ; Minor planets\n-Yj 22 33  ");
   for (i = 22; i <= 33; i++) { sprintf(sz, " %.0f", rObjInf[i]); PrintFSz(); }
@@ -454,7 +454,7 @@ flag FOutputSettings()
   for (i = 1; i <= cRay; i++)
     { sprintf(sz, " %.3s", szColor[kRayA[i]]); PrintFSz(); }
   PrintF("          ; Ray colors\n-Yk0 1 7   ");
-  for (i = 1; i <= 7; i++)
+  for (i = 1; i <= cRainbow; i++)
     { sprintf(sz, " %.3s", szColor[kRainbowA[i]]); PrintFSz(); }
   PrintF("          ; Rainbow colors\n-Yk  0 8   ");
   for (i = 0; i <= 8; i++)
@@ -516,7 +516,7 @@ flag FOutputSettings()
 
 /* Bring up the Windows standard file open dialog, and process the          */
 /* command file specified if any. This is called from the File \ Open Chart */
-/* and File \ Open Chart #2 menu commands.                                  */
+/* and File / Open Chart #2 menu commands.                                  */
 
 flag API DlgOpenChart()
 {
@@ -540,13 +540,19 @@ flag API DlgOpenChart()
   /* Process the given file based on what open command is being run. */
   ciT = ciCore;
   FInputData(ofn.lpstrFileTitle);
-  if (wi.nDlgChart > 1) {
-    if (wi.nDlgChart == 2)
+  if (wi.nDlgChart <= 1)
+    cp1 = cp0;
+  else {
+    if (wi.nDlgChart == 2) {
       ciTwin = ciCore;
-    else if (wi.nDlgChart == 3)
+      cp2 = cp0;
+    } else if (wi.nDlgChart == 3) {
       ciThre = ciCore;
-    else
+      cp3 = cp0;
+    } else {
       ciFour = ciCore;
+      cp4 = cp0;
+    }
     ciCore = ciT;
   }
 
@@ -823,7 +829,7 @@ flag API DlgAbortProc(HDC hdc, int nCode)
 
 
 /* Processing function for the printing abort modeless dialog, as brought */
-/* up temporarily when printing via the File \ Print menu command.        */
+/* up temporarily when printing via the File / Print menu command.        */
 
 BOOL API DlgAbort(HWND hdlg, uint message, WPARAM wParam, LPARAM lParam)
 {
@@ -845,7 +851,7 @@ BOOL API DlgAbort(HWND hdlg, uint message, WPARAM wParam, LPARAM lParam)
 
 
 /* Processing function for the command switch entry dialog, as brought up */
-/* with the Edit \ Enter Command Line menu command.                       */
+/* with the Edit / Enter Command Line menu command.                       */
 
 flag API DlgCommand(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -873,7 +879,7 @@ flag API DlgCommand(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the color customization dialog, as brought up */
-/* with the View \ Set Colors menu command.                              */
+/* with the View / Set Colors menu command.                              */
 
 flag API DlgColor(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -938,7 +944,7 @@ flag API DlgColor(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the chart info entry dialog, as brought up by */
-/* both the Info \ Set Chart Info and Info \ Set Chart #2 menu commands. */
+/* both the Info / Set Chart Info and Info / Set Chart #2 menu commands. */
 
 flag API DlgInfo(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -965,7 +971,7 @@ LInit:
     SetEditMDYT(hdlg, dcInMon, dcInDay, dcInYea, dcInTim,
       ci.mon, ci.day, ci.yea, ci.tim);
     SetEditSZOA(hdlg, dcInDst, dcInZon, dcInLon, dcInLat,
-      ci.dst, ci.zon, ci.lon, ci.lat);
+      ci.dst != dstAuto ? ci.dst : (real)is.fDst, ci.zon, ci.lon, ci.lat);
     SetFocus(GetDlgItem(hdlg, dcInMon));
     return fFalse;
 
@@ -1022,7 +1028,7 @@ LInit:
 
 
 /* Processing function for the default chart info dialog, as brought up */
-/* with the Info \ Default Chart Info menu command.                     */
+/* with the Info / Default Chart Info menu command.                     */
 
 flag API DlgDefault(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1072,7 +1078,7 @@ flag API DlgDefault(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the charts #3 and #4 info entry dialog, as */
-/* brought up by the Info \ Charts #3 and #4 menu commands.           */
+/* brought up by the Info / Charts #3 and #4 menu commands.           */
 
 flag API DlgInfoAll(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1112,7 +1118,7 @@ flag API DlgInfoAll(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the aspect settings dialog, as brought up with */
-/* the Setting \ Aspect Settings menu command.                            */
+/* the Setting / Aspect Settings menu command.                            */
 
 flag API DlgAspect(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1189,7 +1195,7 @@ flag API DlgAspect(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the object settings dialog, as brought up with */
-/* the Setting \ Object Settings menu command.                            */
+/* the Setting / Object Settings menu command.                            */
 
 flag API DlgObject(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1245,7 +1251,7 @@ flag API DlgObject(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the cusp and Uranian object settings dialog, as */
-/* brought up with the Setting \ More Object Settings menu command.        */
+/* brought up with the Setting / More Object Settings menu command.        */
 
 flag API DlgObject2(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1302,7 +1308,7 @@ flag API DlgObject2(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the object restrictions dialog, as invoked with */
-/* both the Setting \ Restrictions and Transit Restrictions menu commands. */
+/* both the Setting / Restrictions and Transit Restrictions menu commands. */
 
 flag API DlgRestrict(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1315,6 +1321,7 @@ flag API DlgRestrict(HWND hdlg, uint message, WORD wParam, LONG lParam)
       lpb = ignore;
     else {
       SetWindowText(hdlg, "Transit Object Restrictions");
+      SetDlgItemText(hdlg, dbRT, "Copy &From Standard Restriction Set");
       lpb = ignore2;
     }
     for (i = 0; i <= oNorm; i++)
@@ -1399,7 +1406,7 @@ flag API DlgRestrict(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the star restrictions dialog, as brought up with */
-/* the Setting \ Star Restrictions menu command.                            */
+/* the Setting / Star Restrictions menu command.                            */
 
 flag API DlgStar(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1455,13 +1462,13 @@ flag API DlgStar(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the standard settings dialog, as brought up with */
-/* the Setting \ Calculation Settings menu command.                         */
+/* the Setting / Calculation Settings menu command.                         */
 
 flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
   char sz[cchSzMax];
   real rs, rx;
-  int nh, n1, i;
+  int nh, n4, n1, i;
 
   switch (message) {
   case WM_INITDIALOG:
@@ -1472,6 +1479,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCombo(dcSe_s, "-3.619166");  // Djwhal Khul
     SetEditR(hdlg, dcSe_s, us.rZodiacOffset, 6);
     SetEditR(hdlg, deSe_x, us.rHarmonic, -6);
+    SetEditN(deSe_4, us.nDwad);
     SetCheck(dxSe_Yh, us.fBarycenter);
     SetCheck(dxSe_Yn, us.fTrueNode);
     SetCheck(dxSe_Yc0, us.fHouseAngle);
@@ -1483,6 +1491,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCheck(dxSe_sr, us.fEquator);
     SetCheck(dxSe_yt, us.fTruePos);
     SetCheck(dxSe_yv, us.fTopoPos);
+    SetCheck(dxSe_ys, us.fSidereal2);
     SetCheck(dxSe_c3, us.fHouse3D);
     SetCheck(dxSe_A3, us.fAspect3D);
     SetCheck(dxSe_Ap, us.fAspectLat);
@@ -1505,26 +1514,31 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
   case WM_COMMAND:
     if (wParam == IDOK) {
       rs = GetEditR(hdlg, dcSe_s);
-      rx = GetEditR(hdlg, deSe_x);
       GetEdit(deSe_h, sz); nh = NParseSz(sz, pmObject);
+      rx = GetEditR(hdlg, deSe_x);
+      n4 = GetEditN(deSe_4);
       GetEdit(deSe_1, sz); n1 = NParseSz(sz, pmObject);
       EnsureR(rs, FValidOffset(rs), "zodiac offset");
-      EnsureR(rx, FValidHarmonic(rx), "harmonic factor");
       EnsureN(nh, FValidCenter(nh), "central planet");
+      EnsureR(rx, FValidHarmonic(rx), "harmonic factor");
+      EnsureN(n4, FValidDwad(n4), "dwad nesting");
       EnsureN(n1, FItem(n1), "Solar chart planet");
       us.rZodiacOffset = rs;
+      SetCentric(nh);
+      WiCheckMenu(cmdHeliocentric, us.objCenter != oEar);
       us.rHarmonic = rx;
+      us.nDwad = n4;
+      WiCheckMenu(cmdHouseSetDwad, us.nDwad > 0);
       us.fBarycenter = GetCheck(dxSe_Yh);
       us.fTrueNode = GetCheck(dxSe_Yn);
       us.fHouseAngle = GetCheck(dxSe_Yc0);
-      us.objCenter = nh;
-      WiCheckMenu(cmdHeliocentric, us.objCenter != oEar);
       us.objOnAsc = GetCheck(dr01) ? 0 : (GetCheck(dr02) ? n1+1 : -n1-1);
       WiCheckMenu(cmdHouseSetSolar, us.objOnAsc);
       us.fSolarWhole = GetCheck(dxSe_10);
       us.fEquator = GetCheck(dxSe_sr);
       us.fTruePos = GetCheck(dxSe_yt);
       us.fTopoPos = GetCheck(dxSe_yv);
+      us.fSidereal2 = GetCheck(dxSe_ys);
       us.fHouse3D = GetCheck(dxSe_c3);
       WiCheckMenu(cmdHouseSet3D, us.fHouse3D);
       us.fAspect3D = GetCheck(dxSe_A3);
@@ -1561,7 +1575,7 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the obscure settings dialog, as brought up with */
-/* the Setting \ Display Settings menu command.                            */
+/* the Setting / Display Settings menu command.                            */
 
 flag API DlgDisplay(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1648,7 +1662,7 @@ flag API DlgDisplay(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the transit chart dialog, as brought up with the */
-/* Chart \ Transits menu command.                                           */
+/* Chart / Transits menu command.                                           */
 
 flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1735,6 +1749,7 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
       if (n1 == 2) {
         us.fProgress = is.fProgress;
         wi.fCast = fTrue;
+        us.fGraphics = fFalse;
       } else if (n1 == 3 || n1 == 6)
         us.nEphemYears = (n2 <= 2 ? 1 : 5);
       else
@@ -1752,25 +1767,30 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the progression settings dialog, as brought up */
-/* with the Chart \ Progressions menu command.                            */
+/* with the Chart / Progressions menu command.                            */
 
 flag API DlgProgress(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
   char sz[cchSzMax];
   int mon, day, yea;
-  real tim, r1;
+  real tim, rd, rC;
 
   switch (message) {
   case WM_INITDIALOG:
     SetCheck(dxPr_p, us.fProgress);
-    SetEditMDYT(hdlg, dcPrMon, dcPrDay, dcPrYea, dcPrTim,
-      MonT, DayT, YeaT, TimT);
-    SetRadio(dr01 + us.fSolarArc, dr01, dr02);
-    SetEditR(hdlg, dcPr_pd, us.rProgDay, 5);
-    sprintf(sz, "%f", rDayInYear);
+    SetRadio(dr01 + us.nProgress, dr01, dr03);
+    SetEditR(hdlg, dcPr_pd, us.rProgDay, -5);
+    FormatR(sz, rDayInYear * rDegMax, -3);
+    SetCombo(dcPr_pd, sz);
+    FormatR(sz, rDayInYear, -5);
     SetCombo(dcPr_pd, sz);
     SetCombo(dcPr_pd, "27.321661");
     SetCombo(dcPr_pd, "29.530588");
+    SetEditR(hdlg, dcPr_pC, us.rProgCusp, -5);
+    SetCombo(dcPr_pC, "1");
+    SetCombo(dcPr_pC, sz);
+    SetEditMDYT(hdlg, dcPrMon, dcPrDay, dcPrYea, dcPrTim,
+      MonT, DayT, YeaT, TimT);
     SetFocus(GetDlgItem(hdlg, dcPrMon));
     return fFalse;
 
@@ -1784,21 +1804,26 @@ flag API DlgProgress(HWND hdlg, uint message, WORD wParam, LONG lParam)
 #endif
 
     if (wParam == IDOK) {
+      rd = GetEditR(hdlg, dcPr_pd);
+      rC = GetEditR(hdlg, dcPr_pC);
       GetEdit(dcPrMon, sz); mon = NParseSz(sz, pmMon);
       GetEdit(dcPrDay, sz); day = NParseSz(sz, pmDay);
       GetEdit(dcPrYea, sz); yea = NParseSz(sz, pmYea);
       GetEdit(dcPrTim, sz); tim = RParseSz(sz, pmTim);
-      r1 = GetEditR(hdlg, dcPr_pd);
+      EnsureR(rd, rd != 0.0, "degree per day");
+      EnsureR(rC, rC != 0.0, "cusp move ratio");
       EnsureN(mon, FValidMon(mon), "month");
       EnsureN(yea, FValidYea(yea), "year");
       EnsureN(day, FValidDay(day, mon, yea), "day");
       EnsureR(tim, FValidTim(tim), "time");
-      EnsureR(r1, r1 != 0.0, "degree per day");
+      us.fProgress = GetCheck(dxPr_p);
+      WiCheckMenu(cmdProgress, us.fProgress);
+      us.nProgress = GetCheck(dr01) ? ptCast :
+        (GetCheck(dr02) ? ptSolarArc : ptMixed);
+      us.rProgDay = rd;
+      us.rProgCusp = rC;
       SetCI(ciTran, mon, day, yea, tim,
         us.dstDef, us.zonDef, us.lonDef, us.latDef);
-      us.rProgDay = r1;
-      us.fProgress = GetCheck(dxPr_p);
-      us.fSolarArc = GetCheck(dr02);
       is.JDp = MdytszToJulian(MonT, DayT, YeaT, TimT, us.dstDef, us.zonDef);
       wi.fCast = fTrue;
     }
@@ -1813,7 +1838,7 @@ flag API DlgProgress(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the chart subsettings dialog, as brought up with */
-/* the Chart \ Chart Settings menu command.                                 */
+/* the Chart / Chart Settings menu command.                                 */
 
 flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -1832,10 +1857,11 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetCheck(dxCh_ma, us.fMidAspect);
     SetCheck(dxCh_Z0, us.fPrimeVert);
     SetCheck(dxCh_l,  us.fSectorApprox);
+    SetCheck(dxCh_Ky, us.fCalendarYear);
     SetCheck(dxCh_j0, us.fInfluenceSign);
     SetEditN(deCh_L,  us.nAstroGraphStep);
     SetCheck(dxCh_L0, us.fLatitudeCross);
-    SetCheck(dxCh_Ky, us.fCalendarYear);
+    SetCheck(dxCh_Ey, us.nEphemYears != 0);
     SetEditN(deCh_P,  us.nArabicParts);
     SetCheck(dxCh_P0, us.fArabicFlip);
     SetEditN(deCh_Yb, us.nBioday);
@@ -1844,16 +1870,17 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
     case 'l': nT = dr03; break;
     case 'n': nT = dr04; break;
     case 'b': nT = dr05; break;
+    case 'd': nT = dr06; break;
     default:  nT = dr01;
     }
-    SetRadio(nT, dr01, dr05);
+    SetRadio(nT, dr01, dr06);
     switch (us.nArabic) {
-    case 'z': nT = dr07; break;
-    case 'n': nT = dr08; break;
-    case 'f': nT = dr09; break;
-    default:  nT = dr06;
+    case 'z': nT = dr08; break;
+    case 'n': nT = dr09; break;
+    case 'f': nT = dr10; break;
+    default:  nT = dr07;
     }
-    SetRadio(nT, dr06, dr09);
+    SetRadio(nT, dr07, dr10);
     return fTrue;
 
   case WM_COMMAND:
@@ -1880,19 +1907,21 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
       us.fMidAspect = GetCheck(dxCh_ma);
       us.fPrimeVert = GetCheck(dxCh_Z0);
       us.fSectorApprox = GetCheck(dxCh_l);
+      us.fCalendarYear = GetCheck(dxCh_Ky);
       us.fInfluenceSign = GetCheck(dxCh_j0);
       us.nAstroGraphStep = nl;
       us.fLatitudeCross = GetCheck(dxCh_L0);
-      us.fCalendarYear = GetCheck(dxCh_Ky);
+      us.nEphemYears = GetCheck(dxCh_Ey);
       us.nArabicParts = np;
       us.fArabicFlip = GetCheck(dxCh_P0);
       us.nBioday = yb;
       if (us.nStar)
         us.nStar = GetCheck(dr02) ? 'z' : (GetCheck(dr03) ? 'l' :
-          (GetCheck(dr04) ? 'n' : (GetCheck(dr05) ? 'b' : fTrue)));
+          (GetCheck(dr04) ? 'n' : (GetCheck(dr05) ? 'b' :
+          (GetCheck(dr06) ? 'd' : fTrue))));
       if (us.nArabic)
-        us.nArabic = GetCheck(dr07) ? 'z' : (GetCheck(dr08) ? 'n' :
-          (GetCheck(dr09) ? 'f' : fTrue));
+        us.nArabic = GetCheck(dr08) ? 'z' : (GetCheck(dr09) ? 'n' :
+          (GetCheck(dr10) ? 'f' : fTrue));
       wi.fCast = fTrue;
     }
     if (wParam == IDOK || wParam == IDCANCEL) {
@@ -1906,7 +1935,7 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the graphic settings dialog, as brought up with */
-/* the Graphics \ Graphics Settings menu command.                          */
+/* the Graphics / Graphics Settings menu command.                          */
 
 flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
@@ -2006,7 +2035,7 @@ flag API DlgGraphics(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 
 /* Processing function for the about dialog, showing copyrights and    */
-/* credits, as brought up with the Help \ About Astrolog menu command. */
+/* credits, as brought up with the Help / About Astrolog menu command. */
 
 flag API DlgAbout(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {

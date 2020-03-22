@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: intrpret.cpp
+** Astrolog (Version 6.50) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -64,7 +64,7 @@ void FieldWord(CONST char *sz)
 {
   static char line[cchSzMax];
   static int cursor = 0;
-  int isz = 0, i, j;
+  int ich = 0, i, j;
   char ch;
 
   /* Display buffer if function called with a null string. */
@@ -74,14 +74,14 @@ void FieldWord(CONST char *sz)
   else if (cursor > 0)
     line[cursor++] = ' ';
   loop {
-    ch = sz[isz];
+    ch = sz[ich];
     if (ch == chNull)
       break;
     if (ch == '\n') {
       line[cursor] = 0;
       PrintSz(line); PrintL();
       cursor = 0;
-      isz++;
+      ich++;
       continue;
     }
     line[cursor] = ch;
@@ -100,7 +100,7 @@ void FieldWord(CONST char *sz)
         ;
       cursor -= (i-1);
     }
-    isz++, cursor++;
+    ich++, cursor++;
   }
 }
 
@@ -263,6 +263,7 @@ void InterpretGrid(void)
   for (i = 0; i < cObjInt; i++) if (!ignore[i] && !FCusp(i))
     for (j = i+1; j <= cObjInt; j++) if (!ignore[j] && !FCusp(i))
       InterpretAspect(i, j);
+  AnsiColor(kDefault);
 }
 
 
@@ -473,6 +474,7 @@ void InterpretGridRelation(void)
   for (i = 0; i <= cObjInt; i++) if (!ignore[i])
     for (j = 0; j <= cObjInt; j++) if (!ignore[j])
       InterpretAspectRelation(i, j);
+  AnsiColor(kDefault);
 }
 
 

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: io.cpp
+** Astrolog (Version 6.50) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -64,11 +64,11 @@
 FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
 {
   FILE *file;
-  char szFileT[cchSzDef], sz[cchSzDef], szMode[3];
+  char szFileT[cchSzMax], sz[cchSzMax], szMode[3], *pch;
 #ifdef ENVIRON
   char *env;
 #endif
-  int i;
+  int i, j;
 
   /* Some file types we want to open as binary instead of Ascii. */
   sprintf(szMode, "r%s", nFileMode == 2 ? "b" : "");
@@ -82,16 +82,46 @@ FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
       sprintf(szFileT, "%s.as", szFile);
     }
 
-    /* First look for the file in the current directory. */
+    /* First look for the file in the directory of the Astrolog executable. */
+#ifdef WIN
+    GetModuleFileName(wi.hinst, sz, cchSzMax);
+#else
+    sprintf(sz, "%s", is.szProgName != NULL ? is.szProgName : chNull);
+#endif
+    for (pch = sz; *pch; pch++)
+      ;
+    while (pch > sz && *pch != chDirSep)
+      pch--;
+    if (*pch == chDirSep)
+      pch++;
+    sprintf(pch, "%s", szFileT);
+    file = fopen(sz, szMode);
+    if (file != NULL)
+      goto LDone;
+
+    /* Next look for the file in the current directory. */
     sprintf(sz, "%s", szFileT);
     file = fopen(sz, szMode);
     if (file != NULL)
       goto LDone;
 
+    /* Next look in the directories indicated by the -Yi switch. */
+    for (j = 0; j < 10; j++)
+      if (us.rgszPath[j] && *us.rgszPath[j]) {
+        sprintf(sz, "%s%c%s", us.rgszPath[j], chDirSep, szFileT);
+        file = fopen(sz, szMode);
+        if (file != NULL)
+          goto LDone;
+      }
+
 #ifdef ENVIRON
     /* Next look for the file in the directory indicated by the version */
     /* specific system environment variable.                            */
     sprintf(sz, "%s%s", ENVIRONVER, szVersionCore);
+    for (pch = sz; *pch && *pch != '.'; pch++)
+      ;
+    while (*pch && (*pch = pch[1]) != chNull)
+      pch++;
     env = getenv(sz);
     if (env && *env) {
       sprintf(sz, "%s%c%s", env, chDirSep, szFileT);
@@ -130,7 +160,7 @@ FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
   if (file == NULL && FOdd(nFileMode)) {
     /* If file was never found, print an error (unless we were looking */
     /* for a certain file type, e.g. the optional astrolog.as file).   */
-    sprintf(sz, "File '%s' not found.", szFileT);
+    sprintf(sz, "File '%s' not found.", szFile);
     PrintError(sz);
   }
 
@@ -190,10 +220,10 @@ flag FProcessSwitchFile(CONST char *szFile, FILE *file)
 
 flag FOutputData(void)
 {
-  char sz[cchSzDef];
+  char sz[cchSzDef], *pch;
   FILE *file;
   int i, j;
-  real rT;
+  real dst, rT;
 
   if (us.fNoWrite)
     return fFalse;
@@ -213,15 +243,26 @@ flag FOutputData(void)
       return fFalse;
     }
     if (us.fWriteOld) {
+      dst = Dst;
+      if (dst == dstAuto)
+        dst = (real)is.fDst;
       fprintf(file, "%d\n%d\n%d\n%.2f\n%.2f\n%.2f\n%.2f\n", Mon, Day, Yea,
-        DegToDec(Tim), DegToDec(Zon-Dst), DegToDec(Lon), DegToDec(Lat));
+        DegToDec(Tim), DegToDec(Zon-dst), DegToDec(Lon), DegToDec(Lat));
     } else {
       fprintf(file, "@0103  ; %s chart info.\n", szAppName);
       i = us.fAnsiChar;
       us.fAnsiChar = fFalse;
-      fprintf(file, "%cqb %.3s %d %d %s %s %s %s\n", chSwitch, szMonth[Mon],
+      fprintf(file, "%cqb %.3s %d %d %s %s ", chSwitch, szMonth[Mon],
         Day, Yea, SzTim(Tim), Dst == 0.0 ? "ST" : (Dst == 1.0 ? "DT" :
-        SzZone(Dst)), SzZone(Zon), SzLocation(Lon, Lat));
+        Dst == dstAuto ? "Autodetect" : SzZone(Dst)));
+      fprintf(file, "%s %s\n", SzZone(Zon), SzLocation(Lon, Lat));
+      /* Don't want double quotes within double quoted string parameters. */
+      for (pch = ciMain.nam; *pch; *pch++)
+        if (*pch == '"')
+          *pch = '\'';
+      for (pch = ciMain.loc; *pch; *pch++)
+        if (*pch == '"')
+          *pch = '\'';
       fprintf(file, "%czi \"%s\" \"%s\"\n", chSwitch, ciMain.nam, ciMain.loc);
       us.fAnsiChar = i;
     }
@@ -257,7 +298,7 @@ flag FOutputData(void)
       }
 
     } else {
-      fprintf(file, "@0204  ; %s chart positions.\n", szAppName);
+      fprintf(file, "@0205  ; %s chart positions.\n", szAppName);
       fprintf(file, "%czi \"%s\" \"%s\"\n", chSwitch, ciMain.nam, ciMain.loc);
       for (i = 0; i <= cObj; i++) if (!ignore[i] || FCusp(i)) {
         fprintf(file, "%cYF ", chSwitch);
@@ -268,12 +309,14 @@ flag FOutputData(void)
         rT = FBetween(i, cuspLo-1+4, cuspLo-1+9) ?
           chouse[i-(cuspLo-1)] : planet[i];
         j = (int)rT;
-        fprintf(file, "%3d %.3s %12.9f,%4d %12.9f,",
-          j%30, szSignName[j/30+1], RFract(rT)*60.0,
-          (int)planetalt[i], RFract(RAbs(planetalt[i]))*60.0);
+        fprintf(file, "%3d %.3s %12.9f,",
+          j%30, szSignName[j/30+1], RFract(rT)*60.0);
+        rT = planetalt[i] < 0.0 && planetalt[i] > -1.0 ?
+          planetalt[i] : RFract(RAbs(planetalt[i]));
+        fprintf(file, "%4d %13.9f,", (int)planetalt[i], rT*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :
           RSqr(Sq(space[i].x) + Sq(space[i].y) + Sq(space[i].z)));
-        fprintf(file, "%14.9f%14.9f\n", ret[i], rT);
+        fprintf(file, " %13.9f %13.9f\n", ret[i], rT);
       }
     }
   }
@@ -365,7 +408,7 @@ int NParseSz(CONST char *szEntry, int pm)
         if (FMatchSz(sz, szSignName[i]))
           return i;
       break;
-    /* Parse colors, e.g. "White" or "Whi" -> 15 for White. */
+    /* Parse color indexes, e.g. "White" or "Whi" -> 15 for White. */
     case pmColor:
       for (i = 0; i < cColor+2; i++)
         if (FMatchSz(sz, szColor[i]))
@@ -373,6 +416,23 @@ int NParseSz(CONST char *szEntry, int pm)
       if (!FNumCh(ch0))
         return -1;
       break;
+    /* Parse RGB color values, e.g. "255,0,0" or "#ff0000" for Red. */
+    case pmRGB:
+      i = 0;
+      if (ch0 == '#' && CchSz(sz) == 7) {
+        for (n = 1; sz[n]; n += 2)
+          i = (i << 8) | (NHex(ChUncap(sz[n])) << 4) | NHex(ChUncap(sz[n+1]));
+      } else {
+        for (n = 0;; n++) {
+          i = (i << 8) | atoi(&sz[n]);
+          while (sz[n] && sz[n] != ',')
+            n++;
+          if (sz[n] == chNull)
+            break;
+        }
+      }
+      i = Rgb(RGBB(i), RGBG(i), RGBR(i));
+      return i;
     }
   }
   if (pm == pmObject && !FNumCh(sz[0]))
@@ -523,7 +583,7 @@ void InputString(CONST char *szPrompt, char *sz)
 
   file = is.S; is.S = stdout;
   PrintSz(szPrompt);
-  AnsiColor(kRainbowA[3]);
+  AnsiColor(kYellowA);
   PrintSz(" > ");
   AnsiColor(kDefault);
   if (fgets(sz, cchSzMax, stdin) == NULL)  /* Pressing control-D terminates */
@@ -660,20 +720,20 @@ flag FInputData(CONST char *szFile)
       /* Temporarily disable an internal redirection of output to a file  */
       /* because we always want user headers and prompts to be displayed. */
 
-      AnsiColor(kMainA[1]);
+      AnsiColor(kWhiteA);
       sprintf(sz, "** %s version %s ", szAppName, szVersionCore); PrintSz(sz);
       sprintf(sz, "(See '%cHc' switch for copyrights and credits.) **\n",
         chSwitch); PrintSz(sz);
       AnsiColor(kDefault);
       sprintf(sz, "   Invoke as '%s %cH' for list of command line options.\n",
-        ProcessProgname(is.szProgName), chSwitch); PrintSz(sz);
+        SzProcessProgname(is.szProgName), chSwitch); PrintSz(sz);
     }
 
     MM = NInputRange("Enter month for chart (e.g. '9' 'Sep')",
       1, 12, pmMon);
     DD = NInputRange("Enter day   for chart (e.g. '1' '31') ",
       1, DayInMonth(MM, 0), pmDay);
-    YY = NInputRange("Enter year  for chart (e.g. '2018')   ",
+    YY = NInputRange("Enter year  for chart (e.g. '2019')   ",
       -32000, 32000, pmYea);
     if (FBetween(YY, 0, 99)) {
       sprintf(sz,
@@ -688,10 +748,6 @@ flag FInputData(CONST char *szFile)
       -24.0, 24.0, pmDst);
     ZZ = RInputRange("Enter time zone (e.g. '5' 'ET' for Eastern)    ",
       -24.0, 24.0, pmZon);
-    if ((int)(RFract(ZZ) * 100.0 + rRound) == 50) {
-      PrintWarning(
-        "Assuming unusual zone of 50 minutes after the hour instead of 30.");
-    }
     OO = RInputRange("Enter Longitude of place (e.g. '122W20')",
       -rDegHalf, rDegHalf, pmLon);
     AA = RInputRange("Enter Latitude  of place (e.g. '47N36') ",

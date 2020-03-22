@@ -61,7 +61,7 @@ house and (simple) aspect calculation
 #include "astrolog.h"
 #ifdef SWISS
 
-#include "sweodef.h"
+//#include "sweodef.h"
 #include "swephexp.h"
 #include "sweph.h"
 #include "swephlib.h"
@@ -84,6 +84,7 @@ static int sidereal_houses_ecl_t0(double tjde,
                            double *cusp, 
                            double *ascmc);
 static int sidereal_houses_trad(double tjde, 
+			   int32 iflag,
                            double armc, 
                            double eps, 
                            double nutl, 
@@ -200,6 +201,10 @@ int CALL_CONV swe_houses_ex(double tjd_ut,
   swi_nutation(tjde, 0, nutlo);
   for (i = 0; i < 2; i++)
     nutlo[i] *= RADTODEG;
+  if (iflag & SEFLG_NONUT) {
+    for (i = 0; i < 2; i++)
+      nutlo[i] = 0;
+  }
 #ifdef TRACE
   swi_open_trace(NULL);
   if (swi_trace_count <= TRACE_COUNT_MAX) {
@@ -220,6 +225,7 @@ int CALL_CONV swe_houses_ex(double tjd_ut,
 #endif
     /*houses_to_sidereal(tjde, geolat, hsys, eps, cusp, ascmc, iflag);*/
   armc = swe_degnorm(swe_sidtime0(tjd_ut, eps_mean + nutlo[1], nutlo[0]) * 15 + geolon);
+//fprintf(stderr, "armc=%f, iflag=%d\n", armc, iflag);
   if (toupper(hsys) ==  'I') {	// compute sun declination for sunshine houses
     int flags = SEFLG_SPEED| SEFLG_EQUATORIAL;
     int result = swe_calc_ut(tjd_ut, SE_SUN, flags, xp, NULL);
@@ -232,7 +238,7 @@ int CALL_CONV swe_houses_ex(double tjd_ut,
     else if (sip->sid_mode & SE_SIDBIT_SSY_PLANE)
       retc = sidereal_houses_ssypl(tjde, armc, eps_mean + nutlo[1], nutlo, geolat, hsys, cusp, ascmc);
     else
-      retc = sidereal_houses_trad(tjde, armc, eps_mean + nutlo[1], nutlo[0], geolat, hsys, cusp, ascmc);
+      retc = sidereal_houses_trad(tjde, iflag, armc, eps_mean + nutlo[1], nutlo[0], geolat, hsys, cusp, ascmc);
   } else {
     retc = swe_houses_armc(armc, geolat, eps_mean + nutlo[1], hsys, cusp, ascmc);
     if (toupper(hsys) ==  'I') 	// compute sun declination for sunshine houses
@@ -485,6 +491,7 @@ static int sidereal_houses_ssypl(double tjde,
 
 /* common simplified procedure */
 static int sidereal_houses_trad(double tjde,
+			   int32 iflag,
                            double armc, 
                            double eps, 
                            double nutl, 
@@ -498,18 +505,24 @@ static int sidereal_houses_trad(double tjde,
   int ito;
   int ihs = toupper(hsys);
   int ihs2 = ihs;
-  ay = swe_get_ayanamsa(tjde);
+// ay = swe_get_ayanamsa(tjde);
+//fprintf(stderr, "ay=%f\n", ay);
+  retc = swe_get_ayanamsa_ex(tjde, iflag, &ay, NULL);
+//fprintf(stderr, "ay=%f\n", ay);
+//fprintf(stderr, "nutl=%f\n", nutl);
   if (ihs == 'G')
     ito = 36;
   else
     ito = 12;
   if (ihs == 'W')  /* whole sign houses: treat as 'E' and fix later */
     ihs2 = 'E';
+//fprintf(stderr, "armc=%f\n", armc);
 //if (hsys == 'P') fprintf(stderr, "ay=%f, t=%f %c", ay, tjde, (char) hsys);
   retc = swe_houses_armc(armc, lat, eps, ihs2, cusp, ascmc);
 //if (hsys == 'P') fprintf(stderr, "  h1=%f", cusp[1]);
   for (i = 1; i <= ito; i++) {
-    cusp[i] = swe_degnorm(cusp[i] - ay - nutl);
+    //cusp[i] = swe_degnorm(cusp[i] - ay - nutl);
+    cusp[i] = swe_degnorm(cusp[i] - ay);
     if (ihs == 'W') /* whole sign houses */
       cusp[i] -= fmod(cusp[i], 30);
   }
@@ -521,7 +534,8 @@ static int sidereal_houses_trad(double tjde,
   for (i = 0; i < SE_NASCMC; i++) {
     if (i == 2)	/* armc */
       continue;
-    ascmc[i] = swe_degnorm(ascmc[i] - ay - nutl);
+    //ascmc[i] = swe_degnorm(ascmc[i] - ay - nutl);
+    ascmc[i] = swe_degnorm(ascmc[i] - ay);
   }
 //if (hsys == 'P') fprintf(stderr, " => %f\n", cusp[1]);
   return retc;
@@ -1028,7 +1042,7 @@ porphyry:
       q = acmc;
       if (q > 90) q = 180 - q;
       if (q < 1e-30) {    // degenerate case of quadrant = zer0
-	//r = INFINITY;
+	// r = INFINITY;
 	x = xr = xr3 = 0;
 	xr4 = 180;
       } else {
@@ -1775,8 +1789,6 @@ static double fix_asc_polar(double asc, double armc, double eps, double geolat)
  * is currently provided for the following house methods:
  * Y APC houses, L Pullen SD, Q Pullen SR, I Sunshine, S Sripati.
  *
- * For the following house methods only a simplified calcul
- *
  * IMPORTANT: This function should NOT be used for sidereal astrology.
  * If you cannot avoid doing so, please note:
  * - The input longitudes (xpin) MUST always be tropical, even if you 
@@ -2428,7 +2440,7 @@ if (1) {
   return hpos;
 }
 
-int sunshine_init(double lat, double dec, double xh[])
+static int sunshine_init(double lat, double dec, double xh[])
 {
   double ad, nsa, dsa, arg;
   // ascensional difference: sin ad = tan dec tan lat
@@ -2461,7 +2473,7 @@ static int sunshine_solution_makransky(double ramc, double lat, double ecl, stru
   double xh[13];
   double md;
   double zd;	// zenith distance of house circle, along prime vertical
-  double pole, q, w, a, b, c, f, cu, r, rah;
+  double pole, q, w, a, b, c, f, cu, r = 0, rah;
   double sinlat, coslat, tanlat, tandec, sinecl;
   double dec = hsp->sundec;
   sinlat = sind(lat);

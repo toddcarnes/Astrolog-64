@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: xcharts2.cpp
+** Astrolog (Version 6.50) File: xcharts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -68,8 +68,7 @@ flag FProper(int i)
 
   f = !ignore[i];
   if (gi.nMode == gOrbit)
-    f &= FThing(i) &&
-      (us.fEphemFiles || (i != oMoo && i != oNod && i != oSou));
+    f &= FThing(i) && (us.fEphemFiles || !FGeo(i));
   else if (gi.nMode == gSector ||
     fMap || gi.nMode == gGlobe || gi.nMode == gPolar)
     f &= FThing(i);
@@ -224,7 +223,7 @@ void DrawAspectRelation(int n1, int n2, real obj1[objMax], real obj2[objMax],
   int cx, int cy, real rx, real ry, real rz)
 {
   CP cpA, cpB;
-  int i, j;
+  int i, j, n;
 
   /* Put the two sets of chart data to compare in cp1 and cp2. */
   if (n1 != 1) {
@@ -245,17 +244,25 @@ void DrawAspectRelation(int n1, int n2, real obj1[objMax], real obj2[objMax],
   /* Compute and draw the aspect lines. */
   if (!FCreateGridRelation(fFalse))
     goto LExit;
+  if (gs.fAlt)
+    neg(gs.nDashMax);
   for (j = cObj; j >= 0; j--)
     for (i = cObj; i >= 0; i--)
       if (grid->n[i][j] && FProper2(i) && FProper(j) &&
         obj1[j] >= 0.0 && obj2[i] >= 0.0) {
+        if (gs.nDashMax >= 0)
+          n = NAbs(grid->v[i][j]/(60*60*2));
+        else
+          n = NAbs(grid->v[i][j]) * -gs.nDashMax /
+            (int)(GetOrb(i, j, grid->n[i][j])*(60.0*60.0));
         DrawColor(kAspB[grid->n[i][j]]);
         DrawDash(cx+POINT1(rx, rz, PX(obj1[j])),
           cy+POINT1(ry, rz, PY(obj1[j])),
           cx+POINT1(rx, rz, PX(obj2[i])),
-          cy+POINT1(ry, rz, PY(obj2[i])),
-          NAbs(grid->v[i][j]/(60*60*2)));
+          cy+POINT1(ry, rz, PY(obj2[i])), n);
       }
+  if (gs.fAlt)
+    neg(gs.nDashMax);
 
 LExit:
   if (n1 != 1)
@@ -383,7 +390,7 @@ void XChartWheelRelation()
 
   /* Draw lines connecting planets between the two charts that have aspects. */
 
-  if (!gs.fAlt)
+  if (!gs.fEquator)
     DrawAspectRelation(1, 2, xplanet1, xplanet2, cx, cy, unitx, unity, 0.41);
 
   /* Go draw sidebar with chart information and positions if need be. */
@@ -442,7 +449,7 @@ void XChartWheelThreeFour()
   /* of only the outermost ring of the wheel, however.                 */
 
   if (gs.fColor) {
-    DrawColor(kMainB[5]);
+    DrawColor(kDkGreenB);
     DrawCircle(cx, cy, (int)(unitx*0.61+rRound), (int)(unity*0.61+rRound));
     DrawCircle(cx, cy, (int)(unitx*0.48+rRound), (int)(unity*0.48+rRound));
     if (fQuad)
@@ -553,7 +560,7 @@ void XChartWheelThreeFour()
 
   /* Draw lines connecting planets between the charts that have aspects. */
 
-  if (!gs.fAlt) {
+  if (!gs.fEquator) {
     base -= 0.02;
     DrawAspectRelation(1, 2, xplanet1, xplanet2, cx, cy, unitx, unity, base);
     DrawAspectRelation(1, 3, xplanet1, xplanet3, cx, cy, unitx, unity, base);
@@ -751,7 +758,7 @@ void XChartEphemeris()
         v = y1 + NMultDiv(ys, d-2+Day, daytot);
       else
         v = y1 + NMultDiv(ys, (d-1)*24 + (int)Tim, daytot*24);
-      DrawColor(kMainB[5]);
+      DrawColor(kDkGreenB);
       DrawLine(x1, v, x2, v);       /* Marker line for specific day. */
     }
     v = y1 + NMultDiv(ys, d-1, daytot);
@@ -771,7 +778,7 @@ void XChartEphemeris()
     CastChart(fTrue);
     if (us.fParallel)
       for (i = 0; i <= cObj; i++) {
-        rT = (planetalt[i] * rDegQuad / (real)dx) + rDegHalf;
+        rT = (planetalt[i] * rDegHalf / (real)dx) + rDegHalf;
         rT = Min(rT, rDegMax);
         rT = Max(rT, 0.0);
         planet[i] = rT;
@@ -812,7 +819,8 @@ void XChartEphemeris()
         m = x1 + (int)((real)xs * objSav[i] / rDegMax);
         u = x1 + (int)((real)xs * planet[i] / rDegMax);
         DrawColor(kObjB[i]);
-        DrawWrap(m, n, u, v, !us.fParallel && ret[i] > 0.0 ? -x1 : x1, x2);
+        DrawWrap(m, n, u, v,
+          !us.fParallel && ret[i] > 0.0 && i != oFor ? -x1 : x1, x2);
       }
 
     /* Label months or days in the month along the left and right edges. */
@@ -869,7 +877,7 @@ void XChartTransit(flag fTrans, flag fProg)
   word **ppw, *pw;
   char sz[cchSzDef];
   int cAsp, cSect, cTot, ymin, x, y, asp, iw, iwFocus = -1, nMax, n, obj,
-    iy, yRow, xWid, xo, yo, iSect, iFrac, xp, yp, yp2, dyp;
+    iy, yRow, cRow = 0, xWid, xo, yo, iSect, iFrac, xp, yp, yp2, dyp;
   flag fMonth = us.fInDayMonth, fYear = us.fInDayYear;
   CI ciT;
   real rT;
@@ -879,13 +887,13 @@ void XChartTransit(flag fTrans, flag fProg)
     "transit graph grid");
   if (rgEph == NULL)
     goto LDone;
-  ClearB((lpbyte)(*rgEph), sizeof(TransGraInfo));
+  ClearB((pbyte)(*rgEph), sizeof(TransGraInfo));
 
   if (!fTrans && !fProg)
     ciT = ciMain;
   else
     ciT = ciTran;
-  cAsp = is.fReturn ? aCon : us.nAsp;
+  cAsp = fTrans && is.fReturn ? aCon : us.nAsp;
   yRow = gi.nScale * 12;
   xo = yRow*3 + fTrans*gi.nScaleT*20;
   ymin = 1-fTrans;
@@ -987,7 +995,8 @@ void XChartTransit(flag fTrans, flag fProg)
           if (*ppw == NULL)
             goto LDone;
           pw = *ppw;
-          ClearB((lpbyte)pw, cTot * sizeof(word));
+          ClearB((pbyte)pw, cTot * sizeof(word));
+          cRow++;
         } else
           pw = *ppw;
         n = grid->v[x][y];
@@ -1024,11 +1033,17 @@ void XChartTransit(flag fTrans, flag fProg)
     }
   } else if (!fYear) {
     for (x = 0; x < cSect; x++) {
+      if (gs.fColorSign) {
+        n = DayOfWeek(MM, x+1, YY);
+        DrawColor(kRainbowB[n+1]);
+      }
       sprintf(sz, "%d", x+1);
       DrawSz(sz, xo + x*xWid, yp, dtLeft | dtTop | dtScale2);
     }
   } else if (us.nEphemYears <= 1) {
     for (x = 0; x < cSign; x++) {
+      if (gs.fColorSign)
+        DrawColor(kElemB[x & 3]);
       sprintf(sz, "%3.3s", szMonth[x+1]);
       DrawSz(sz, xo + x*xWid, yp, dtLeft | dtTop | dtScale2);
     }
@@ -1039,6 +1054,13 @@ void XChartTransit(flag fTrans, flag fProg)
     }
   }
 
+  /* Determine scrolling position if too many aspects to fit on bitmap. */
+#ifdef WIN
+  cRow = (cRow - (gs.yWin / (yRow + 1))) * wi.yScroll / nScrollDiv;
+#else
+  cRow = 0;
+#endif
+
   /* Draw the individual aspects present in order. */
   iy = 0;
   for (y = ymin; y <= cObj; y++)
@@ -1047,6 +1069,10 @@ void XChartTransit(flag fTrans, flag fProg)
         pw = (*rgEph)[x][y][asp];
         if (pw == NULL)
           continue;
+        if (cRow > 0) {
+          cRow--;
+          continue;
+        }
         iy++;
         yp2 = yo + iy*yRow - yRow/2;
         yp = yp2 + yRow/2;
@@ -1088,11 +1114,14 @@ void XChartTransit(flag fTrans, flag fProg)
         }
         for (iw = 0; iw < cTot; iw++) {
           if (iw == iwFocus) {
-            DrawColor(kMainB[5]);
+            DrawColor(kDkGreenB);
             DrawBlock(xo + iw, yp - yRow + 1, xo + iw, yp-1);
           } else if (iw % xWid == 0) {
             DrawColor(gi.kiGray);
-            DrawDash(xo + iw, yp - yRow + 1, xo + iw, yp, 1);
+            n = 1;
+            if (fMonth && fYear && us.nEphemYears > 1 && iw % (xWid * 12) > 0)
+              n = 3;
+            DrawDash(xo + iw, yp - yRow + 1 + (n > 1), xo + iw, yp, n);
           }
           n = pw[iw];
           if (n > 0) {

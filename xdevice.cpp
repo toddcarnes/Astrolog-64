@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: xdevice.cpp
+** Astrolog (Version 6.50) File: xdevice.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -271,7 +271,7 @@ void BeginFileX()
 void EndFileX()
 {
   if (gs.fBitmap && gi.file != NULL) {
-    PrintNotice("Writing chart bitmap to file.");
+    PrintProgress("Writing chart bitmap to file.");
     if (gs.chBmpMode == 'B')
       WriteBmp(gi.file);
     else if (gs.chBmpMode == 'A')
@@ -285,13 +285,13 @@ void EndFileX()
 #endif
 #ifdef META
   else if (gs.fMeta) {
-    PrintNotice("Writing metafile to file.");
+    PrintProgress("Writing metafile to file.");
     WriteMeta(gi.file);
   }
 #endif
 #ifdef WIRE
   else if (gs.fWire) {
-    PrintNotice("Writing wireframe to file.");
+    PrintProgress("Writing wireframe to file.");
     WriteWire(gi.file);
   }
 #endif
@@ -475,7 +475,7 @@ void PsBegin()
   fprintf(gi.file, "gsave\n");
   PsLineWidth(gi.nPenWid/2);
   gi.xPen = -1;
-  PrintNotice("Creating PostScript chart file.");
+  PrintProgress("Creating PostScript chart file.");
 }
 
 
@@ -513,7 +513,7 @@ void MetaWord(word w)
 {
   char sz[cchSzDef];
 
-  if ((lpbyte)gi.pwMetaCur - gi.bm >= gi.cbMeta) {
+  if ((pbyte)gi.pwMetaCur - gi.bm >= gi.cbMeta) {
     sprintf(sz, "Metafile would be more than %ld bytes.", gi.cbMeta);
     PrintError(sz);
     Terminate(tcFatal);
@@ -594,7 +594,7 @@ void MetaInit()
   MetaLong(14L);                          /* Bytes in string */
   MetaLong(LFromBB('A', 's', 't', 'r'));  /* "Astr" */
   MetaLong(LFromBB('o', 'l', 'o', 'g'));  /* "olog" */
-  MetaLong(LFromBB(' ', '6', '.', '4'));  /* " 6.4" */
+  MetaLong(LFromBB(' ', '6', '.', '5'));  /* " 6.5" */
   MetaWord(WFromBB('0', 0));              /* "0"    */
   MetaSaveDc();
   MetaWindowOrg(0, 0);
@@ -639,6 +639,7 @@ void MetaInit()
     MetaLong(LFromBB('m', 'i', 'B', 'o'));
     MetaLong(LFromBB('l', 'd', 0, 0));
   }
+  gi.kiLineAct = gi.kiFillAct = gi.nFontAct = gi.kiTextAct = gi.nAlignAct = -1;
 }
 
 
@@ -658,7 +659,7 @@ void WriteMeta(FILE *file)
   MetaRestoreDc();
   MetaRecord(3, 0);    /* End record */
   *(long *)(gi.bm + 22 + 6) =
-    ((long)((lpbyte)gi.pwMetaCur - gi.bm) - 22) / 2;
+    ((long)((pbyte)gi.pwMetaCur - gi.bm) - 22) / 2;
   for (w = (word *)gi.bm; w < gi.pwMetaCur; w++) {
     PutWord(*w);
   }
@@ -681,6 +682,7 @@ void WriteWire(FILE *file)
 {
   word *pw = (word *)gi.bm;
   int x1, y1, z1, x2, y2, z2, n;
+  KV kv;
 
   if (file == NULL)
     return;
@@ -699,7 +701,10 @@ void WriteWire(FILE *file)
       if (gs.fColor) {
         n = pw[1];
         if (n < cColor) {
-          if (n != kOrange)
+          kv = rgbbmp[n];
+          if (kv != rgbbmpDef[n])
+            fprintf(file, "Rgb %d %d %d\n", RGBR(kv), RGBG(kv), RGBB(kv));
+          else if (n != kOrange)
             fprintf(file, "%s\n", szColor[n]);
           else
             fprintf(file, "Maize\n");
@@ -721,7 +726,7 @@ void WireNum(int n)
 {
   char sz[cchSzDef];
 
-  if ((lpbyte)gi.pwWireCur - gi.bm >= gi.cbWire) {
+  if ((pbyte)gi.pwWireCur - gi.bm >= gi.cbWire) {
     sprintf(sz, "Wireframe would be more than %ld bytes.", gi.cbWire);
     PrintError(sz);
     Terminate(tcFatal);
@@ -735,6 +740,13 @@ void WireNum(int n)
 
 void WireLine(int x1, int y1, int z1, int x2, int y2, int z2)
 {
+  if (!FBetween(x1, -32767, 32767) || !FBetween(x2, -32767, 32767))
+    return;
+  if (!FBetween(y1, -32767, 32767) || !FBetween(y2, -32767, 32767))
+    return;
+  if (!FBetween(z1, -32767, 32767) || !FBetween(z2, -32767, 32767))
+    return;
+
   if (gi.kiInFile != gi.kiCur) {
     gi.kiInFile = gi.kiCur;
     WireNum(32768);
@@ -763,19 +775,40 @@ void WireOctahedron(int x, int y, int z, int r)
 }
 
 
+#ifdef SWISS
 /* Add a fixed star to the current wireframe file. */
 
-void WireStar(int x, int y, int z, real mag)
+void WireStar(int x, int y, int z, ES *pes)
 {
+  char *pch = pes->sz;
   int n;
 
-  n = 255 - (int)((mag + 1.46) / 7.0 * 224.0);
-  n = Min(n, 255); n = Max(n, 32);
-  DrawColor(n);
-  WireLine(x-1, y, z, x+1, y, z);
-  WireLine(x, y-1, z, x, y+1, z);
-  WireLine(x, y, z-1, x, y, z+1);
+  /* Determine star color. */
+  if (gs.fColor) {
+    if (pes->ki != kDefault)
+      n = pes->ki;
+    else {
+      n = 255 - (int)((pes->mag + 1.46) / 7.0 * 224.0);
+      n = Min(n, 255); n = Max(n, 32);
+    }
+    DrawColor(n);
+  }
+
+  /* Draw star point. */
+  if (!FOdd(gs.nAllStar)) {
+    WireLine(x-1, y, z, x+1, y, z);
+    WireLine(x, y-1, z, x, y+1, z);
+    WireLine(x, y, z-1, x, y, z+1);
+  } else
+    WireOctahedron(x, y, z, 3 * gi.nScaleT);
+
+  /* Draw star's name label. */
+  if (!gs.fLabel || gs.nAllStar < 2)
+    return;
+  gi.zDefault = z + 8*gi.nScale;
+  DrawSz(pes->pchBest, x, y, dtCent);
 }
+#endif
 
 
 /* Given longitude and latitude values on a globe, return the 3D pixel     */
@@ -840,7 +873,7 @@ void WireDrawGlobe(flag fSky, real deg)
   char *nam, *loc, *lin, chCmd;
   int X[objMax], Y[objMax], Z[objMax], M[objMax], N[objMax], O[objMax],
     rz, lon, lat, unit = 12*gi.nScale,
-    x, y, z, xold, yold, m, n, o, u, v, w, i, j, k, l, nScl = gi.nScale;
+    x, y, z, xold, yold, zold, m, n, o, u, v, w, i, j, k, l, nScl = gi.nScale;
   flag fNext = fTrue;
   real planet1[objMax], planet2[objMax], x1, y1, rT;
 #ifdef CONSTEL
@@ -849,7 +882,7 @@ void WireDrawGlobe(flag fSky, real deg)
   int isz = 0, nC, xT, yT, xDelta, yDelta, xLo, xHi, yLo, yHi;
 #endif
 #ifdef SWISS
-  real magS;
+  ES es;
 #endif
 
   /* Set up some variables. */
@@ -872,8 +905,8 @@ void WireDrawGlobe(flag fSky, real deg)
         isz++;
         if (isz > cCnstl)
           break;
-        DrawColor(gi.nMode == gSphere ? kRainbowB[7] :
-          (gs.fAlt ? kMainB[7] : kRainbowB[6]));
+        DrawColor(gi.nMode == gSphere ? kPurpleB :
+          (gs.fAlt ? kDkBlueB : kBlueB));
         pch = szDrawConstel[isz];
         lon = nDegMax -
           (((pch[2]-'0')*10+(pch[3]-'0'))*15+(pch[4]-'0')*10+(pch[5]-'0'));
@@ -895,7 +928,7 @@ void WireDrawGlobe(flag fSky, real deg)
           break;
         i = nam[0]-'0';
         DrawColor(gs.fAlt && !gs.fColorHouse ? gi.kiGray :
-          (i ? kRainbowB[i] : kMainB[7]));
+          (i ? kRainbowB[i] : kDkBlueB));
         lon = (loc[0] == '+' ? 1 : -1)*
           ((loc[1]-'0')*100 + (loc[2]-'0')*10 + (loc[3]-'0'));
         lat = (loc[4] == '+' ? 1 : -1)*((loc[5]-'0')*10 + (loc[6]-'0'));
@@ -931,7 +964,7 @@ void WireDrawGlobe(flag fSky, real deg)
             else if (xT > nDegMax)
               xT -= nDegMax;
             WireGlobeCalc((real)xT, (real)yT, &x, &y, &z, rz, deg);
-            DrawColor(gi.nMode == gSphere || gs.fAlt ? gi.kiGray : kMainB[5]);
+            DrawColor(gi.nMode == gSphere || gs.fAlt ? gi.kiGray : kDkGreenB);
             gi.zDefault = z;
             DrawSz(szCnstlAbbrev[isz], x, y, dtCent);
           }
@@ -1047,7 +1080,7 @@ void WireDrawGlobe(flag fSky, real deg)
 
   if (gs.fHouseExtra) {
     if (!gs.fColorSign)
-      DrawColor(kMainB[5]);
+      DrawColor(kDkGreenB);
     for (l = -2; l < cSign; l++) {
       if (gs.fColorSign && l >= 0)
         DrawColor(kSignB(l+1));
@@ -1074,7 +1107,7 @@ void WireDrawGlobe(flag fSky, real deg)
   /* Draw Earth's equator. */
 
   if (gs.fEquator) {
-    DrawColor(kRainbowB[7]);
+    DrawColor(kPurpleB);
     for (i = 0; i < nDegMax; i++) {
       x1 = (real)i; y1 = 90.0;
       WireGlobeCalc(x1, y1, &j, &k, &l, rz, deg);
@@ -1087,13 +1120,13 @@ void WireDrawGlobe(flag fSky, real deg)
 
   if (gs.fAllStar) {
     DrawColor(gi.kiGray);
-    for (i = 1; i < cStarSwiss; i++) {
-      if (!SwissComputeStar(is.T, i, &x1, &y1, &magS))
-        break;
+    SwissComputeStar(0.0, NULL);
+    while (SwissComputeStar(is.T, &es)) {
+      x1 = es.lon; y1 = es.lat;
       x1 = Tropical(x1);
       EclToEqu(&x1, &y1);
       WireMapCalc(x1, y1, &j, &k, &l, fSky, planet1[oMC], rT, rz, deg);
-      WireStar(j, k, l, magS);
+      WireStar(j, k, l, &es);
     }
   }
 #endif
@@ -1102,7 +1135,7 @@ void WireDrawGlobe(flag fSky, real deg)
 
   if (us.fHouse3D) {
     if (!gs.fColorSign)
-      DrawColor(kMainB[5]);
+      DrawColor(kDkGreenB);
     for (l = -2; l < cSign; l++) {
       if (gs.fColorSign && l >= 0)
         DrawColor(kSignB(l+1));
@@ -1125,6 +1158,34 @@ void WireDrawGlobe(flag fSky, real deg)
     }
   }
 
+  /* Draw MC, IC, Asc, and Des lines for each object, as great circles    */
+  /* around the globe. The result is a (3D for globes) astro-graph chart. */
+
+  for (i = cObj; i >= 0; i--) if (FProper(i)) {
+    for (k = 0; k < 4; k++) {
+      if (ignorez[!k ? arDes : (k == 1 ? arIC : (k == 2 ? arAsc : arMC))])
+        continue;
+      DrawColor(kObjB[!k ? oDes : (k == 1 ? oNad : (k == 2 ? oAsc : oMC))]);
+      for (j = 0; j <= nDegHalf; j++) {
+        if (FOdd(k)) {
+          x1 = planet1[i] + (k == 3 ? 0.0 : rDegHalf);
+          y1 = (real)(j - 90);
+        } else {
+          l = j + (k == 0)*nDegHalf + 90;
+          if (l >= nDegMax)
+            l -= nDegMax;
+          x1 = (real)l; y1 = 0.0;
+          CoorXform(&x1, &y1, rDegQuad - planet2[i]);
+          x1 += planet1[i] + rDegQuad;
+        }
+        WireMapCalc(x1, y1, &x, &y, &z, fSky, planet1[oMC], rT, rz, deg);
+        if (j > 0)
+          WireLine(xold, yold, zold, x, y, z);
+        xold = x; yold = y; zold = z;
+      }
+    }
+  }
+
   /* Now that we have the coordinates of each object, draw their glyphs. */
 
   for (i = cObj; i >= 0; i--) if (FProper(i)) {
@@ -1142,19 +1203,43 @@ void WireDrawGlobe(flag fSky, real deg)
 
 void WireChartOrbit()
 {
-  int x[objMax], y[objMax], z[objMax], i, j, k;
+  int x[objMax], y[objMax], z[objMax], zWin, xd, yd, i, j, k;
   real sx, sz, xp, yp, zp, xp2, yp2, zp2;
+#ifdef SWISS
+  ES es, *pes1, *pes2;
+  int xT, yT, zT, x2, y2, z2;
+#endif
 
   /* Compute coordinates of planets. */
   i = gi.nScale/gi.nScaleT;
-  sz = i <= 1 ? 90.0 : (i == 2 ? 30.0 : (i == 3 ? 6.0 :
-    (gi.nScaleText <= 1 ? 1.0 : 0.006)));
-  sx = (real)Min(gs.xWin, gs.yWin)/sz;
-  for (i = 0; i <= oNorm; i++) if (FProper(i)) {
+  sz = gs.rspace > 0.0 ? gs.rspace : (i <= 1 ? 90.0 : (i == 2 ? 30.0 :
+    (i == 3 ? 6.0 : (gi.nScaleText <= 1 ? 1.0 : 0.006))));
+  zWin = Min(gs.xWin, gs.yWin);
+  sx = (real)zWin/sz;
+  for (i = 0; i <= cObj; i++) if (FProper(i)) {
     xp = space[i].x; yp = space[i].y; zp = space[i].z;
+    if (us.nStar > 0) {
+      xp /= rLYToAU; yp /= rLYToAU; zp /= rLYToAU;
+    }
     if (us.fHouse3D)
-      OrbitPlot(&xp, &yp, &zp, sz);
-    x[i] = -(int)(xp*sx); y[i] = (int)(yp*sx); z[i] = (int)(zp*sz);
+      OrbitPlot(&xp, &yp, &zp, sz, i, &space[oEar]);
+    x[i] = -(int)(xp*sx); y[i] = (int)(yp*sx); z[i] = (int)(zp*sx);
+  }
+
+  /* Draw zodiac lines. */
+  if (!gs.fHouseExtra) {
+    k = zWin;
+    if (!gs.fColorSign)
+      DrawColor(kLtGrayB);
+    for (i = 0; i < cSign; i++) {
+      j = i+1;
+      if (gs.fColorSign)
+        DrawColor(kSignB(j));
+      xd = NCosD(k, nDegHalf-i*30); yd = NSinD(k, nDegHalf-i*30);
+      WireLine(0, 0, 0, xd, yd, 0);
+      xd = NCosD(k, nDegHalf-i*30-15); yd = NSinD(k, nDegHalf-i*30-15);
+      DrawSign(j, xd, yd);
+    }
   }
 
   /* Draw lines connecting planets which have aspects between them. */
@@ -1177,7 +1262,7 @@ void WireChartOrbit()
   }
 
   /* Draw planets. */
-  for (i = 0; i <= oNorm; i++) if (FProper(i)) {
+  for (i = 0; i <= cObj; i++) if (FProper(i)) {
     DrawColor(kObjB[i]);
     if (!gs.fAlt || i > oVes)
       j = 3 * gi.nScaleT;
@@ -1193,20 +1278,51 @@ void WireChartOrbit()
       k = k*oNorm1 + i;
       xp = gi.rgspace[k].x; yp = gi.rgspace[k].y; zp = gi.rgspace[k].z;
       if (us.fHouse3D)
-        OrbitPlot(&xp, &yp, &zp, sz);
+        OrbitPlot(&xp, &yp, &zp, sz, i, &gi.rgspace[k - i + oEar]);
 
       k = (gi.ispace - gi.cspace + j + 1 + gs.cspace) % gs.cspace;
       k = k*oNorm1 + i;
       xp2 = gi.rgspace[k].x; yp2 = gi.rgspace[k].y; zp2 = gi.rgspace[k].z;
       if (us.fHouse3D)
-        OrbitPlot(&xp2, &yp2, &zp2, sz);
+        OrbitPlot(&xp2, &yp2, &zp2, sz, i, &gi.rgspace[k - i + oEar]);
 
       k = gi.cspace - j;
-      WireLine(-(int)(xp*sx), (int)(yp*sx), (int)(zp*sz) - k*gs.zspace,
-        -(int)(xp2*sx), (int)(yp2*sx), (int)(zp2*sz) - (k-1)*gs.zspace);
+      WireLine(-(int)(xp*sx), (int)(yp*sx), (int)(zp*sx) - k*gs.zspace,
+        -(int)(xp2*sx), (int)(yp2*sx), (int)(zp2*sx) - (k-1)*gs.zspace);
     }
   }
   OrbitRecord();
+
+#ifdef SWISS
+  /* Draw extra stars. */
+  if (gs.fAllStar) {
+    DrawColor(gi.kiGray);
+    SwissComputeStar(0.0, NULL);
+    while (SwissComputeStar(is.T, &es)) {
+      xp = es.space.x / rLYToAU; yp = es.space.y / rLYToAU;
+      zp = es.space.z / rLYToAU;
+      if (us.fHouse3D)
+        OrbitPlot(&xp, &yp, &zp, sz, -1, NULL);
+      xT = -(int)(xp*sx); yT = (int)(yp*sx); zT = (int)(zp*sx);
+      WireStar(xT, yT, zT, &es);
+    }
+    DrawColor(gi.kiLite);
+    EnumStarsLines(fTrue, NULL, NULL);
+    while (EnumStarsLines(fFalse, &pes1, &pes2)) {
+      xp = pes1->space.x / rLYToAU; yp = pes1->space.y / rLYToAU;
+      zp = pes1->space.z / rLYToAU;
+      if (us.fHouse3D)
+        OrbitPlot(&xp, &yp, &zp, sz, -1, NULL);
+      xT = -(int)(xp*sx); yT = (int)(yp*sx); zT = (int)(zp*sx);
+      xp = pes2->space.x / rLYToAU; yp = pes2->space.y / rLYToAU;
+      zp = pes2->space.z / rLYToAU;
+      if (us.fHouse3D)
+        OrbitPlot(&xp, &yp, &zp, sz, -1, NULL);
+      x2 = -(int)(xp*sx); y2 = (int)(yp*sx); z2 = (int)(zp*sx);
+      WireLine(xT, yT, zT, x2, y2, z2);
+    }
+  }
+#endif
 }
 
 
@@ -1217,6 +1333,13 @@ void WireChartOrbit()
 
 void WireSphereLocal(real azi, real alt, int zr, int *xp, int *yp, int *zp)
 {
+  if (gs.fEcliptic) {
+    azi = Mod(azi - rDegQuad); neg(alt);
+    CoorXform(&azi, &alt, is.latMC - rDegQuad);
+    azi = Mod(is.lonMC - azi + rDegQuad);
+    EquToEcl(&azi, &alt);
+    azi = rDegMax - Untropical(azi); neg(alt);
+  }
   azi = Mod(rDegQuad*3 - (azi + gs.rRot));
   if (gs.rTilt != 0.0)
     CoorXform(&azi, &alt, gs.rTilt);
@@ -1238,15 +1361,14 @@ void WireSphereMeridian(real azi, real alt, int zr, int *xp, int *yp, int *zp)
   WireSphereLocal(azi, alt, zr, xp, yp, zp);
 }
 
-void WireSphereZodiac(real lon, real lat, real lonMC, real latMC, int zr,
-  int *xp, int *yp, int *zp)
+void WireSphereZodiac(real lon, real lat, int zr, int *xp, int *yp, int *zp)
 {
   real lonT, latT;
 
   lonT = Tropical(lon); latT = lat;
   EclToEqu(&lonT, &latT);
-  lonT = Mod(lonMC - lonT + rDegQuad);
-  EquToLocal(&lonT, &latT, rDegQuad - latMC);
+  lonT = Mod(is.lonMC - lonT + rDegQuad);
+  EquToLocal(&lonT, &latT, rDegQuad - is.latMC);
   WireSphereLocal(lonT + rDegQuad, -latT, zr, xp, yp, zp);
 }
 
@@ -1264,23 +1386,30 @@ void WireSphereEarth(real azi, real alt, int zr, int *xp, int *yp, int *zp)
 void WireChartSphere()
 {
   char sz[cchSzDef];
-  int rgx[objMax], rgy[objMax], rgz[objMax],
-    zGlyph, zGlyph2, zr, xo = 0, yo = 0, zo = 0, xp, yp, zp, i, j, k, k2, nSav;
+  int rgx[objMax], rgy[objMax], rgz[objMax], zGlyph, zGlyph2,
+    cChart, iChart, zr, xo = 0, yo = 0, zo = 0, xp, yp, zp, i, j, k, k2, nSav;
+  flag fNoHorizon;
   real lonMC, latMC;
+  CONST CP *pcp;
+  CP cpSav;
 #ifdef SWISS
-  real lonS, latS, magS;
+  ES es, *pes1, *pes2;
 #endif
 
+  /* Initialize variables. */
   if (gs.fText && !us.fVelocity)
     gs.xWin -= xSideT;
 
-  /* Initialize variables. */
+  fNoHorizon = ignorez[0] && ignorez[1] && ignorez[2] && ignorez[3];
   zGlyph = 7*gi.nScale; zGlyph2 = 14*gi.nScale;
   zr = Min(gs.xWin >> 1, gs.yWin >> 1) - zGlyph;
+  cChart = 1 +
+    (us.nRel <= rcDual) + (us.nRel <= rcTriWheel) + (us.nRel <= rcQuadWheel);
 
   lonMC = Tropical(is.MC); latMC = 0.0;
   EclToEqu(&lonMC, &latMC);
   latMC = Lat;
+  is.lonMC = lonMC; is.latMC = latMC;
 
   /* Draw constellations. */
   if (gs.fConstel) {
@@ -1290,26 +1419,28 @@ void WireChartSphere()
   }
 
   /* Draw horizon. */
-  if (!gs.fColorHouse)
-    DrawColor(gi.kiOn);
-  for (i = 0; i <= nDegMax; i++) {
-    if (gs.fColorHouse && (i == 0 || i == nDegHalf))
-      DrawColor(kSignB(i ? sLib : sAri));
-    WireSphereLocal((real)i, 0.0, zr, &xp, &yp, &zp);
-    if (i > 0) {
-      WireLine(xo, yo, zo, xp, yp, zp);
-      k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
-      for (j = -k; j <= k; j += (k << 1)) {
-        WireSphereLocal((real)i, (real)j / 2.0, zr, &xo, &yo, &zo);
+  if (!fNoHorizon || (!gs.fHouseExtra && !us.fHouse3D)) {
+    if (!gs.fColorHouse)
+      DrawColor(gi.kiOn);
+    for (i = 0; i <= nDegMax; i++) {
+      if (gs.fColorHouse && (i == 0 || i == nDegHalf))
+        DrawColor(kSignB(i ? sLib : sAri));
+      WireSphereLocal((real)i, 0.0, zr, &xp, &yp, &zp);
+      if (i > 0) {
         WireLine(xo, yo, zo, xp, yp, zp);
+        k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
+        for (j = -k; j <= k; j += (k << 1)) {
+          WireSphereLocal((real)i, (real)j / 2.0, zr, &xo, &yo, &zo);
+          WireLine(xo, yo, zo, xp, yp, zp);
+        }
       }
+      xo = xp; yo = yp; zo = zp;
     }
-    xo = xp; yo = yp; zo = zp;
   }
 
   /* Draw Earth's equator. */
   if (gs.fEquator) {
-    DrawColor(kRainbowB[7]);
+    DrawColor(kPurpleB);
     for (i = 0; i <= nDegMax; i++) {
       WireSphereEarth((real)i, 0.0, zr, &xp, &yp, &zp);
       if (i > 0)
@@ -1319,28 +1450,31 @@ void WireChartSphere()
   }
 
   /* Draw prime vertical. */
-  if (!gs.fColorHouse)
-    DrawColor(gi.kiGray);
-  for (i = 0; i <= nDegMax; i++) {
-    if (gs.fColorHouse)
-      DrawColor(kSignB((i-1)/30 + 1));
-    WireSpherePrime((real)i, 0.0, zr, &xp, &yp, &zp);
-    if (i > 0) {
-      WireLine(xo, yo, zo, xp, yp, zp);
-      k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
-      for (j = -k; j <= k; j += (k << 1)) {
-        WireSpherePrime((real)i, (real)j / 2.0, zr, &xo, &yo, &zo);
+  if (!fNoHorizon) {
+    if (!gs.fColorHouse)
+      DrawColor(gi.kiGray);
+    for (i = 0; i <= nDegMax; i++) {
+      if (gs.fColorHouse)
+        DrawColor(kSignB((i-1)/30 + 1));
+      WireSpherePrime((real)i, 0.0, zr, &xp, &yp, &zp);
+      if (i > 0) {
         WireLine(xo, yo, zo, xp, yp, zp);
+        k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
+        for (j = -k; j <= k; j += (k << 1)) {
+          WireSpherePrime((real)i, (real)j / 2.0, zr, &xo, &yo, &zo);
+          WireLine(xo, yo, zo, xp, yp, zp);
+        }
       }
+      xo = xp; yo = yp; zo = zp;
     }
-    xo = xp; yo = yp; zo = zp;
   }
 
   /* Draw house wedges and meridian. */
   if (!gs.fColorHouse)
-    DrawColor(kMainB[5]);
+    DrawColor(kDkGreenB);
   for (j = 30; j < nDegMax; j += (j != 150 ? 30 : 60)) {
-    if (!(!gs.fHouseExtra && !us.fHouse3D) && !(j == 90 || j == 270))
+    if (!(!gs.fHouseExtra && !us.fHouse3D) &&
+      !((j == 90 || j == 270) && !fNoHorizon))
       continue;
     if (gs.fColorHouse)
       DrawColor(kSignB(j/30 + 1));
@@ -1365,7 +1499,7 @@ void WireChartSphere()
       if (gs.fColorHouse)
         DrawColor(kSignB(i));
       for (j = -90; j <= 90; j++) {
-        WireSphereZodiac(chouse[i], (real)j, lonMC, latMC, zr, &xp, &yp, &zp);
+        WireSphereZodiac(chouse[i], (real)j, zr, &xp, &yp, &zp);
         if (j > -90)
           WireLine(xo, yo, zo, xp, yp, zp);
         xo = xp; yo = yp; zo = zp;
@@ -1375,19 +1509,17 @@ void WireChartSphere()
   /* Draw sign wedges. */
   if (!us.fVedic) {
     if (!gs.fColorSign)
-      DrawColor(kMainB[7]);
+      DrawColor(kDkBlueB);
     for (i = 0; i <= nDegMax; i++) {
       if (gs.fColorSign)
         DrawColor(kSignB((i-1)/30 + 1));
-      WireSphereZodiac((real)i, 0.0,
-        lonMC, latMC, zr, &xp, &yp, &zp);
+      WireSphereZodiac((real)i, 0.0, zr, &xp, &yp, &zp);
       if (i > 0) {
         WireLine(xo, yo, zo, xp, yp, zp);
         if (i % 30 != 0) {
           k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
           for (j = -k; j <= k; j += (k << 1)) {
-            WireSphereZodiac((real)i, (real)j / 2.0,
-              lonMC, latMC, zr, &xo, &yo, &zo);
+            WireSphereZodiac((real)i, (real)j / 2.0, zr, &xo, &yo, &zo);
             WireLine(xo, yo, zo, xp, yp, zp);
           }
         }
@@ -1398,8 +1530,7 @@ void WireChartSphere()
       if (gs.fColorSign)
         DrawColor(kSignB(i/30 + 1));
       for (j = -90; j <= 90; j++) {
-        WireSphereZodiac((real)i, (real)j,
-          lonMC, latMC, zr, &xp, &yp, &zp);
+        WireSphereZodiac((real)i, (real)j, zr, &xp, &yp, &zp);
         if (j > -90)
           WireLine(xo, yo, zo, xp, yp, zp);
         xo = xp; yo = yp; zo = zp;
@@ -1413,9 +1544,8 @@ void WireChartSphere()
     gi.nScale = gi.nScaleText * gi.nScaleT;
     for (j = -80; j <= 80; j += 160)
       for (i = 1; i <= cSign; i++) {
-        WireSphereZodiac((real)(i*30-15), (real)j,
-          lonMC, latMC, zr, &xp, &yp, &zp);
-        DrawColor(gs.fColorSign ? kSignB(i) : kMainB[7]);
+        WireSphereZodiac((real)(i*30-15), (real)j, zr, &xp, &yp, &zp);
+        DrawColor(gs.fColorSign ? kSignB(i) : kDkBlueB);
         gi.zDefault = zp;
         DrawSign(i, xp, yp);
       }
@@ -1429,7 +1559,7 @@ void WireChartSphere()
     for (j = -82; j <= 82; j += 164)
       for (i = 1; i <= cSign; i++) {
         WireSpherePrime((real)(i*30-15), (real)j, zr, &xp, &yp, &zp);
-        DrawColor(gs.fColorHouse ? kSignB(i) : kMainB[5]);
+        DrawColor(gs.fColorHouse ? kSignB(i) : kDkGreenB);
         gi.zDefault = zp;
         DrawHouse(i, xp, yp);
       }
@@ -1437,44 +1567,61 @@ void WireChartSphere()
   }
 
   /* Label directions. */
-  k = zGlyph >> 1;
-  for (i = 0; i < nDegMax; i += 90) {
-    WireSphereLocal((real)i, 0.0, zr, &xp, &yp, &zp);
-    j = i / 90;
-    DrawColor(kObjB[oAsc + ((j + 3) & 3)*3]);
-    WireLine(0, 0, 0, xp, yp, zp);
-    if (gs.fColorHouse)
-      DrawColor(gi.kiOn);
-    WireSphereLocal((real)i, 0.0, zr + k, &xp, &yp, &zp);
-    sprintf(sz, "%c", szDir[j][0]);
-    gi.zDefault = zp + gi.nScale;
-    DrawSz(sz, xp, yp, dtCent);
-  }
-  for (j = -90; j <= 90; j += nDegHalf) {
-    WireSphereLocal(0.0, (real)j, zr + k, &xp, &yp, &zp);
-    DrawColor(gs.fColorHouse ? gi.kiOn : (kObjB[j <= 0 ? oMC : oNad]));
-    sprintf(sz, "%c", j <= 0 ? 'Z' : 'N');
-    gi.zDefault = zp + gi.nScale;
-    DrawSz(sz, xp, yp, dtCent);
+  if (!fNoHorizon) {
+    k = zGlyph >> 1;
+    for (i = 0; i < nDegMax; i += 90) {
+      WireSphereLocal((real)i, 0.0, zr, &xp, &yp, &zp);
+      j = i / 90;
+      DrawColor(kObjB[oAsc + ((j + 3) & 3)*3]);
+      WireLine(0, 0, 0, xp, yp, zp);
+      if (gs.fColorHouse)
+        DrawColor(gi.kiOn);
+      WireSphereLocal((real)i, 0.0, zr + k, &xp, &yp, &zp);
+      sprintf(sz, "%c", szDir[j][0]);
+      gi.zDefault = zp + gi.nScale;
+      DrawSz(sz, xp, yp, dtCent);
+    }
+    for (j = -90; j <= 90; j += nDegHalf) {
+      WireSphereLocal(0.0, (real)j, zr + k, &xp, &yp, &zp);
+      DrawColor(gs.fColorHouse ? gi.kiOn : (kObjB[j <= 0 ? oMC : oNad]));
+      sprintf(sz, "%c", j <= 0 ? 'Z' : 'N');
+      gi.zDefault = zp + gi.nScale;
+      DrawSz(sz, xp, yp, dtCent);
+    }
   }
 
 #ifdef SWISS
   /* Draw extra stars. */
   if (gs.fAllStar) {
     DrawColor(gi.kiGray);
-    for (i = 1; i < cStarSwiss; i++) {
-      if (!SwissComputeStar(is.T, i, &lonS, &latS, &magS))
-        break;
-      WireSphereZodiac(lonS, latS, lonMC, latMC, zr, &xp, &yp, &zp);
-      WireStar(xp, yp, zp, magS);
+    SwissComputeStar(0.0, NULL);
+    while (SwissComputeStar(is.T, &es)) {
+      WireSphereZodiac(es.lon, es.lat, zr, &xp, &yp, &zp);
+      WireStar(xp, yp, zp, &es);
+    }
+    DrawColor(gi.kiLite);
+    EnumStarsLines(fTrue, NULL, NULL);
+    while (EnumStarsLines(fFalse, &pes1, &pes2)) {
+      WireSphereZodiac(pes1->lon, pes1->lat, zr, &xo, &yo, &zo);
+      WireSphereZodiac(pes2->lon, pes2->lat, zr, &xp, &yp, &zp);
+      WireLine(xo, yo, zo, xp, yp, zp);
     }
   }
 #endif
 
+  /* Determine set of planet data to use. */
+  for (iChart = cChart; iChart >= 1; iChart--) {
+    FProcessCommandLine(szWheelX[iChart]);
+    if (iChart <= 1)
+      pcp = rgpcp[us.nRel <= rcDual];
+    else
+      pcp = rgpcp[iChart];
+    cpSav = cp0;
+    cp0 = *pcp;
+
   /* Draw planet glyphs, and spots for actual local location. */
   for (i = cObj; i >= 0; i--) if (FProper(i)) {
-    WireSphereZodiac(planet[i], planetalt[i],
-      lonMC, latMC, zr, &xp, &yp, &zp);
+    WireSphereZodiac(planet[i], planetalt[i], zr, &xp, &yp, &zp);
     rgx[i] = xp; rgy[i] = yp; rgz[i] = zp;
     gi.zDefault = rgz[i] - zGlyph2;
     DrawObject(i, rgx[i], rgy[i]);
@@ -1491,6 +1638,10 @@ void WireChartSphere()
         DrawColor(kAspB[grid->n[i][j]]);
         WireLine(rgx[i], rgy[i], rgz[i], rgx[j], rgy[j], rgz[j]);
       }
+
+    cp0 = cpSav;
+  } /* iChart */
+  FProcessCommandLine(szWheelX[0]);
 
   /* Draw center point. */
   DrawColor(gi.kiOn);

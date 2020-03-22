@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.40) File: xgeneral.cpp
+** Astrolog (Version 6.50) File: xgeneral.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2018 by
+** not enumerated below used in this program are Copyright (C) 1991-2019 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -44,7 +44,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/22/2018.
+** Last code change made 7/21/2019.
 */
 
 #include "astrolog.h"
@@ -183,36 +183,6 @@ void DrawPoint(int x, int y)
 }
 
 
-/* Set a single point on the screen, whose color is a grayscale based on */
-/* the passed in star magnitude. This is one of the few areas in the     */
-/* program that works with more than a 16 color palette.                 */
-
-void DrawPointStar(int x, int y, real mag)
-{
-#ifdef WINANY
-  KV kv;
-  int n;
-
-  n = 255 - (int)((mag + 1.46) / 7.0 * 224.0);
-  n = Min(n, 255); n = Max(n, 32);
-  if (gs.fInverse)
-    n = 255 - n;
-  kv = Rgb(n, n, n);
-#endif
-#ifdef WIN
-  if (wi.hdcPrint == hdcNil) {
-    SetPixel(wi.hdc, x, y, (COLORREF)kv);
-    return;
-  }
-#endif
-#ifdef WCLI
-  SetPixel(wi.hdc, x, y, (COLORREF)kv);
-#else
-  DrawPoint(x, y);
-#endif
-}
-
-
 /* Draw dot a little larger than just a single pixel at specified location. */
 
 void DrawSpot(int x, int y)
@@ -259,12 +229,16 @@ void DrawBlock(int x1, int y1, int x2, int y2)
 
   if (gi.fFile) {
     if (gs.fBitmap) {
-      /* Force the coordinates to be within the bounds of the bitmap band. */
+      /* Force the coordinates to be within the bounds of the bitmap array. */
 
       if (x1 < 0)
         x1 = 0;
       if (x2 >= gs.xWin)
         x2 = gs.xWin-1;
+      if (y1 < 0)
+        y1 = 0;
+      else if (y2 >= gs.yWin)
+        y2 = gs.yWin-1;
       for (y = y1; y <= y2; y++)           /* For bitmap, we have to  */
         for (x = x1; x <= x2; x++)         /* just fill in the array. */
           BmSet(gi.bm, x, y, gi.kiCur);
@@ -346,6 +320,20 @@ void DrawBox(int x1, int y1, int x2, int y2, int xsiz, int ysiz)
 }
 
 
+#ifdef WINANY
+/* Clear and erase the entire graphics screen on Windows. */
+
+void WinClearScreen(KI ki)
+{
+  wi.hbrush = CreateSolidBrush((COLORREF)rgbbmp[ki]);
+  SelectObject(wi.hdc, wi.hbrush);
+  PatBlt(wi.hdc, -gi.xOffset, -gi.yOffset, wi.xClient, wi.yClient, PATCOPY);
+  SelectObject(wi.hdc, GetStockObject(NULL_BRUSH));
+  DeleteObject(wi.hbrush);
+}
+#endif
+
+
 /* Clear and erase the graphics screen or bitmap contents. */
 
 void DrawClearScreen()
@@ -387,13 +375,9 @@ void DrawClearScreen()
   DrawColor(gi.kiOff);
 #ifdef WINANY
   /* For Windows charts clear entire window, not just the chart area. */
-  if (!gi.fFile) {
-    wi.hbrush = CreateSolidBrush((COLORREF)rgbbmp[gi.kiCur]);
-    SelectObject(wi.hdc, wi.hbrush);
-    PatBlt(wi.hdc, -gi.xOffset, -gi.yOffset, wi.xClient, wi.yClient, PATCOPY);
-    SelectObject(wi.hdc, GetStockObject(NULL_BRUSH));
-    DeleteObject(wi.hbrush);
-  } else
+  if (!gi.fFile)
+    WinClearScreen(gi.kiCur);
+  else
 #endif
     DrawBlock(0, 0, gs.xWin - 1, gs.yWin - 1);    /* Clear bitmap screen. */
 }
@@ -404,10 +388,13 @@ void DrawClearScreen()
 
 void DrawDash(int x1, int y1, int x2, int y2, int skip)
 {
-  int x = x1, y = y1, xadd, yadd, yinc, xabs, yabs, i, j = 0;
+  int x = x1, y = y1, i = 0,
+    dx = x2 - x1, dy = y2 - y1, xInc, yInc, xInc2, yInc2, d, dInc, z, zMax;
 
   if (skip < 0)
     skip = 0;
+  else if (gs.nDashMax >= 0 && skip > gs.nDashMax)
+    skip = gs.nDashMax;
 #ifdef ISG
   if (!gi.fFile) {
     if (!skip) {
@@ -494,42 +481,30 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
   }
 #endif
 
-  /* If none of the above cases hold, we have to draw the line dot by dot. */
+  /* If none of the above cases hold, then have to draw line dot by dot. */
 
-  xadd = x2 - x1 >= 0 ? 1 : 3;
-  yadd = y2 - y1 >= 0 ? 2 : 4;
-  xabs = NAbs(x2 - x1);
-  yabs = NAbs(y2 - y1);
-
-  /* Technically what we're doing here is drawing a line which is more    */
-  /* horizontal then vertical. We always increment x by 1, and increment  */
-  /* y whenever a fractional variable passes a certain amount. For lines  */
-  /* that are more vertical than horizontal, we just swap x and y coords. */
-
-  if (xabs < yabs) {
-    SwapN(xadd, yadd);
-    SwapN(xabs, yabs);
+  /* Determine slope. */
+  if (NAbs(dx) >= NAbs(dy)) {
+    xInc = NSgn(dx); yInc = 0;
+    xInc2 = 0; yInc2 = NSgn(dy);
+    zMax = NAbs(dx); dInc = NAbs(dy);
+    d = zMax - (!FOdd(dx) && x1 > x2);
+  } else {
+    xInc = 0; yInc = NSgn(dy);
+    xInc2 = NSgn(dx); yInc2 = 0;
+    zMax = NAbs(dy); dInc = NAbs(dx);
+    d = zMax - (!FOdd(dy) && y1 > y2);
   }
-  yinc = (xabs >> 1) - ((xabs & 1 ^ 1) && xadd > 2);
-  for (i = xabs + 1; i; i--) {
-    if (j < 1)
+  d >>= 1;
+
+  /* Loop over long axis, adjusting short axis for slope as needed. */
+  for (z = 0; z <= zMax; z++) {
+    if (i < 1)
       DrawPoint(x, y);
-    j = j < skip ? j+1 : 0;
-    switch (xadd) {
-    case 1: x++; break;
-    case 2: y++; break;
-    case 3: x--; break;
-    case 4: y--; break;
-    }
-    yinc += yabs;
-    if (yinc - xabs >= 0) {
-      yinc -= xabs;
-      switch (yadd) {
-      case 1: x++; break;
-      case 2: y++; break;
-      case 3: x--; break;
-      case 4: y--; break;
-      }
+    i = i < skip ? i+1 : 0;
+    x += xInc; y += yInc; d += dInc;
+    if (d >= zMax) {
+      x += xInc2; y += yInc2; d -= zMax;
     }
   }
 }
@@ -619,6 +594,9 @@ void DrawClip(int x1, int y1, int x2, int y2, int xl, int yl, int xh, int yh,
     ClipGreater(&x1, &y1, &x2, &y2, yh);    /* Check bottom of window. */
   if (y2 > yh)
     ClipGreater(&x2, &y2, &x1, &y1, yh);
+  if (x1 < xl || x2 < xl || y1 < yl || y2 < yl ||  /* Skip if not inside */
+    x1 > xh || x2 > xh || y1 > yh || y2 > yh)      /* bounding box.      */
+    return;
   DrawDash(x1, y1, x2, y2, skip);           /* Go draw the line.       */
 }
 
@@ -760,13 +738,16 @@ void DrawSign(int i, int x, int y)
 #endif
   if (i == sCap && gs.nGlyphs/1000 > 1)
     i = cSign+1;
-  if (FOdd(gi.nScale) || !szDrawSign2[i][0])
-    DrawTurtle(szDrawSign[i], x, y);
-  else {
+  if (gi.nScale % 3 == 0 && szDrawSign3[i][0]) {
+    gi.nScale /= 3;
+    DrawTurtle(szDrawSign3[i], x, y);  /* Special hi-res sign glyphs. */
+    gi.nScale *= 3;
+  } else if (!FOdd(gi.nScale) && szDrawSign2[i][0]) {
     gi.nScale >>= 1;
     DrawTurtle(szDrawSign2[i], x, y);  /* Special hi-res sign glyphs. */
     gi.nScale <<= 1;
-  }
+  } else
+    DrawTurtle(szDrawSign[i], x, y);
 }
 
 
@@ -793,13 +774,16 @@ void DrawHouse(int i, int x, int y)
     return;
   }
 #endif
-  if (FOdd(gi.nScale) || !szDrawHouse2[i][0])
-    DrawTurtle(szDrawHouse[i], x, y);
-  else {
+  if (gi.nScale % 3 == 0 && szDrawHouse3[i][0]) {
+    gi.nScale /= 3;
+    DrawTurtle(szDrawHouse3[i], x, y);  /* Special hi-res house numbers. */
+    gi.nScale *= 3;
+  } else if (!FOdd(gi.nScale) && szDrawHouse2[i][0]) {
     gi.nScale >>= 1;
     DrawTurtle(szDrawHouse2[i], x, y);  /* Special hi-res house numbers. */
     gi.nScale <<= 1;
-  }
+  } else
+    DrawTurtle(szDrawHouse[i], x, y);
 }
 
 
@@ -892,6 +876,70 @@ void DrawObject(int obj, int x, int y)
 }
 
 
+#ifdef SWISS
+/* Set a single point on the screen, whose color is a grayscale based on */
+/* the passed in star magnitude. This is one of the few areas in the     */
+/* program that works with more than a 16 color palette.                 */
+
+void DrawStar(int x, int y, ES *pes)
+{
+#ifdef WINANY
+  KV kv;
+  int n;
+
+  /* Determine star color. */
+  if (!gs.fColor)
+    kv = rgbbmp[gi.kiCur];
+  else if (pes->ki != kDefault)
+    kv = rgbbmp[pes->ki];
+  else {
+    n = 255 - (int)((pes->mag + 1.46) / 7.0 * 224.0);
+    n = Min(n, 255); n = Max(n, 32);
+    if (gs.fInverse)
+      n = 255 - n;
+    kv = Rgb(n, n, n);
+  }
+
+  /* Draw star point. */
+  if (!gi.fFile
+#ifdef WIN
+    && wi.hdcPrint == hdcNil
+#endif
+    ) {
+    SetPixel(wi.hdc, x, y, (COLORREF)kv);
+    if (FOdd(gs.nAllStar)) {
+      SetPixel(wi.hdc, x, y-1, (COLORREF)kv);
+      SetPixel(wi.hdc, x-1, y, (COLORREF)kv);
+      SetPixel(wi.hdc, x+1, y, (COLORREF)kv);
+      SetPixel(wi.hdc, x, y+1, (COLORREF)kv);
+    }
+    goto LAfter;
+  }
+#endif /* WINANY */
+  if (pes->ki != kDefault)
+    DrawColor(pes->ki);
+  else
+    DrawColor(KStarB(pes->mag));
+  if (!FOdd(gs.nAllStar))
+    DrawPoint(x, y);
+  else
+    DrawSpot(x, y);
+
+  /* Draw star's name label. */
+#ifdef WINANY
+LAfter:
+#endif
+  if (!gs.fLabel || gs.nAllStar < 2)
+    return;
+  if (pes->ki != kDefault)
+    DrawColor(pes->ki);
+  else
+    DrawColor(KStarB(pes->mag));
+  DrawSz(pes->pchBest, x, y + 9*gi.nScaleT, dtCent);
+}
+#endif
+
+
 /* Draw the glyph of an aspect at particular coordinates on the screen. */
 /* Again we either use Astrolog's turtle vector or a system Astro font. */
 
@@ -958,7 +1006,7 @@ void DrawTurtle(CONST char *sz, int x0, int y0)
 {
   int i, x, y, deltax, deltay;
   flag fBlank, fNoupdate;
-  char chCmd;
+  char szErr[cchSzDef], chCmd;
 
   gi.xTurtle = x0; gi.yTurtle = y0;
   while (chCmd = ChCap(*sz)) {
@@ -989,7 +1037,10 @@ void DrawTurtle(CONST char *sz, int x0, int y0)
     case 'F': deltax =  1; deltay =  1; break;      /* SouthEast */
     case 'G': deltax = -1; deltay =  1; break;      /* SouthWest */
     case 'H': deltax = -1; deltay = -1; break;      /* NorthWest */
-    default: deltax = deltay = 0; PrintError("Bad turtle action.");
+    default:
+      deltax = deltay = 0;
+      sprintf(szErr, "Bad draw turtle action character: '%c'", chCmd);
+      PrintError(szErr);
     }
     x = gi.xTurtle;
     y = gi.yTurtle;
