@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xcharts1.cpp
+** Astrolog (Version 7.00) File: xcharts1.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -65,7 +69,7 @@
 void XChartWheel()
 {
   real xsign[cSign+1], xhouse[cSign+1], xplanet[objMax], symbol[objMax];
-  int cx, cy, i, j, n;
+  int cx, cy, i, j;
   real unitx, unity;
 
   /* Set up variables and temporarily automatically decrease the horizontal */
@@ -116,24 +120,11 @@ void XChartWheel()
   if (!gs.fEquator) {               /* Don't draw aspects in equator mode. */
     if (!FCreateGrid(fFalse))
       return;
-    if (gs.fAlt)
-      neg(gs.nDashMax);
     for (j = cObj; j >= 1; j--)
       for (i = j-1; i >= 0; i--)
-        if (grid->n[i][j] && FProper(i) && FProper(j)) {
-          if (gs.nDashMax >= 0)
-            n = NAbs(grid->v[i][j]/(60*60*2));
-          else
-            n = NAbs(grid->v[i][j]) * -gs.nDashMax /
-              (int)(GetOrb(i, j, grid->n[i][j])*(60.0*60.0));
-          DrawColor(kAspB[grid->n[i][j]]);
-          DrawDash(cx+POINT1(unitx, 0.48, PX(xplanet[i])),
-            cy+POINT1(unity, 0.48, PY(xplanet[i])),
-            cx+POINT1(unitx, 0.48, PX(xplanet[j])),
-            cy+POINT1(unity, 0.48, PY(xplanet[j])), n);
-        }
-    if (gs.fAlt)
-      neg(gs.nDashMax);
+        if (grid->n[i][j] && FProper(i) && FProper(j))
+          DrawAspectLine(i, j, cx, cy, xplanet[i], xplanet[j], unitx, unity,
+            0.48);
   }
 
   /* Go draw sidebar with chart information and positions if need be. */
@@ -256,7 +247,7 @@ void XChartAstroGraph()
     /* graphics, this will cause the file to get inordinately large due  */
     /* to the constant thrashing between the Asc and Desc colors. Hence  */
     /* for these charts only, we'll do two passes for Asc and Desc.      */
-    fVector = gs.fPS || gs.fMeta;
+    fVector = (gs.ft == ftPS || gs.ft == ftWmf);
     for (l = 0; l <= fVector; l++)
 
     for (lat = (real)lat1; lat <= (real)lat2;
@@ -477,8 +468,12 @@ void XChartGrid()
         /* For cells on main diagonal, draw glyph of planet. */
 
         } else {
+          if (gs.fLabelAsp) {
+            DrawColor(kDkBlueB);
+            DrawBlock((x-1)*unit+1, (y-1)*unit+1, x*unit-1, y*unit-1);
+          }
           DrawColor(gi.kiLite);
-          DrawEdge((y-1)*unit, (y-1)*unit, y*unit, y*unit);
+          DrawEdge((x-1)*unit, (y-1)*unit, x*unit, y*unit);
           DrawObject(i, gi.xTurtle, gi.yTurtle);
         }
 
@@ -524,50 +519,50 @@ void XChartGrid()
 /* Translate zodiac position to chart pixel coordinates representing local */
 /* horizon position, for the rectangular -Z -X switch chart.               */
 
-void PlotHorizon(real lon, real lat,
-  int x1, int y1, int xs, int ys, int *xp, int *yp)
+void PlotHorizon(real lon, real lat, int x1, int y1, int xs, int ys,
+  int *xp, int *yp)
 {
   lat = rDegQuad - lat;
   *xp = x1 + (int)((real)xs*lon/rDegMax + rRound);
   *yp = y1 + (int)((real)ys*lat/rDegHalf + rRound);
 }
 
-void LocToHorizon(real lon, real lat, real lonM, real latM,
-  int x1, int y1, int xs, int ys, int *xp, int *yp)
+void LocToHorizon(real lon, real lat, int x1, int y1, int xs, int ys,
+  int *xp, int *yp)
 {
   if (!gs.fEcliptic) {
     lon = Mod(rDegQuad - lon);
     PlotHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
   } else {
     lon = rDegMax - lon;
-    CoorXform(&lon, &lat, latM - rDegQuad);
-    lon = Mod(lonM - lon + rDegQuad);
-    EquToHorizon(lon, lat, lonM, latM, x1, y1, xs, ys, xp, yp);
+    CoorXform(&lon, &lat, is.latMC - rDegQuad);
+    lon = Mod(is.lonMC - lon + rDegQuad);
+    EquToHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
   }
 }
 
-void EquToHorizon(real lon, real lat, real lonM, real latM,
-  int x1, int y1, int xs, int ys, int *xp, int *yp)
+void EquToHorizon(real lon, real lat, int x1, int y1, int xs, int ys,
+  int *xp, int *yp)
 {
   if (!gs.fEcliptic) {
-    lon = Mod(lonM - lon + rDegQuad);
-    EquToLocal(&lon, &lat, rDegQuad - latM);
+    lon = Mod(is.lonMC - lon + rDegQuad);
+    EquToLocal(&lon, &lat, rDegQuad - is.latMC);
     lon = rDegMax - lon;
-    LocToHorizon(lon, lat, lonM, latM, x1, y1, xs, ys, xp, yp);
+    LocToHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
   } else {
     EquToEcl(&lon, &lat);
     lon = Mod(Untropical(lon));
-    EclToHorizon(lon, lat, lonM, latM, x1, y1, xs, ys, xp, yp);
+    EclToHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
   }
 }
 
-void EclToHorizon(real lon, real lat, real lonM, real latM,
-  int x1, int y1, int xs, int ys, int *xp, int *yp)
+void EclToHorizon(real lon, real lat, int x1, int y1, int xs, int ys,
+  int *xp, int *yp)
 {
   if (!gs.fEcliptic) {
     lon = Tropical(lon);
     EclToEqu(&lon, &lat);
-    EquToHorizon(lon, lat, lonM, latM, x1, y1, xs, ys, xp, yp);
+    EquToHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
   } else
     PlotHorizon(lon, lat, x1, y1, xs, ys, xp, yp);
 }
@@ -598,9 +593,10 @@ void XChartHorizon()
   lonM = Tropical(is.MC); latM = 0.0;
   EclToEqu(&lonM, &latM);
   latM = Lat;
+  is.lonMC = lonM; is.latMC = latM;
   ClearB((pbyte)rgod, sizeof(rgod));
   for (i = 0; i <= cObj; i++) if (FProper(i)) {
-    EclToHorizon(planet[i], planetalt[i], lonM, latM, x1, y1, xs, ys,
+    EclToHorizon(planet[i], planetalt[i], x1, y1, xs, ys,
       &rgod[i].x, &rgod[i].y);
     rgod[i].obj = i;
     rgod[i].kv = ~0;
@@ -612,7 +608,7 @@ void XChartHorizon()
   if (gs.fEquator) {
     DrawColor(kPurpleB);
     for (i = 0; i <= nDegMax; i++) {
-      EquToHorizon((real)i, 0.0, lonM, latM, x1, y1, xs, ys, &xp, &yp);
+      EquToHorizon((real)i, 0.0, x1, y1, xs, ys, &xp, &yp);
       DrawPoint(xp, yp);
     }
   }
@@ -626,14 +622,14 @@ void XChartHorizon()
     for (i = 0; i < nDegMax; i++) {
       if (gs.fColorSign && i%30 == 0)
         DrawColor(kSignB(i/30 + 1));
-      EclToHorizon((real)i, 0.0, lonM, latM, x1, y1, xs, ys, &xp, &yp);
+      EclToHorizon((real)i, 0.0, x1, y1, xs, ys, &xp, &yp);
       DrawPoint(xp, yp);
     }
     for (i = 0; i < nDegMax; i += 30) {
       if (gs.fColorSign)
         DrawColor(kSignB(i/30 + 1));
       for (j = -90; j <= 90; j++) {
-        EclToHorizon((real)i, (real)j, lonM, latM, x1, y1, xs, ys, &xp, &yp);
+        EclToHorizon((real)i, (real)j, x1, y1, xs, ys, &xp, &yp);
         DrawPoint(xp, yp);
       }
     }
@@ -641,8 +637,8 @@ void XChartHorizon()
     gi.nScale = gi.nScaleText * gi.nScaleT;
     for (j = -80; j <= 80; j += 160)
       for (i = 1; i <= cSign; i++) {
-        EclToHorizon((real)(i-1)*30.0+15.0, (real)j, lonM, latM, x1, y1,
-          xs, ys, &xp, &yp);
+        EclToHorizon((real)(i-1)*30.0+15.0, (real)j, x1, y1, xs, ys,
+          &xp, &yp);
         if (gs.fColorSign)
           DrawColor(kSignB(i));
         DrawSign(!fFlip ? i : cSign+1 - i, xp, yp);
@@ -662,15 +658,14 @@ void XChartHorizon()
           lonH = (real)(i + !FBetween(j, sCan, sSag)*180); latH = 0.0;
           k = (j < sCan ? j-1 : (j < sCap ? j-7 : j-13))*30;
           CoorXform(&lonH, &latH, (real)k);
-          LocToHorizon(Mod(lonH + rDegQuad), latH, lonM, latM, x1, y1, xs, ys,
-            &xp, &yp);
+          LocToHorizon(Mod(lonH + rDegQuad), latH, x1, y1, xs, ys, &xp, &yp);
           DrawPoint(xp, yp);
         }
       }
       for (i = 1; i <= cSign; i++) {
         xp = FBetween(i, sCan, sSag) * nDegHalf;
         yp = i < sCan ? 15-30*i : (i < sCap ? 30*i-195 : 375-30*i);
-        LocToHorizon((real)xp, (real)yp, lonM, latM, x1, y1, xs, ys, &xp, &yp);
+        LocToHorizon((real)xp, (real)yp, x1, y1, xs, ys, &xp, &yp);
         if (gs.fColorHouse)
           DrawColor(kSignB(i));
         DrawHouse(i, xp, yp);
@@ -680,7 +675,7 @@ void XChartHorizon()
         if (gs.fColorHouse)
           DrawColor(kSignB(SFromZ(chouse[i])));
         for (j = -90; j <= 90; j++) {
-          EclToHorizon(chouse[i], (real)j, lonM, latM, x1, y1, xs, ys,
+          EclToHorizon(chouse[i], (real)j, x1, y1, xs, ys,
             &xp, &yp);
           DrawPoint(xp, yp);
         }
@@ -688,7 +683,7 @@ void XChartHorizon()
       for (j = -75; j <= 75; j += 150)
         for (i = 1; i <= cSign; i++) {
           EclToHorizon(Midpoint(chouse[i], chouse[Mod12(i+1)]), (real)j,
-            lonM, latM, x1, y1, xs, ys, &xp, &yp);
+            x1, y1, xs, ys, &xp, &yp);
           if (gs.fColorHouse)
             DrawColor(kSignB(i));
           DrawHouse(i, xp, yp);
@@ -761,22 +756,29 @@ void XChartHorizon()
 
 #ifdef SWISS
   /* Draw extra stars. */
-
   if (gs.fAllStar) {
     DrawColor(gi.kiGray);
     SwissComputeStar(0.0, NULL);
     while (SwissComputeStar(is.T, &es)) {
-      EclToHorizon(es.lon, es.lat, lonM, latM, x1, y1, xs, ys, &xp, &yp);
+      EclToHorizon(es.lon, es.lat, x1, y1, xs, ys, &xp, &yp);
       DrawStar(xp, yp, &es);
     }
     DrawColor(gi.kiLite);
     EnumStarsLines(fTrue, NULL, NULL);
     while (EnumStarsLines(fFalse, &pes1, &pes2)) {
-      EclToHorizon(pes1->lon, pes1->lat, lonM, latM, x1, y1, xs, ys,
-        &xp, &yp);
-      EclToHorizon(pes2->lon, pes2->lat, lonM, latM, x1, y1, xs, ys,
-        &xp2, &yp2);
+      EclToHorizon(pes1->lon, pes1->lat, x1, y1, xs, ys, &xp, &yp);
+      EclToHorizon(pes2->lon, pes2->lat, x1, y1, xs, ys, &xp2, &yp2);
       DrawWrap(xp, yp, xp2, yp2, x1, x2);
+    }
+  }
+
+  /* Draw extra asteroids. */
+  if (gs.nAstLo > 0) {
+    DrawColor(gi.kiGray);
+    SwissComputeAsteroid(0.0, NULL, fTrue);
+    while (SwissComputeAsteroid(is.T, &es, fTrue)) {
+      EclToHorizon(es.lon, es.lat, x1, y1, xs, ys, &xp, &yp);
+      DrawStar(xp, yp, &es);
     }
   }
 #endif
@@ -789,11 +791,11 @@ void XChartHorizon()
 /* Translate zodiac position to chart pixel coordinates representing local */
 /* horizon position, for the circular -Z0 -X switch chart.                 */
 
-void PlotHorizonSky(real lon, real lat, int cx, int cy, real rx, real ry,
-  int *xp, int *yp)
+void PlotHorizonSky(real lon, real lat, CONST CIRC *pcr, int *xp, int *yp)
 {
-  real s, x, y;
+  real s, x, y, rx, ry;
 
+  rx = (real)pcr->xr; ry = (real)pcr->yr;
   s = (rDegQuad-lat)/rDegQuad;
   if (s > 1.0) {
     x = rx * (rSqr2 - 1.0);
@@ -804,47 +806,44 @@ void PlotHorizonSky(real lon, real lat, int cx, int cy, real rx, real ry,
     else if (lon < 135.0 || lon >= rDegMax-135.0)
       s = 1.0 + (s - 1.0) * (((ry + y)/RAbs(RCosD(lon-90.0))-ry) / ry);
   }
-  *xp = cx+(int)(rx*s*RCosD(rDegHalf+lon)+rRound);
-  *yp = cy+(int)(ry*s*RSinD(rDegHalf+lon)+rRound);
+  *xp = pcr->xc + (int)(rx*s*RCosD(rDegHalf+lon)+rRound);
+  *yp = pcr->yc + (int)(ry*s*RSinD(rDegHalf+lon)+rRound);
 }
 
-void LocToHorizonSky(real lon, real lat, real lonM, real latM,
-  int cx, int cy, real rx, real ry, int *xp, int *yp)
+void LocToHorizonSky(real lon, real lat, CONST CIRC *pcr, int *xp, int *yp)
 {
   if (!gs.fEcliptic)
-    PlotHorizonSky(lon, lat, cx, cy, rx, ry, xp, yp);
+    PlotHorizonSky(lon, lat, pcr, xp, yp);
   else {
     lon = rDegMax - lon;
-    CoorXform(&lon, &lat, latM - rDegQuad);
-    lon = Mod(lonM - lon + rDegQuad);
-    EquToHorizonSky(lon, lat, lonM, latM, cx, cy, rx, ry, xp, yp);
+    CoorXform(&lon, &lat, is.latMC - rDegQuad);
+    lon = Mod(is.lonMC - lon + rDegQuad);
+    EquToHorizonSky(lon, lat, pcr, xp, yp);
   }
 }
 
-void EquToHorizonSky(real lon, real lat, real lonM, real latM,
-  int cx, int cy, real rx, real ry, int *xp, int *yp)
+void EquToHorizonSky(real lon, real lat, CONST CIRC *pcr, int *xp, int *yp)
 {
   if (!gs.fEcliptic) {
-    lon = Mod(lonM - lon + rDegQuad);
-    EquToLocal(&lon, &lat, rDegQuad - latM);
+    lon = Mod(is.lonMC - lon + rDegQuad);
+    EquToLocal(&lon, &lat, rDegQuad - is.latMC);
     lon = rDegMax - lon;
-    LocToHorizonSky(lon, lat, lonM, latM, cx, cy, rx, ry, xp, yp);
+    LocToHorizonSky(lon, lat, pcr, xp, yp);
   } else {
     EquToEcl(&lon, &lat);
     lon = Mod(Untropical(lon));
-    EclToHorizonSky(lon, lat, lonM, latM, cx, cy, rx, ry, xp, yp);
+    EclToHorizonSky(lon, lat, pcr, xp, yp);
   }
 }
 
-void EclToHorizonSky(real lon, real lat, real lonM, real latM,
-  int cx, int cy, real rx, real ry, int *xp, int *yp)
+void EclToHorizonSky(real lon, real lat, CONST CIRC *pcr, int *xp, int *yp)
 {
   if (!gs.fEcliptic) {
     lon = Tropical(lon);
     EclToEqu(&lon, &lat);
-    EquToHorizonSky(lon, lat, lonM, latM, cx, cy, rx, ry, xp, yp);
+    EquToHorizonSky(lon, lat, pcr, xp, yp);
   } else
-    PlotHorizonSky(lon, lat, cx, cy, rx, ry, xp, yp);
+    PlotHorizonSky(lon, lat, pcr, xp, yp);
 }
 
 
@@ -857,8 +856,9 @@ void EclToHorizonSky(real lon, real lat, real lonM, real latM,
 
 void XChartHorizonSky()
 {
-  int cx, cy, unit, x1, y1, x2, y2, xs, ys, xp, yp, i, j, k;
-  real lonM, latM, lonH, latH, rx, ry, s;
+  int cx, cy, rx, ry, unit, x1, y1, x2, y2, xs, ys, xp, yp, i, j, k;
+  real lonM, latM, lonH, latH, s;
+  CIRC cr;
   ObjDraw rgod[objMax];
 #ifdef SWISS
   ES es, *pes1, *pes2;
@@ -868,7 +868,8 @@ void XChartHorizonSky()
   unit = Max(12, 6*gi.nScale);
   x1 = unit; y1 = unit; x2 = gs.xWin-1-unit; y2 = gs.yWin-1-unit;
   xs = x2-x1; ys = y2-y1; cx = (x1+x2)/2; cy = (y1+y2)/2;
-  rx = (real)xs/2.0/rSqr2; ry = (real)ys/2.0/rSqr2;
+  rx = (int)((real)xs/2.0/rSqr2); ry = (int)((real)ys/2.0/rSqr2);
+  cr.xc = cx; cr.yc = cy; cr.xr = rx; cr.yr = ry;
 
   /* Calculate the local horizon coordinates of each planet. First convert */
   /* zodiac position and declination to zenith longitude and latitude.     */
@@ -876,10 +877,10 @@ void XChartHorizonSky()
   lonM = Tropical(is.MC); latM = 0.0;
   EclToEqu(&lonM, &latM);
   latM = Lat;
+  is.lonMC = lonM; is.latMC = latM;
   ClearB((pbyte)rgod, sizeof(rgod));
   for (i = 0; i <= cObj; i++) if (FProper(i)) {
-    EclToHorizonSky(planet[i], planetalt[i], lonM, latM, cx, cy, rx, ry,
-      &rgod[i].x, &rgod[i].y);
+    EclToHorizonSky(planet[i], planetalt[i], &cr, &rgod[i].x, &rgod[i].y);
     rgod[i].obj = i;
     rgod[i].kv = ~0;
     rgod[i].f = fTrue;
@@ -890,7 +891,7 @@ void XChartHorizonSky()
   if (gs.fEquator) {
     DrawColor(kPurpleB);
     for (i = 0; i <= nDegMax; i++) {
-      EquToHorizonSky((real)i, 0.0, lonM, latM, cx, cy, rx, ry, &xp, &yp);
+      EquToHorizonSky((real)i, 0.0, &cr, &xp, &yp);
       DrawPoint(xp, yp);
     }
   }
@@ -904,15 +905,14 @@ void XChartHorizonSky()
     for (i = 0; i < nDegMax; i++) {
       if (gs.fColorSign && i%30 == 0)
         DrawColor(kSignB(i/30 + 1));
-      EclToHorizonSky((real)i, 0.0, lonM, latM, cx, cy, rx, ry, &xp, &yp);
+      EclToHorizonSky((real)i, 0.0, &cr, &xp, &yp);
       DrawPoint(xp, yp);
     }
     for (i = 0; i < nDegMax; i += 30) {
       if (gs.fColorSign)
         DrawColor(kSignB(i/30 + 1));
       for (j = -90; j <= 90; j++) {
-        EclToHorizonSky((real)i, (real)j, lonM, latM, cx, cy, rx, ry,
-          &xp, &yp);
+        EclToHorizonSky((real)i, (real)j, &cr, &xp, &yp);
         DrawPoint(xp, yp);
       }
     }
@@ -920,8 +920,7 @@ void XChartHorizonSky()
     gi.nScale = gi.nScaleText * gi.nScaleT;
     for (j = -80; j <= 80; j += 160)
       for (i = 1; i <= cSign; i++) {
-        EclToHorizonSky((real)(i-1)*30.0+15.0, (real)j, lonM, latM, cx, cy,
-          rx, ry, &xp, &yp);
+        EclToHorizonSky((real)(i-1)*30.0+15.0, (real)j, &cr, &xp, &yp);
         if (gs.fColorSign)
           DrawColor(kSignB(i));
         DrawSign(i, xp, yp);
@@ -941,16 +940,14 @@ void XChartHorizonSky()
           lonH = (real)(i + !FBetween(j, sCan, sSag)*180); latH = 0.0;
           k = (j < sCan ? j-1 : (j < sCap ? j-7 : j-13))*30;
           CoorXform(&lonH, &latH, (real)k);
-          LocToHorizonSky(Mod(lonH + rDegQuad), latH, lonM, latM, cx, cy,
-            rx, ry, &xp, &yp);
+          LocToHorizonSky(Mod(lonH + rDegQuad), latH, &cr, &xp, &yp);
           DrawPoint(xp, yp);
         }
       }
       for (i = 1; i <= cSign; i++) {
         xp = FBetween(i, sCan, sSag) * nDegHalf;
         yp = i < sCan ? 15-30*i : (i < sCap ? 30*i-195 : 375-30*i);
-        LocToHorizonSky((real)xp, (real)yp, lonM, latM, cx, cy, rx, ry,
-          &xp, &yp);
+        LocToHorizonSky((real)xp, (real)yp, &cr, &xp, &yp);
         if (gs.fColorHouse)
           DrawColor(kSignB(i));
         DrawHouse(i, xp, yp);
@@ -960,15 +957,14 @@ void XChartHorizonSky()
         if (gs.fColorHouse)
           DrawColor(kSignB(SFromZ(chouse[i])));
         for (j = -90; j <= 90; j++) {
-          EclToHorizonSky(chouse[i], (real)j, lonM, latM, cx, cy, rx, ry,
-            &xp, &yp);
+          EclToHorizonSky(chouse[i], (real)j, &cr, &xp, &yp);
           DrawPoint(xp, yp);
         }
       }
       for (j = -75; j <= 75; j += 150)
         for (i = 1; i <= cSign; i++) {
           EclToHorizonSky(Midpoint(chouse[i], chouse[Mod12(i+1)]), (real)j,
-            lonM, latM, cx, cy, rx, ry, &xp, &yp);
+            &cr, &xp, &yp);
           if (gs.fColorHouse)
             DrawColor(kSignB(i));
           DrawHouse(i, xp, yp);
@@ -987,9 +983,9 @@ void XChartHorizonSky()
   for (i = -125; i <= 125; i += 5) {
     k = (2+(i/10*10 == i ? 1 : 0)+(i/30*30 == i ? 2 : 0))*gi.nScaleT;
     s = 1.0/(rDegQuad*rSqr2);
-    j = cy+(int)(s*ys/2*i);
+    j = cy + (int)(s*ys/2*i);
     DrawLine(cx-k, j, cx+k, j);
-    j = cx+(int)(s*xs/2*i);
+    j = cx + (int)(s*xs/2*i);
     DrawLine(j, cy-k, j, cy+k);
   }
   for (i = 5; i < 55; i += 5) {
@@ -1015,7 +1011,7 @@ void XChartHorizonSky()
   }
   DrawColor(gi.kiOn);
   DrawEdge(x1, y1, x2, y2);
-  DrawCircle(cx, cy, (int)rx, (int)ry);
+  DrawCircle(cx, cy, rx, ry);
   for (i = 0; i < nDegMax; i += 5) {
     k = (2+(i/10*10 == i ? 1 : 0)+(i/30*30 == i ? 2 : 0))*gi.nScaleT;
     DrawLine(cx+(int)((rx-k)*RCosD((real)i)), cy+(int)((ry-k)*RSinD((real)i)),
@@ -1024,22 +1020,29 @@ void XChartHorizonSky()
 
 #ifdef SWISS
   /* Draw extra stars. */
-
   if (gs.fAllStar) {
     DrawColor(gi.kiGray);
     SwissComputeStar(0.0, NULL);
     while (SwissComputeStar(is.T, &es)) {
-      EclToHorizonSky(es.lon, es.lat, lonM, latM, cx, cy, rx, ry, &xp, &yp);
+      EclToHorizonSky(es.lon, es.lat, &cr, &xp, &yp);
       DrawStar(xp, yp, &es);
     }
     DrawColor(gi.kiLite);
     EnumStarsLines(fTrue, NULL, NULL);
     while (EnumStarsLines(fFalse, &pes1, &pes2)) {
-      EclToHorizonSky(pes1->lon, pes1->lat, lonM, latM, cx, cy, rx, ry,
-        &xp, &yp);
-      EclToHorizonSky(pes2->lon, pes2->lat, lonM, latM, cx, cy, rx, ry,
-        &xp2, &yp2);
+      EclToHorizonSky(pes1->lon, pes1->lat, &cr, &xp, &yp);
+      EclToHorizonSky(pes2->lon, pes2->lat, &cr, &xp2, &yp2);
       DrawLine(xp, yp, xp2, yp2);
+    }
+  }
+
+  /* Draw extra asteroids. */
+  if (gs.nAstLo > 0) {
+    DrawColor(gi.kiGray);
+    SwissComputeAsteroid(0.0, NULL, fTrue);
+    while (SwissComputeAsteroid(is.T, &es, fTrue)) {
+      EclToHorizonSky(es.lon, es.lat, &cr, &xp, &yp);
+      DrawStar(xp, yp, &es);
     }
   }
 #endif
@@ -1068,7 +1071,7 @@ void OrbitPlot(real *pxp, real *pyp, real *pzp, real sz, int obj, PT3R *space)
   }
 
   /* Compute distance, determine ratio, and recompute coordinates. */
-  rDist = RSqr(xp*xp + yp*yp + zp*zp);
+  rDist = RLength3(xp, yp, zp);
   if (rDist < rSmall)
     return;
   rDist = (RLog(rDist / sz * 100.0 + 1.0) / rLog101) / (rDist / sz);
@@ -1122,7 +1125,7 @@ void XChartOrbit()
 {
   int cx = gs.xWin / 2, cy = gs.yWin / 2, unit, x1, y1, x2, y2,
     i, j, k, l, nSav;
-  real sx, sy, sz, xp, yp, xpEar = 0.0, ypEar = 0.0;
+  real sx, sy, sz, xp, yp, xp2, yp2, xpEar = 0.0, ypEar = 0.0;
   ObjDraw rgod[objMax];
 #ifdef SWISS
   ES es, *pes1, *pes2;
@@ -1195,6 +1198,7 @@ void XChartOrbit()
       if (gi.rgspace == NULL)
         return;
     }
+    OrbitRecord();
     for (i = 0; i < gi.cspace; i++) {
       l = (gi.ispace - gi.cspace + i + gs.cspace) % gs.cspace;
       for (j = 0; j <= oNorm; j++) if (FProper(j)) {
@@ -1203,23 +1207,55 @@ void XChartOrbit()
         if (us.fHouse3D)
           OrbitPlot(&xp, &yp, NULL, sz, j, &gi.rgspace[k - j + oEar]);
         DrawColor(kObjB[j]);
-        DrawPoint(cx-(int)(xp*sx), cy+(int)(yp*sy));
+        if (!gs.fLabelAsp)
+          DrawPoint(cx-(int)(xp*sx), cy+(int)(yp*sy));
+        else if (i > 0) {
+          // -XA setting on means orbit trails are lines instead of just dots.
+          k = ((gi.ispace - gi.cspace + i-1 + gs.cspace) % gs.cspace) *
+            oNorm1 + j;
+          xp2 = gi.rgspace[k].x; yp2 = gi.rgspace[k].y;
+          if (us.fHouse3D)
+            OrbitPlot(&xp2, &yp2, NULL, sz, j, &gi.rgspace[k - j + oEar]);
+          DrawLine(cx-(int)(xp2*sx), cy+(int)(yp2*sy),
+            cx-(int)(xp*sx), cy+(int)(yp*sy));
+        }
       }
     }
-    OrbitRecord();
+  } else if (gs.cspace < 0) {
+    // Negative -YXj setting means draw orbits (assume they're circular).
+    for (i = 0; i <= oNorm; i++) if (FProper(i)) {
+      l = !FGeo(i) ? oSun : oEar;
+      if (i == l || FIgnore(l) || FIgnore2(i))
+        continue;
+      k = (int)RLength2((real)(rgod[i].x - rgod[l].x),
+        (real)(rgod[i].y - rgod[l].y));
+      if (us.objCenter == l && k > cx + cy)
+        continue;
+      DrawColor(kObjB[i]);
+      DrawCircle(rgod[l].x, rgod[l].y, k, k);
+    }
   }
 
   /* Draw lines connecting planets which have aspects between them. */
   if (!gs.fEquator && us.nAsp > 0) {
     if (!FCreateGrid(fFalse))
       return;
+    nSav = gi.nScale;
+    gi.nScale = gi.nScaleText * gi.nScaleT;
     for (j = oNorm; j >= 1; j--)
       for (i = j-1; i >= 0; i--)
         if (grid->n[i][j] && FProper(i) && FProper(j)) {
           DrawColor(kAspB[grid->n[i][j]]);
           DrawClip(rgod[i].x, rgod[i].y, rgod[j].x, rgod[j].y, x1, y1, x2, y2,
             NAbs(grid->v[i][j]/(60*60*2)));
+          if (gs.fLabelAsp) {
+            k = (rgod[i].x + rgod[j].x) >> 1;
+            l = (rgod[i].y + rgod[j].y) >> 1;
+            if (FBetween(k, x1, x2) && FBetween(l, y1, y2))
+              DrawAspect(grid->n[i][j], k, l);
+          }
         }
+    gi.nScale = nSav;
   }
 
 #ifdef SWISS
@@ -1248,6 +1284,20 @@ void XChartOrbit()
       j2 = cx-(int)(xp*sx); k2 = cy+(int)(yp*sy);
       if (FInRect(j, k, x1, y1, x2, y2) && FInRect(j2, k2, x1, y1, x2, y2))
         DrawLine(j, k, j2, k2);
+    }
+  }
+
+  /* Draw extra asteroids. */
+  if (!gs.fAllStar && gs.nAstLo > 0) {
+    DrawColor(gi.kiGray);
+    SwissComputeAsteroid(0.0, NULL, fTrue);
+    while (SwissComputeAsteroid(is.T, &es, fTrue)) {
+      xp = es.space.x; yp = es.space.y;
+      if (us.fHouse3D)
+        OrbitPlot(&xp, &yp, NULL, sz, -1, NULL);
+      j = cx-(int)(xp*sx); k = cy+(int)(yp*sy);
+      if (FInRect(j, k, x1, y1, x2, y2))
+        DrawStar(j, k, &es);
     }
   }
 #endif
@@ -1319,8 +1369,6 @@ void XChartSector()
     k = j;
   }
 
-  if (!gs.fAlt && !FCreateGrid(fFalse))
-    return;
   CopyRgb(ignore, ignoreSav, sizeof(ignore));
   CastSectors();    /* Go compute the planets' sector positions. */
 
@@ -1344,23 +1392,24 @@ void XChartSector()
         cy+POINT1(unity, 0.75, PY(temp)));
     } else
       DrawColor(kObjB[i]);
-    DrawPoint(cx+POINT1(unitx, 0.65, PX(xplanet[i])),
-      cy+POINT1(unity, 0.65, PY(xplanet[i])));
+    if (gs.fHouseExtra)
+      DrawSpot(cx+POINT1(unitx, 0.65, PX(xplanet[i])),
+        cy+POINT1(unity, 0.65, PY(xplanet[i])));
+    else
+      DrawPoint(cx+POINT1(unitx, 0.65, PX(xplanet[i])),
+        cy+POINT1(unity, 0.65, PY(xplanet[i])));
   }
 
   /* Draw lines connecting planets which have aspects between them. */
 
-  if (!gs.fAlt) {                  /* Don't draw aspects in bonus mode. */
+  if (!gs.fEquator) {               /* Don't draw aspects in equator mode. */
+    if (!FCreateGrid(fFalse))
+      return;
     for (j = cObj; j >= 1; j--)
       for (i = j-1; i >= 0; i--)
-        if (grid->n[i][j] && FProper(i) && FProper(j)) {
-          DrawColor(kAspB[grid->n[i][j]]);
-          DrawDash(cx+POINT1(unitx, 0.63, PX(xplanet[i])),
-            cy+POINT1(unity, 0.63, PY(xplanet[i])),
-            cx+POINT1(unitx, 0.63, PX(xplanet[j])),
-            cy+POINT1(unity, 0.63, PY(xplanet[j])),
-            NAbs(grid->v[i][j]/(60*60*2)));
-        }
+        if (grid->n[i][j] && FProper(i) && FProper(j))
+          DrawAspectLine(i, j, cx, cy, xplanet[i], xplanet[j], unitx, unity,
+            0.63);
   }
 
   CopyRgb(ignore, ignoreT, sizeof(ignore));
@@ -1401,29 +1450,31 @@ void DrawArrow(int x1, int y1, int x2, int y2)
 
 void XChartDispositor()
 {
-  int oDis[oMain+3], dLev[oMain+3], cLev[oMain+3], xo[oMain+3], yo[oMain+3];
-  real xCirc[oMain+3], yCirc[oMain+3];
+  int oDis[oNorm1], dLev[oNorm1], cLev[oNorm1], xo[oNorm1], yo[oNorm1],
+    obj[oNorm1];
+  real xCirc[oNorm1], yCirc[oNorm1];
   char sz[cchSzDef];
   int *rgRules, oNum, xLev, yLev, xSub, ySub, cx0, cy0, cx, cy, i, j, k;
 
   /* Determine rulership and object sets to use. */
 
-  oNum = oMain+2;
   if (ignore7[rrStd] && ignore7[rrEso] && !ignore7[rrHie])
     rgRules = rgSignHie1;
   else if (ignore7[rrStd] && !ignore7[rrEso])
     rgRules = rgSignEso1;
-  else {
+  else
     rgRules = rules;
-    oNum = oMain;
-  }
+  oNum = 0;
+  for (i = 0; i <= oNorm; i++)
+    if (FThing(i) && (!FIgnore(i) || (rgRules == rules ?
+      FBetween(i, oSun, oMain) : (FBetween(i, oEar, oMain) || i == oVul))))
+      obj[++oNum] = i;
 
   /* Set up screen positions of the 10 planets for the wheel graphs. */
 
   cx0 = gs.xWin / 2; cy0 = gs.yWin / 2;
   for (i = 1; i <= oNum; i++) {
-    if ((j = (180-(i-1)*360/oNum)) < 0)
-      j += nDegMax;
+    j = (gs.fHouseExtra ? 270 : 180) - (i-1)*(us.fVedic ? -360 : 360)/oNum;
     xCirc[i] = (real)cx0*0.4*RCosD((real)j);
     yCirc[i] = (real)cy0*0.4*RSinD((real)j);
   }
@@ -1436,13 +1487,14 @@ void XChartDispositor()
     /* For each planet, get its dispositor planet for current graph type. */
 
     for (i = 1; i <= oNum; i++) {
-      k = i <= oMain ? i : (i == oMain+1 ? oEar : oVul);
+      k = obj[i];
       j = rgRules[xSub ? inhouse[k] : SFromZ(planet[k])];
-      if (j == oEar)
-        j = oMain+1;
-      else if (j == oVul)
-        j = oMain+2;
-      oDis[i] = (FBetween(j, 1, oNum) ? j : 1);
+      for (k = 1; k <= oNum; k++)
+        if (obj[k] == j)
+          break;
+      if (k > oNum)
+        k = 1;
+      oDis[i] = k;
       dLev[i] = 1;
     }
 
@@ -1507,7 +1559,7 @@ void XChartDispositor()
         /* Draw a graph in wheel format. */
 
         for (i = 1; i <= oNum; i++) {
-          k = i <= oMain ? i : (i == oMain+1 ? oEar : oVul);
+          k = obj[i];
           DrawObject(k, cx + (int)xCirc[i], cy + (int)yCirc[i]);
           j = oDis[i];
           if (j != i) {
@@ -1544,7 +1596,7 @@ void XChartDispositor()
         /* Draw graph in level hierarchy format. */
 
         for (i = 1; i <= oNum; i++) {
-          k = i <= oMain ? i : (i == oMain+1 ? oEar : oVul);
+          k = obj[i];
           DrawObject(k, xo[i], yo[i]);
           j = oDis[i];
           if (j != i) {
@@ -1586,17 +1638,18 @@ void XChartEsoteric()
   real rRay[cRay+2], rRaySav[cRay+2], power1[objMax], power2[objMax],
     power[oNorm+1];
   char sz[cchSzDef];
-  int yea, daytot, d = 1, day, mon, monsiz,
+  int daytot, d = 1, day, mon, monsiz,
     x1, y1, x2, y2, xs, ys, m, n, u, v = 0, i, j, k;
+  flag fYea;
 
   EnsureRay();
-  yea = us.nEphemYears;    /* Doing an entire year or just a month? */
-  if (yea) {
+  fYea = (us.nEphemYears > 0);    /* Doing an entire year or just a month? */
+  if (fYea) {
     daytot = DayInYear(Yea);
     day = 1; mon = 1; monsiz = 31;
   } else
     daytot = DayInMonth(Mon, Yea);
-  x1 = (yea ? 30 : 24) * gi.nScaleText * gi.nScaleT; y1 = 12 * gi.nScaleText;
+  x1 = (fYea ? 30 : 24) * gi.nScaleText * gi.nScaleT; y1 = 12 * gi.nScaleText;
   x2 = gs.xWin - x1; y2 = gs.yWin - y1;
   xs = x2 - x1; ys = y2 - y1;
 
@@ -1619,9 +1672,8 @@ void XChartEsoteric()
 
   while (d <= daytot + 1) {
     n = v;
-    if (gs.fLabel &&
-      ((yea && mon == Mon && day == 1) || (!yea && d == Day))) {
-      if (yea)
+    if (gs.fLabel && (fYea ? (mon == Mon && day == 1) : (d == Day))) {
+      if (fYea)
         v = y1 + NMultDiv(ys, d-2+Day, daytot);
       else
         v = y1 + NMultDiv(ys, (d-1)*24 + (int)Tim, daytot*24);
@@ -1629,7 +1681,7 @@ void XChartEsoteric()
       DrawLine(x1, v, x2, v);       /* Marker line for specific day. */
     }
     v = y1 + NMultDiv(ys, d-1, daytot);
-    if (!yea || day == 1) {
+    if (!gs.fEquator && (!fYea || day == 1)) {
       DrawColor(gi.kiGray);
       DrawDash(x1, v, x2, v, 1);    /* Marker line for day or month. */
     }
@@ -1637,11 +1689,10 @@ void XChartEsoteric()
       for (i = 1; i <= cRay+1; i++)
         rRaySav[i] = rRay[i];
     ciCore = ciMain;
-    if (yea) {
+    if (fYea) {
       MM = mon; DD = day;
-    } else {
-      MM = Mon; DD = d;
-    }
+    } else
+      DD = d;
     CastChart(fTrue);
 
     /* Compute Ray influences for current day. */
@@ -1678,15 +1729,15 @@ void XChartEsoteric()
 
     /* Label months or days in the month along the left and right edges. */
 
-    if (d <= daytot && (!yea || day == 1)) {
-      if (yea) {
+    if (d <= daytot && (!fYea || day == 1)) {
+      if (fYea) {
         sprintf(sz, "%.3s", szMonth[mon]);
-        i = (gs.fLabel && mon == Mon);
+        i = (mon == Mon);
       } else {
         sprintf(sz, "%2d", d);
-        i = (gs.fLabel && d == Day);
+        i = (d == Day);
       }
-      DrawColor(i ? gi.kiOn : gi.kiLite);
+      DrawColor(gs.fLabel && i ? gi.kiOn : gi.kiLite);
       i = v + gi.nScaleT;
       DrawSz(sz,      xFontT,              i, dtLeft | dtTop | dtScale2);
       DrawSz(sz, x2 + xFontT - gi.nScaleT, i, dtLeft | dtTop | dtScale2);
@@ -1695,7 +1746,7 @@ void XChartEsoteric()
     /* Now increment the day counter. For a month we always go up by one. */
     /* For a year we go up by four or until the end of the month reached. */
 
-    if (yea) {
+    if (fYea) {
       i = us.fSeconds ? 1 : 4;
       day += i;
       if (day > monsiz) {
@@ -1718,37 +1769,124 @@ void XChartEsoteric()
 }
 
 
+/* Draw one aspect event within a box in a calendar. Called from        */
+/* ChartInDaySearch() which computes aspect events, which is in turn    */
+/* called from XChartCalendar() which draws the graphic calendar chart. */
+
+void DrawCalendarAspect(InDayInfo *pid, int i, int iMax, int nVoid)
+{
+  int x1, y1, x2, y2, asp, x, y, z, s1, s2, s3, nT, k;
+  char sz[4], *szTime;
+
+  // Get pixel coordinates of the calendar and pixel size of each box.
+  x1 = gi.rgzCalendar[pid->day*2];
+  y1 = gi.rgzCalendar[pid->day*2 + 1];
+  x2 = x1 + gi.rgzCalendar[0];
+  y2 = y1 + gi.rgzCalendar[1];
+  z = gi.nScaleT * 10;
+  y = y2 - z*(iMax-i) + gi.nScaleT*3;
+  if (y - gi.nScaleT*5 <= y1)
+    return;
+  x = x2 + gi.nScaleT*3;
+  if (x - z*3 - gi.nScaleT*5 <= x1)
+    return;
+
+  // Get aspect event and time that it takes place.
+  asp = pid->aspect;
+  s1 = (int)pid->time/60;
+  s2 = (int)pid->time-s1*60;
+  s3 = us.fSeconds ? (int)(pid->time*60.0)-((s1*60+s2)*60) : -1;
+
+  // Draw the aspect event itself.
+  DrawColor(kObjB[pid->source]);
+  DrawObject(pid->source, x - z*3, y);
+  if (asp >= aCon) {
+    DrawColor(kAspB[asp]);
+    DrawAspect(pid->aspect, x - z*2, y);
+  } else if (asp == aSig || asp == aHou) {
+    DrawColor(gi.kiOn);
+    DrawTurtle("NL4R4NG4H4", x - z*2, y);
+  } else if (asp == aDir) {
+    DrawColor(gi.kiOn);
+    DrawTurtle("NR3L3HU2ER6FBD4NHD2GL6H", x - z*2, y);
+    DrawTurtle(pid->dest ? "F4BL8U8R7FD2GL7" : "BG4U8R6F2D4G2L6", x - z, y);
+  } else if (asp == aDeg) {
+    DrawColor(gi.kiOn);
+    DrawTurtle("BRUL2D2REFREU2H2L4G2D4F2R4", x - z*2, y);
+  }
+  if (asp >= aCon) {
+    DrawColor(kObjB[pid->source]);
+    DrawObject(pid->dest, x - z, y);
+  } else if (asp == aSig || asp == aDeg) {
+    nT = asp == aSig ? pid->dest : pid->dest / us.nSignDiv + 1;
+    DrawColor(kSignB(nT));
+    DrawSign(nT, x - z, y);
+  }
+
+  // Draw the time that the aspect event takes place (if room).
+  szTime = SzTime(s1, s2, s3);
+  nT = x - z*4 - CchSz(szTime)*xFont*gi.nScaleT;
+  if (nT <= x1)
+    return;
+  DrawColor(gi.kiGray);
+  DrawSz(szTime, nT, y+gi.nScaleT*2, dtLeft);
+
+  // Draw extra information about the aspect event (if room).
+  nT -= 4*xFont*gi.nScaleT;
+  if (nT <= x1)
+    return;
+  k = kSignB(SFromZ(planet[oMoo]));
+  if (pid->source == oSun && pid->dest == oMoo &&
+    (asp == aCon || asp == aOpp)) {
+    DrawColor(k);
+    DrawSz(asp == aCon ? (nVoid < 0 ? "NEW" : "N+v") :
+      (nVoid < 0 ? "FUL" : "F+v"), nT, y+gi.nScaleT*2, dtLeft);
+  } else if (nVoid >= 0) {
+    DrawColor(k);
+    DrawSz("v/c", nT, y+gi.nScaleT*2, dtLeft);
+  } else if (pid->source == oMoo && asp == aSig) {
+    DrawColor(kSignB(pid->dest));
+    sprintf(sz, "%.3s", szSignName[pid->dest]);
+    DrawSz(sz, nT, y+gi.nScaleT*2, dtLeft);
+  }
+}
+
+
 /* Draw a graphical calendar for a given month, with numbers in boxes,  */
 /* scaled to fit within the given bounds. This is used for single month */
 /* -K switch images and is called 12 times for a full year -Ky image.   */
 
-void DrawCalendar(int mon, int X1, int Y1, int X2, int Y2)
+void DrawCalendar(int mon, int x1, int y1, int x2, int y2)
 {
   char sz[cchSzDef];
-  int day, cday, dayHi, cweek, xunit, yunit, xs, ys, x1, y1, x, y, s;
+  int rgz[(31+1)*2], day, cday, dayHi, cweek, xunit, yunit, xs, ys, x0, y0,
+    x, y, s, nSav;
+  flag fSav;
 
-  xs = X2 - X1; ys = Y2 - Y1;
+  xs = x2 - x1; ys = y2 - y1;
   day = DayOfWeek(mon, 1, Yea);    /* Day of week of 1st of month.     */
   cday = DaysInMonth(mon, Yea);    /* Count of days in the month.      */
   dayHi = DayInMonth(mon, Yea);    /* Number of last day in the month. */
   cweek = us.fCalendarYear ? 6 : (day + cday + 6) / 7;   /* Week rows. */
   xunit = xs/8;                    /* Hor. pixel size of each day box. */
   yunit = ys/(cweek+2);            /* Ver. pixel size of each day box. */
-  x1 = X1 + (xs - xunit*7) / 2;    /* Blank space to left of calendar. */
-  y1 = Y1 + yunit*3/2;             /* Blank space to top of calendar.  */
+  x0 = x1 + (xs - xunit*7) / 2;    /* Blank space to left of calendar. */
+  y0 = y1 + yunit*3/2;             /* Blank space to top of calendar.  */
 
   /* Print the month and year in big letters at top of chart. */
 
   DrawColor(gi.kiOn);
   sprintf(sz, "%s, %d", szMonth[mon], Yea);
   s = gi.nScale;
-  gi.nScale = Min((yunit*3/2-yFont*s) / yFont, xs/9/*CchSz(sz)*/ / xFont);
+  gi.nScale = Min((yunit*3/2-yFont*s) / yFont, xs/15/*CchSz(sz)*/ / xFont);
   gi.nScale = Max(gi.nScale-1, 1);
-  DrawSz(sz, X1 + xs/2, Y1 + (yunit*3/2-yFont*s)/2, dtCent | dtScale);
-  gi.nScale = s;
+  DrawSz(sz, x1 + xs/2, y1 + (yunit*3/2-yFont*s)/2, dtCent | dtScale);
 
   /* Draw the grid of boxes for the days. */
 
+  for (gi.nScale = s; gi.nScale > 0 && xunit / (xFont*gi.nScale) < 3;
+    gi.nScale--)
+    ;
   for (x = 0; x <= cWeek; x++) {
 
     /* Print days of week at top of each column (abbreviated if need be). */
@@ -1759,32 +1897,49 @@ void DrawCalendar(int mon, int X1, int Y1, int X2, int Y2)
       else
         sprintf(sz, "%s", szDay[x]);
       DrawColor(kYellowB);
-      DrawSz(sz, x1 + x*xunit + xunit/2, y1 - s*3, dtBottom | dtScale);
+      DrawSz(sz, x0 + x*xunit + xunit/2, y0 - s*3, dtBottom | dtScale);
       DrawColor(kCyanB);
     }
-    DrawLine(x1 + x*xunit, y1, x1 + x*xunit, y1 + cweek*yunit);
+    DrawLine(x0 + x*xunit, y0, x0 + x*xunit, y0 + cweek*yunit);
   }
   for (y = 0; y <= cweek; y++)
-    DrawLine(x1, y1 + y*yunit, x1 + 7*xunit, y1 + y*yunit);
+    DrawLine(x0, y0 + y*yunit, x0 + 7*xunit, y0 + y*yunit);
 
   /* Actually draw the day numbers in their appropriate boxes. */
 
   x = day; y = 0;
   for (day = 1; day <= dayHi; day = AddDay(mon, day, Yea, 1)) {
+    rgz[day*2] = x0 + x*xunit;
+    rgz[day*2+1] = y0 + y*yunit;
     sprintf(sz, gs.fText ? "%2d" : "%d", day);
     DrawColor(day == Day && mon == Mon && gs.fLabel ? kGreenB :
       (x <= 0 || x >= cWeek-1 ? kRedB : gi.kiLite));
-    if (!gs.fAlt)
-      DrawSz(sz, x1 + x*xunit + s*2, y1 + y*yunit + s*4,
+    if (!gs.fAlt || gs.fLabelAsp)
+      DrawSz(sz, x0 + x*xunit + s*2, y0 + y*yunit + s*4,
         dtLeft | dtTop | dtScale);
     else
-      DrawSz(sz, x1 + x*xunit + xunit/2,
-        y1 + y*yunit + yunit/2 + gi.nScale, dtCent | dtScale);
+      DrawSz(sz, x0 + x*xunit + xunit/2,
+        y0 + y*yunit + yunit/2 + gi.nScale, dtCent | dtScale);
     if (++x >= cWeek) {
       x = 0;
       y++;
     }
   }
+
+  /* Draw aspect events taking place within each day within the boxes. */
+
+  if (gs.fLabelAsp) {
+    gi.nScale = gi.nScaleT;
+    rgz[0] = xunit; rgz[1] = yunit;
+    gi.rgzCalendar = rgz;
+    us.fInDayMonth = fTrue; us.fInDayYear = fFalse;
+    nSav = Mon; Mon = mon;
+    fSav = gs.fLabel; gs.fLabel = fTrue;
+    ChartInDaySearch(is.fProgress);
+    Mon = nSav; gs.fLabel = fSav;
+    gi.rgzCalendar = NULL;
+  }
+  gi.nScale = s;
 }
 
 
@@ -1832,8 +1987,7 @@ void XChartCalendar()
 /* altitude and azimuth coordinates, local horizon prime vertical, local  */
 /* horizon meridian, zodiac position and latitude, or Earth coordinates.  */
 
-flag FSphereLocal(real azi, real alt, int xc, int yc, int xr, int yr,
-  int *xp, int *yp)
+flag FSphereLocal(real azi, real alt, CONST CIRC *pcr, int *xp, int *yp)
 {
   if (gs.fEcliptic) {
     azi = Mod(azi - rDegQuad); neg(alt);
@@ -1845,28 +1999,25 @@ flag FSphereLocal(real azi, real alt, int xc, int yc, int xr, int yr,
   azi = Mod(rDegQuad*3 - (azi + gs.rRot));
   if (gs.rTilt != 0.0)
     CoorXform(&azi, &alt, gs.rTilt);
-  *xp = xc + (int)((real)xr * RCosD(azi) * RCosD(alt) - rRound);
-  *yp = yc + (int)((real)yr * RSinD(alt) - rRound);
+  *xp = pcr->xc + (int)((real)pcr->xr * RCosD(azi) * RCosD(alt) - rRound);
+  *yp = pcr->yc + (int)((real)pcr->yr * RSinD(alt) - rRound);
   return azi >= rDegHalf;
 }
 
-flag FSpherePrime(real azi, real alt, int xc, int yc, int xr, int yr,
-  int *xp, int *yp)
+flag FSpherePrime(real azi, real alt, CONST CIRC *pcr, int *xp, int *yp)
 {
   CoorXform(&azi, &alt, rDegQuad);
-  return FSphereLocal(azi + rDegQuad, alt, xc, yc, xr, yr, xp, yp);
+  return FSphereLocal(azi + rDegQuad, alt, pcr, xp, yp);
 }
 
-flag FSphereMeridian(real azi, real alt, int xc, int yc, int xr, int yr,
-  int *xp, int *yp)
+flag FSphereMeridian(real azi, real alt, CONST CIRC *pcr, int *xp, int *yp)
 {
   azi = Mod(azi + rDegQuad);
   CoorXform(&azi, &alt, rDegQuad);
-  return FSphereLocal(azi, alt, xc, yc, xr, yr, xp, yp);
+  return FSphereLocal(azi, alt, pcr, xp, yp);
 }
 
-flag FSphereZodiac(real lon, real lat, int xc, int yc, int xr, int yr,
-  int *xp, int *yp)
+flag FSphereZodiac(real lon, real lat, CONST CIRC *pcr, int *xp, int *yp)
 {
   real lonT, latT;
 
@@ -1874,15 +2025,14 @@ flag FSphereZodiac(real lon, real lat, int xc, int yc, int xr, int yr,
   EclToEqu(&lonT, &latT);
   lonT = Mod(is.lonMC - lonT + rDegQuad);
   EquToLocal(&lonT, &latT, rDegQuad - is.latMC);
-  return FSphereLocal(lonT + rDegQuad, -latT, xc, yc, xr, yr, xp, yp);
+  return FSphereLocal(lonT + rDegQuad, -latT, pcr, xp, yp);
 }
 
-flag FSphereEarth(real azi, real alt, int xc, int yc, int xr, int yr,
-  int *xp, int *yp)
+flag FSphereEarth(real azi, real alt, CONST CIRC *pcr, int *xp, int *yp)
 {
   azi = Mod(azi + Lon + rDegQuad);
   CoorXform(&azi, &alt, rDegQuad - Lat);
-  return FSphereLocal(azi + rDegQuad, -alt, xc, yc, xr, yr, xp, yp);
+  return FSphereLocal(azi + rDegQuad, -alt, pcr, xp, yp);
 }
 
 
@@ -1892,10 +2042,11 @@ flag FSphereEarth(real azi, real alt, int xc, int yc, int xr, int yr,
 void XChartSphere()
 {
   char sz[cchSzDef];
-  int zGlyph, zGlyph2, zGlyphS, cChart, iChart, xc, yc, xr, yr,
-    xo = 0, yo = 0, xp, yp, i, j, k, k2, nSav;
+  int zGlyph, zGlyph2, zGlyphS, cChart, iChart, xo = 0, yo = 0, xp, yp,
+    i, j, k, k2, nSav;
   flag fDir = !gs.fSouth, fAny = !gs.fAlt, fNoHorizon, f;
-  real lonMC, latMC;
+  real lonMC, latMC, rT;
+  CIRC cr, cr2;
   CONST CP *pcp;
   CP cpSav;
   ObjDraw rgod[objMax];
@@ -1909,8 +2060,10 @@ void XChartSphere()
 
   fNoHorizon = ignorez[0] && ignorez[1] && ignorez[2] && ignorez[3];
   zGlyph = 7*gi.nScale; zGlyph2 = 14*gi.nScale; zGlyphS = 9*gi.nScaleT;
-  xc = gs.xWin >> 1; yc = gs.yWin >> 1;
-  xr = xc - zGlyph; yr = yc - zGlyph;
+  cr.xc = gs.xWin >> 1; cr.yc = gs.yWin >> 1;
+  cr.xr = cr.xc - zGlyph; cr.yr = cr.yc - zGlyph;
+  cr2 = cr;
+  cr2.xr += zGlyph >> 1; cr2.yr += zGlyph >> 1;
   cChart = 1 +
     (us.nRel <= rcDual) + (us.nRel <= rcTriWheel) + (us.nRel <= rcQuadWheel);
 
@@ -1942,12 +2095,12 @@ void XChartSphere()
     for (i = 0; i <= nDegMax; i++) {
       if (gs.fColorHouse && (i == 0 || i == nDegHalf))
         DrawColor(kSignB(i ? sLib : sAri));
-      f = FSphereLocal((real)i, 0.0, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereLocal((real)i, 0.0, &cr, &xp, &yp) ^ fDir;
       if (f && i > 0) {
         DrawLine(xo, yo, xp, yp);
         k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
         for (j = -k; j <= k; j += (k << 1)) {
-          FSphereLocal((real)i, (real)j / 2.0, xc, yc, xr, yr, &xo, &yo);
+          FSphereLocal((real)i, (real)j / 2.0, &cr, &xo, &yo);
           DrawLine(xo, yo, xp, yp);
         }
       } else if (fAny)
@@ -1960,7 +2113,7 @@ void XChartSphere()
   if (gs.fEquator) {
     DrawColor(kPurpleB);
     for (i = 0; i <= nDegMax; i++) {
-      f = FSphereEarth((real)i, 0.0, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereEarth((real)i, 0.0, &cr, &xp, &yp) ^ fDir;
       if (f && i > 0)
         DrawLine(xo, yo, xp, yp);
       else if (fAny && !FOdd(i))
@@ -1976,12 +2129,12 @@ void XChartSphere()
     for (i = 0; i <= nDegMax; i++) {
       if (gs.fColorHouse)
         DrawColor(kSignB((i-1)/30 + 1));
-      f = FSpherePrime((real)i, 0.0, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSpherePrime((real)i, 0.0, &cr, &xp, &yp) ^ fDir;
       if (f && i > 0) {
         DrawLine(xo, yo, xp, yp);
         k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
         for (j = -k; j <= k; j += (k << 1)) {
-          FSpherePrime((real)i, (real)j / 2.0, xc, yc, xr, yr, &xo, &yo);
+          FSpherePrime((real)i, (real)j / 2.0, &cr, &xo, &yo);
           DrawLine(xo, yo, xp, yp);
         }
       } else if (fAny && !FOdd(i))
@@ -1990,24 +2143,31 @@ void XChartSphere()
     }
   }
 
-  /* Draw house wedges and meridian. */
+  /* Draw 3D house wedges and meridian. */
   if (!gs.fColorHouse)
     DrawColor(kDkGreenB);
-  for (j = 30; j < nDegMax; j += (j != 150 ? 30 : 60)) {
-    if (!(!gs.fHouseExtra && !us.fHouse3D) &&
-      !((j == 90 || j == 270) && !fNoHorizon))
+  for (j = -1; j <= cSign; j++) {
+    if (!(!gs.fHouseExtra && !us.fHouse3D) && !(j <= 0 && !fNoHorizon))
       continue;
-    if (gs.fColorHouse)
-      DrawColor(kSignB(j/30 + 1));
+    if ((j == sAri && chouse[j] == is.Asc) ||
+        (j == sCap && chouse[j] == is.MC)  ||
+        (j == sLib && chouse[j] == Mod(is.Asc + rDegHalf)) ||
+        (j == sCan && chouse[j] == Mod(is.MC  + rDegHalf)))
+      continue;
+    if (gs.fColorHouse) {
+      k = j > 0 ? j : (j < 0 ? sCan : sCap);
+      DrawColor(kSignB(k));
+    }
+    rT = j > 0 ? chouse3[j] : (j < 0 ? rDegQuad : 270.0);
     for (i = -90; i <= 90; i++) {
-      f = FSpherePrime((real)j, (real)i, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSpherePrime(rT, (real)i, &cr, &xp, &yp) ^ fDir;
       if (f && i > -90) {
         DrawLine(xo, yo, xp, yp);
-        if (j == 90 || j == 270) {
+        if (j <= 0) {
           k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
           for (k2 = -k; k2 <= k; k2 += (k << 1)) {
-            FSphereMeridian((real)(j > 180 ? i+180 : 360-i), (real)k2 / 2.0,
-              xc, yc, xr, yr, &xo, &yo);
+            FSphereMeridian((real)(j == 0 ? i+180 : 360-i), (real)k2 / 2.0,
+              &cr, &xo, &yo);
             DrawLine(xo, yo, xp, yp);
           }
         }
@@ -2016,13 +2176,14 @@ void XChartSphere()
       xo = xp; yo = yp;
     }
   }
+
+  /* Draw 2D house wedges. */
   if (!gs.fHouseExtra && us.fHouse3D)
     for (i = 1; i <= cSign; i++) {
       if (gs.fColorHouse)
         DrawColor(kSignB(i));
       for (j = -90; j <= 90; j++) {
-        f = FSphereZodiac(chouse[i], (real)j,
-          xc, yc, xr, yr, &xp, &yp) ^ fDir;
+        f = FSphereZodiac(chouse[i], (real)j, &cr, &xp, &yp) ^ fDir;
         if (f && j > -90)
           DrawLine(xo, yo, xp, yp);
         else if (fAny && !FOdd(i))
@@ -2035,16 +2196,17 @@ void XChartSphere()
   if (!us.fVedic) {
     if (!gs.fColorSign)
       DrawColor(kDkBlueB);
+    /* Draw ecliptic circle. */
     for (i = 0; i <= nDegMax; i++) {
       if (gs.fColorSign)
         DrawColor(kSignB((i-1)/30 + 1));
-      f = FSphereZodiac((real)i, 0.0, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereZodiac((real)i, 0.0, &cr, &xp, &yp) ^ fDir;
       if (f && i > 0) {
         DrawLine(xo, yo, xp, yp);
         if (i % 30 != 0) {
           k = i % 10 == 0 ? 3 : (i % 5 == 0 ? 2 : 1);
           for (j = -k; j <= k; j += (k << 1)) {
-            FSphereZodiac((real)i, (real)j / 2.0, xc, yc, xr, yr, &xo, &yo);
+            FSphereZodiac((real)i, (real)j / 2.0, &cr, &xo, &yo);
             DrawLine(xo, yo, xp, yp);
           }
         }
@@ -2052,11 +2214,12 @@ void XChartSphere()
         DrawPoint(xp, yp);
       xo = xp; yo = yp;
     }
+    /* Draw sign boundaries. */
     for (i = 0; i < nDegMax; i += 30) {
       if (gs.fColorSign)
         DrawColor(kSignB(i/30 + 1));
       for (j = -90; j <= 90; j++) {
-        f = FSphereZodiac((real)i, (real)j, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+        f = FSphereZodiac((real)i, (real)j, &cr, &xp, &yp) ^ fDir;
         if (f && j > -90)
           DrawLine(xo, yo, xp, yp);
         else if (fAny && !FOdd(i))
@@ -2068,7 +2231,7 @@ void XChartSphere()
 
   /* Draw outer boundary. */
   DrawColor(gi.kiOn);
-  DrawCircle(xc, yc, xr, yr);
+  DrawCircle(cr.xc, cr.yc, cr.xr, cr.yr);
 
   /* Label signs. */
   if (!us.fVedic) {
@@ -2076,8 +2239,7 @@ void XChartSphere()
     gi.nScale = gi.nScaleText * gi.nScaleT;
     for (j = 78; j >= -78; j -= 156)
       for (i = 1; i <= cSign; i++) {
-        f = FSphereZodiac((real)(i*30-15), (real)j,
-          xc, yc, xr, yr, &xp, &yp) ^ fDir;
+        f = FSphereZodiac((real)(i*30-15), (real)j, &cr, &xp, &yp) ^ fDir;
         if (f || fAny) {
           DrawColor(f ? (gs.fColorSign ? kSignB(i) : kDkBlueB) : gi.kiGray);
           DrawSign(i, xp, yp);
@@ -2093,11 +2255,11 @@ void XChartSphere()
     for (j = 82; j >= -82; j -= 164)
       for (i = 1; i <= cSign; i++) {
         if (!us.fHouse3D)
-          f = FSpherePrime((real)(i*30-15), (real)j,
-            xc, yc, xr, yr, &xp, &yp) ^ fDir;
+          f = FSpherePrime(Midpoint(chouse3[i], chouse3[Mod12(i+1)]), (real)j,
+            &cr, &xp, &yp) ^ fDir;
         else
           f = FSphereZodiac(Midpoint(chouse[i], chouse[Mod12(i+1)]), (real)j,
-            xc, yc, xr, yr, &xp, &yp) ^ fDir;
+            &cr, &xp, &yp) ^ fDir;
         if (f || fAny) {
           DrawColor(f ? (gs.fColorHouse ? kSignB(i) : kDkGreenB) : gi.kiGray);
           DrawHouse(i, xp, yp);
@@ -2110,21 +2272,22 @@ void XChartSphere()
   if (!fNoHorizon) {
     k = zGlyph >> 1;
     for (i = 0; i < nDegMax; i += 90) {
-      f = FSphereLocal((real)i, 0.0, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereLocal((real)i, 0.0, &cr, &xp, &yp) ^ fDir;
       if (f || fAny) {
         j = i / 90;
         DrawColor(kObjB[oAsc + ((j + 3) & 3)*3]);
         if (!ignorez[(1 - j) & 3])
-          DrawDash(xc, yc, xp, yp, f ? 0 : 2);
+          DrawDash(cr.xc, cr.yc, xp, yp, f ? 0 : 2);
         if (gs.fColorHouse)
           DrawColor(f ? gi.kiOn : gi.kiGray);
-        FSphereLocal((real)i, 0.0, xc, yc, xr + k, yr + k, &xp, &yp);
+        FSphereLocal((real)i, 0.0, &cr2, &xp, &yp);
         sprintf(sz, "%c", szDir[j][0]);
         DrawSz(sz, xp, yp + gi.nScale, dtCent);
       }
     }
+    /* Label zenith and nadir points. */
     for (j = -90; j <= 90; j += nDegHalf) {
-      f = FSphereLocal(0.0, (real)j, xc, yc, xr + k, yr + k, &xp, &yp) ^ fDir;
+      f = FSphereLocal(0.0, (real)j, &cr2, &xp, &yp) ^ fDir;
       if (f || fAny) {
         DrawColor(gs.fColorHouse ? (f ? gi.kiOn : gi.kiGray) :
           kObjB[j <= 0 ? oMC : oNad]);
@@ -2137,7 +2300,7 @@ void XChartSphere()
   /* Draw center point. */
   if (!fNoHorizon) {
     DrawColor(gi.kiOn);
-    DrawSpot(xc, yc);
+    DrawSpot(cr.xc, cr.yc);
   }
 
 #ifdef SWISS
@@ -2146,18 +2309,28 @@ void XChartSphere()
     DrawColor(gi.kiGray);
     SwissComputeStar(0.0, NULL);
     while (SwissComputeStar(is.T, &es)) {
-      f = FSphereZodiac(es.lon, es.lat, xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereZodiac(es.lon, es.lat, &cr, &xp, &yp) ^ fDir;
       if (f)
         DrawStar(xp, yp, &es);
     }
     DrawColor(gi.kiLite);
     EnumStarsLines(fTrue, NULL, NULL);
     while (EnumStarsLines(fFalse, &pes1, &pes2)) {
-      f = FSphereZodiac(pes1->lon, pes1->lat, xc, yc, xr, yr, &xo, &yo) ^ fDir;
-      f &= FSphereZodiac(pes2->lon, pes2->lat, xc, yc, xr, yr, &xp, &yp) ^
-        fDir;
+      f  = FSphereZodiac(pes1->lon, pes1->lat, &cr, &xo, &yo) ^ fDir;
+      f &= FSphereZodiac(pes2->lon, pes2->lat, &cr, &xp, &yp) ^ fDir;
       if (f)
         DrawLine(xo, yo, xp, yp);
+    }
+  }
+
+  /* Draw extra asteroids. */
+  if (gs.nAstLo > 0) {
+    DrawColor(gi.kiGray);
+    SwissComputeAsteroid(0.0, NULL, fTrue);
+    while (SwissComputeAsteroid(is.T, &es, fTrue)) {
+      f = FSphereZodiac(es.lon, es.lat, &cr, &xp, &yp) ^ fDir;
+      if (f)
+        DrawStar(xp, yp, &es);
     }
   }
 #endif
@@ -2176,8 +2349,7 @@ void XChartSphere()
   for (i = 0; i <= cObj; i++) {
     f = FProper(i);
     if (f) {
-      f = FSphereZodiac(planet[i], planetalt[i],
-        xc, yc, xr, yr, &xp, &yp) ^ fDir;
+      f = FSphereZodiac(planet[i], planetalt[i], &cr, &xp, &yp) ^ fDir;
       rgod[i].obj = i;
       rgod[i].x = xp; rgod[i].y = yp;
       rgod[i].kv = f ? ~0 : gi.kiGray;
@@ -2189,6 +2361,8 @@ void XChartSphere()
   /* Draw lines connecting planets which have aspects between them. */
   if (!FCreateGrid(fFalse))
     return;
+  nSav = gi.nScale;
+  gi.nScale = gi.nScaleText * gi.nScaleT;
   for (j = cObj; j >= 1; j--)
     for (i = j-1; i >= 0; i--)
       if (grid->n[i][j] && FProper(i) && FProper(j) &&
@@ -2198,7 +2372,11 @@ void XChartSphere()
         DrawDash(rgod[i].x, rgod[i].y, rgod[j].x, rgod[j].y,
           NAbs(grid->v[i][j] / (60*60*2)) +
           ((rgod[i].kv != ~0) + (rgod[j].kv != ~0))*2);
+        if (gs.fLabelAsp)
+          DrawAspect(grid->n[i][j],
+            (rgod[i].x + rgod[j].x) >> 1, (rgod[i].y + rgod[j].y) >> 1);
       }
+  gi.nScale = nSav;
 
   /* Draw planet glyphs, and spots for actual planet locations. */
   DrawObjects(rgod, objMax, 0);

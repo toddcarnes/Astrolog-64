@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: data.cpp
+** Astrolog (Version 7.00) File: data.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -63,10 +67,10 @@ extern unsigned _stklen = 0x4000;
 US us = {
 
   /* Chart types */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
   /* Chart suboptions */
-  0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+  0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
 
   /* Table chart types */
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -101,10 +105,11 @@ US us = {
 #else
   1,
 #endif
-  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0,
 
   /* Rare flags */
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0,
 
   /* Value settings */
   0,
@@ -136,16 +141,18 @@ US us = {
   {0,0,0,0,0,0,0,0,0,0},
   "",
   "",
+  "",
 
   /* Value subsettings */
-
-  0, 5, cPart, 0.0, rDayInYear, 1.0, 1, 1, 24, 0, 0, oEar, oEar, 0, BIODAYS,
-  1};
+  0, 5, cPart, 22, 0.0, rDayInYear, 1.0, 1, 1, 24, 0, 0, oEar, oEar, 0,
+  BIODAYS, 1,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 IS is = {
   fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
-  fFalse, NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0,
-  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
+  fFalse, NULL, {0,0,0,0,0,0,0,0,0}, NULL, NULL, NULL,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0.0, 0.0, 0.0, 0.0, rAxis};
 
 CI ciCore = {11, 19, 1971, HM(11, 1),       0.0, 8.0, DEFAULT_LOC, "", ""};
 CI ciMain = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
@@ -153,7 +160,8 @@ CI ciTwin = {9,  11, 1991, HMS(0, 0, 38),   0.0, 0.0, DEFAULT_LOC, "", ""};
 CI ciThre = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
 CI ciFour = {-1, 0,  0,    0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
 CI ciTran = {1,  1,  2019, 0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
-CI ciSave = {7,  22, 2019, HMS(19, 50, 23), 1.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciSave = {6,  5,  2020, HMS(12, 12, 23), 1.0, 8.0, DEFAULT_LOC, "", ""};
+CI ciGreg = {10, 15, 1582, 0.0,             0.0, 0.0, 0.0, 0.0,    "", ""};
 CP cp0, cp1, cp2, cp3, cp4;
 
 CONST CI *rgpci[5] = {&ciCore, &ciMain, &ciTwin, &ciThre, &ciFour};
@@ -166,30 +174,33 @@ CONST CP *rgpcp[5] = {&cp0, &cp1, &cp2, &cp3, &cp4};
 ******************************************************************************
 */
 
-PT3R space[cObj+1];
+PT3R space[objMax];
 real force[objMax];
 GridInfo *grid = NULL;
 int starname[cStar+1], kObjA[objMax];
 char *szMacro[48], *szWheel[4+1] = {"", "", "", "", ""};
+real rStarBrightDef[cStar+1] = {-1.0}, rStarBright[cStar+1],
+  rStarDistDef[cStar+1], rStarDist[cStar+1];
+char *szStarCustom[cStar+1];
 
 /* Restriction status of each object, as specified with -R switch. */
 
 byte ignore[objMax] = {1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     /* Planets  */
-  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,                  /* Minors   */
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               /* Cusps    */
-  1, 1, 1, 1, 1, 1, 1, 1, 1,                        /* Uranians */
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  /* Stars    */
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     // Planets
+  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,                  // Minors
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               // Cusps
+  1, 1, 1, 1, 1, 1, 1, 1, 1,                        // Uranians
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // Stars
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 /* Restriction of objects when transiting, as specified with -RT switch. */
 
 byte ignore2[objMax] = {1,
-  0, 1, 0, 0, 0, 0, 0, 0, 0, 0,                     /* Planets  */
-  0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1,                  /* Minors   */
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               /* Cusps    */
-  1, 1, 1, 1, 1, 1, 1, 1, 1,                        /* Uranians */
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  /* Stars    */
+  0, 1, 0, 0, 0, 0, 0, 0, 0, 0,                     // Planets
+  0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1,                  // Minors
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,               // Cusps
+  1, 1, 1, 1, 1, 1, 1, 1, 1,                        // Uranians
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // Stars
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
 
 /* Restriction status of each aspect, as specified with -RA switch. */
@@ -197,9 +208,8 @@ byte ignore2[objMax] = {1,
 byte ignorea[cAspect+1] = {0,
   0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
-byte ignorez[arMax] = {0, 0, 0, 0}; /* Restrictions for -Zd chart events. */
-
-byte ignore7[rrMax] = {0, 1, 1, 0, 1}; /* Restrictions for rulership types. */
+byte ignorez[arMax] = {0, 0, 0, 0};     // Restrictions for -Zd chart events.
+byte ignore7[rrMax] = {0, 1, 1, 0, 1};  // Restrictions for rulership types.
 
 /* Gauquelin sector plus zones, as specified with -Yl switch. */
 
@@ -233,18 +243,18 @@ CONST char *szHouseTradition[cSign+1] = {"",
   "Long Journeys Over Water", "Career", "Friends", "Troubles"};
 
 CONST char *szObjName[objMax] = {
-  "Earth", "Sun", "Moon", "Mercury", "Venus", "Mars",       /* Planets   */
+  "Earth", "Sun", "Moon", "Mercury", "Venus", "Mars",       // Planets
   "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto",
-  "Chiron", "Ceres", "Pallas", "Juno", "Vesta",             /* Asteroids */
-  "North Node", "South Node",                               /* Nodes     */
-  "Lilith", "Fortune", "Vertex", "East Point",              /* Others    */
-  "Ascendant", "2nd Cusp", "3rd Cusp", "Nadir",             /* Cusps     */
+  "Chiron", "Ceres", "Pallas", "Juno", "Vesta",             // Asteroids
+  "North Node", "South Node",                               // Nodes
+  "Lilith", "Fortune", "Vertex", "East Point",              // Others
+  "Ascendant", "2nd Cusp", "3rd Cusp", "Nadir",             // Cusps
   "5th Cusp", "6th Cusp", "Descendant", "8th Cusp",
   "9th Cusp", "Midheaven", "11th Cusp", "12th Cusp",
-  "Vulcan", "Cupido", "Hades", "Zeus", "Kronos",            /* Uranians  */
+  "Vulcan", "Cupido", "Hades", "Zeus", "Kronos",            // Uranians
   "Apollon", "Admetos", "Vulkanus", "Poseidon",
 
-  "Achernar", "Polaris", "Zeta Retic.", "Pleiades",         /* Stars     */
+  "Achernar", "Polaris", "Zeta Retic.", "Pleiades",         // Stars
   "Aldebaran", "Capella", "Rigel", "Bellatrix", "Alnath",
   "Orion", "Betelgeuse", "Menkalinan", "Murzim", "Canopus",
   "Alhena", "Sirius", "Adara", "Wezen", "Castor",
@@ -255,18 +265,24 @@ CONST char *szObjName[objMax] = {
   "Kaus Austr.", "Vega", "Altair", "Peacock", "Deneb",
   "Alnair", "Fomalhaut", "Andromeda"};
 CONST StrLook rgObjName[] = {{"Node", oNod}, {"Nod:", oNod},
+  {"M.C.", oMC}, {"I.C.", oNad},
   {"Star", starLo}, {"Alnilam", oOri}, {"M31", oAnd}, {"", -1}};
 CONST char *szObjDisp[objMax];
 
 CONST char *szSystem[cSystem] = {
-  "Placidus", "Koch", "Equal (Asc)", "Campanus", "Meridian",
+  "Placidus", "Koch", "Equal", "Campanus", "Meridian",
   "Regiomontanus", "Porphyry", "Morinus", "Topocentric", "Alcabitius",
   "Krusinski", "Equal (MC)", "Pullen (S.Ratio)", "Pullen (S.Delta)", "Whole",
-  "Vedic", "Sripati", "Horizon", "APC", "Carter P.Equ.", "Sunshine", "Null"};
+  "Vedic", "Sripati", "Horizon", "APC", "Carter P.Equ.", "Sunshine", "Null",
+  "Whole (MC)", "Vedic (MC)", "Equal (Balanced)", "Whole (Balanced)",
+  "Vedic (Balanced)"};
 CONST StrLook rgSystem[] = {{"E-Asc", hsEqual}, {"E-MC", hsEqualMC},
   {"P-SR", hsSinewaveRatio}, {"P-SD", hsSinewaveDelta},
   {"Ratio", hsSinewaveRatio}, {"Delta", hsSinewaveDelta},
   {"S-Ratio", hsSinewaveRatio}, {"S-Delta", hsSinewaveDelta},
+  {"W-Asc", hsWhole}, {"W-MC", hsWholeMC}, {"W-Bal", hsWholeBalanced},
+  {"V-Asc", hsVedic}, {"V-MC", hsVedicMC}, {"V-Bal", hsVedicBalanced},
+  {"E-Bal", hsEqualBalanced},
   {"", -1}};
 
 CONST char *szAspectName[cAspect2+1] = {"",
@@ -298,9 +314,9 @@ CONST char *szAspectGlyphDisp[cAspect2+1];
 
 CONST char *szAspectConfig[cAspConfig] = {
   "Stellium-3", "Grand Trine", "T-Square", "Yod", "Grand Cross", "Cradle",
-  "Stellium-4"};
+  "Rectangle", "Stellium-4"};
 CONST int rgAspConfig[cAspConfig] = {
-  aCon, aTri, aOpp, aInc, aSqu, aSex, aSSq};
+  aCon, aTri, aOpp, aInc, aSqu, aSex, aQui, aSSq};
 
 CONST char *szElem[cElem] = {"Fire", "Earth", "Air", "Water"};
 CONST char *szMode[3] = {"Cardinal", "Fixed", "Mutable"};
@@ -322,13 +338,13 @@ CONST char *szZon[cZone] = {
   "SAS", "GST", "UZ1", "NZT", "ZT", "Z", "IDL", "LMT", "LT", "L"};
 
 CONST real rZon[cZone] = {
-  10.5, 10.5, 10.5, 10.0, 10.0, 9.5, 9.0, 9.0, 9.0, 9.0, 8.0,
+  10.0, 10.0, 10.0, 10.0, 10.0, 9.0, 9.0, 9.0, 9.0, 9.0, 8.0,
   8.0, 8.0, 8.0, 7.0, 7.0, 7.0, 7.0, 7.0, 6.0, 6.0,
   6.0, 6.0, 6.0, 5.0, 5.0, 5.0, 5.0, 5.0, 4.0, 4.0,
   4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 3.0, 3.0, 2.0, 1.0,
   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, -2.0, -4.0, -5.0,
   -5.5, -5.5, -5.5, -6.0, -6.5, -7.0, -8.0, -9.0, -9.0, -9.0,
-  -9.5, -10.0, -11.0, -11.5, -11.5, -11.5, -12.0, zonLMT, zonLMT, zonLMT};
+  -9.5, -10.0, -11.0, -12.0, -12.0, -12.0, -12.0, zonLMT, zonLMT, zonLMT};
 
 CONST char *szDir[4] = {"North", "East", "South", "West"};
 
@@ -336,8 +352,16 @@ CONST char *szSuffix[cSign+1] = {"",
   "st", "nd", "rd", "th", "th", "th", "th", "th", "th", "th", "th", "th"};
 
 CONST char *szEphem[cmMax] = {
-  "Swiss Ephemeris 2.08", "Moshier Formulas", "Placalc Ephemeris",
+  "Swiss Ephemeris 2.08", "Moshier Formulas 2.08", "Placalc Ephemeris",
   "Matrix Formulas", "None"};
+
+CONST StrLookR rgZodiacOffset[] = {{"Fagan-Bradley", 0.0},
+  {"Lahiri", 0.883333}, {"Krishnamurti", 0.98}, {"Raman", 2.329444},
+  {"Djwhal Khul", -3.619166}, {"", 0.0}};
+
+CONST char *szEclipse[etMax] =
+  {"No", "Penumbral", "Total Penumbral", "Partial", "Annular", "Total"};
+CONST char rgchEclipse[etMax+1] = "9ppPAT";
 
 real rAspAngle[cAspect+1] = {0,
   0.0, 180.0, 90.0, 120.0, 60.0, 150.0, 30.0, 45.0, 135.0, 72.0, 144.0,
@@ -505,11 +529,12 @@ CONST real rObjYear[oNorm+1] = {1.0, 0.0, 27.32166/rDayInYear,
   18.58/rDayInYear, 94923.63/rDayInYear, 129906.79/rDayInYear,
   163537.13/rDayInYear, 186804.87/rDayInYear, 210470.60/rDayInYear,
   225232.03/rDayInYear, 241643.79/rDayInYear, 271464.37/rDayInYear};
-CONST real rObjDiam[oVes+1] = {12756.0, 1392000.0, 3476.0,
+CONST real rObjDiam[oVes+1] = {12756.28, 1392000.0, 3476.3,
   4878.0, 12102.0, 6786.0, 142984.0, 120536.0, 51118.0, 49528.0, 2372.0,
-  320.0, 955.0, 538.0, 226.0, 503.0};
-CONST real rObjDay[oPlu+1] = {24.0, 30.0*24.0, 27.322*24.0,
-  58.65*24.0, 243.01*24.0, 24.6229, 9.841, 10.233, 17.9, 19.2, 6.3872*24.0};
+  320.0, 955.0, 538.0, 226.0, 503.0}; // Units: km
+CONST real rObjDay[oVes+1] = {24.0, 30.0*24.0, 27.322*24.0,
+  58.65*24.0, 243.01*24.0, 24.6229, 9.841, 10.233, 17.9, 19.2, 6.3872*24.0,
+  5.918, 9.074170, 7.8132, 7.210, 5.34212766}; // Units: hr
 CONST real rObjMass[oPlu+1] = {1.0, 322946.0, 0.0123,
   0.0553, 0.8149, 0.1074, 317.938, 95.181, 14.531, 17.135, 0.0022};
 CONST real rObjAxis[oPlu+1] = {23.5, 0.0, 6.7,
@@ -698,5 +723,206 @@ CONST AI ai[cPart] = {
   {" 02h04D   H", "Lost Objects"}
 };
 #endif /* ARABIC */
+
+
+/*
+******************************************************************************
+** Constellation Tables.
+******************************************************************************
+*/
+
+#ifdef CONSTEL
+CONST char *szCnstlName[cCnstl+1] = {"",
+  "Andromeda", "Antilia", "Apus", "Aquarius",
+  "Aquila", "Ara", "Aries", "Auriga",
+  "Bootes", "Caelum", "Camelopardalis", "Cancer",
+  "Canes Venatici", "Canis Major", "Canis Minor", "Capricornus",
+  "Carina", "Cassiopeia", "Centaurus", "Cepheus",
+  "Cetus", "Chamaeleon", "Circinus", "Columba",
+  "Coma Berenices", "Corona Australis", "Corona Borealis", "Corvus",
+  "Crater", "Crux", "Cygnus", "Delphinus",
+  "Dorado", "Draco", "Equuleus", "Eridanus",
+  "Fornax", "Gemini", "Grus", "Hercules",
+  "Horologium", "Hydra", "Hydrus", "Indus",
+  "Lacerta", "Leo", "Leo Minor", "Lepus",
+  "Libra", "Lupus", "Lynx", "Lyra",
+  "Mensa", "Microscopium", "Monoceros", "Musca",
+  "Norma", "Octans", "Ophiuchus", "Orion",
+  "Pavo", "Pegasus", "Perseus", "Phoenix",
+  "Pictor", "Pisces", "Piscis Austrinus", "Puppis",
+  "Pyxis", "Reticulum", "Sagitta", "Sagittarius",
+  "Scorpius", "Sculptor", "Scutum", "Serpens Caput/Cauda",
+  "Sextans", "Taurus", "Telescopium", "Triangulum",
+  "Triangulum Australe", "Tucana", "Ursa Major", "Ursa Minor",
+  "Vela", "Virgo", "Volans", "Vulpecula"};
+
+CONST char *szCnstlAbbrev[cCnstl+1] = {"",
+  "And", "Ant", "Aps", "Aqu", "Aql", "Ara", "Ari", "Aur",
+  "Boo", "Cae", "Cam", "Cnc", "CVn", "CMa", "CMi", "Cap",
+  "Car", "Cas", "Cen", "Cep", "Cet", "Cha", "Cir", "Col",
+  "Com", "CrA", "CrB", "Crv", "Crt", "Cru", "Cyg", "Del",
+  "Dor", "Dra", "Equ", "Eri", "For", "Gem", "Gru", "Her",
+  "Hor", "Hya", "Hyi", "Ind", "Lac", "Leo", "LMi", "Lep",
+  "Lib", "Lup", "Lyn", "Lyr", "Men", "Mic", "Mon", "Mus",
+  "Nor", "Oct", "Oph", "Ori", "Pav", "Peg", "Per", "Phe",
+  "Pic", "Psc", "PsA", "Pup", "Pyx", "Ret", "Sge", "Sgr",
+  "Sco", "Scl", "Sct", "Ser", "Sex", "Tau", "Tel", "Tri",
+  "TrA", "Tuc", "UMa", "UMi", "Vel", "Vir", "Vol", "Vul"};
+
+CONST char *szCnstlMeaning[cCnstl+1] = {"",
+  "Chained Maiden", "Air Pump", "Bird of Paradise", "Water Bearer",
+  "Eagle", "Altar", "Ram", "Charioteer",
+  "Herdsman", "Chisel", "Giraffe", "Crab",
+  "Hunting Dogs", "Great Dog", "Little Dog", "Sea Goat",
+  "Keel", "Queen", "Centaur", "King",
+  "Sea Monster", "Chameleon", "Drawing Compass", "Dove",
+  " Berenice's Hair", "Southern Crown", "Northern Crown", "Crow",
+  "Cup", "Southern Cross", "Swan", "Dolphin",
+  "Dolphinfish", "Dragon", "Little Horse", "River",
+  "Furnace", "Twins", "Crane", "Strongman",
+  "Clock", "Sea Serpent", "Water Snake", "Indian",
+  "Lizard", "Lion", "Little Lion", "Hare",
+  "Scales", "Wolf", "Lynx", "Lyre",
+  "Table Mountain", "Microscope", "Unicorn", "Fly",
+  "Level", "Octant", "Serpent Bearer", "Hunter",
+  "Peacock", "Winged Horse", "Hero", "Phoenix",
+  "Painter", "Fishes", "Southern Fish", "Stern",
+  "Compass", "Net", "Arrow", "Archer",
+  "Scorpion", "Sculptor", "Shield", " Head/Tail of the Snake",
+  "Sextant", "Bull", "Telescope", "Triangle",
+  "Southern Triangle", "Toucan", "Great Bear", "Little Bear",
+  "Sail", "Virgin", "Flying Fish", "Fox"};
+
+CONST char *szCnstlGenitive[cCnstl+1] = {"",
+  "", "", "2odis", "", "", "", "1tis", "",
+  "2is", "", "", "2ri", "2um1orum", " is", " is", "",
+  "", "", "", "", "", "tis", "", "",
+  "", "", "", "", "is", "", "", "",
+  "1us", "nis", "", "", "", "1orum", "1is", "2is",
+  "", "", "", "", "", "nis", "nis0is", "2oris",
+  "", "", "", "", "", "", "1tis", "",
+  "", "1is", "", "is", "nis", "", "", "",
+  "is", "2ium", "", "", "1dis", "", "", "",
+  "", "is", "", "!1is", "1tis", "", "", "",
+  "2i1is", "", " is", " is", "1orum", "1inis", "1tis", ""};
+#endif /* CONSTEL */
+
+
+#ifdef INTERPRET
+/*
+******************************************************************************
+** Interpretation Tables.
+******************************************************************************
+*/
+
+char *szMindPart[oNorm+1] = {"arena of practical life experience",
+  "spirit, ego, image of self, and sense of aliveness",
+  "emotional nature, moods, feelings, and caring tendencies",
+  "thoughts, intellect, and communicative activity",
+  "creativity, tendencies for affection and calmness, and relationship needs",
+  "will, energy, activity, and aggressive, assertive tendencies",
+  "enthusiastic, faithful, wise, expansive, spontaneous nature",
+  "part of mind that is disciplined, respectful, and solitary",
+  "individuality, desires for change, and tendency to go against social norms",
+  "intuitive, spiritual, compassionate, psychic nature",
+  "destiny, and capacity to transform the self and the outer world",
+  "ability to help, heal, and teach others, and where one has much experience",
+  "tendency to direct energy to instinctive, creative, reproductive goals",
+  "tendency to direct energy away from emotional and into mental pursuits",
+  "tendency to give away individual power for the benefit of a relationship",
+  "capacity to direct creative energy into personal or devotional goals",
+  "karmic goals, and best direction of evolutionary growth",
+  "karmic past, and area of experience but little growth",
+  "capacity to let go and accept their natural darker side",
+  "place where opportunity and success can be found",
+  "karmic fate and method of reception of energies",
+  "generalized projected personality and outward appearance",
+  "personality and outward appearance, as projected to the world",
+  "", "", "", "", "", "", "", "",
+  "view as seen in the eyes of others, reputation, and social standing",
+  "", "",
+  "will to purify and forge both physically and spiritually",
+  "group associations and matters relating to art",
+  "dark, secretive, past, shameful side",
+  "fiery, creative, leadership tendencies",
+  "lofty, extraordinary parts",
+  "progressive, abundant energies",
+  "intense, focused nature",
+  "greatly forceful energies",
+  "idealistic, honorable side"};
+
+char *szDesc[cSign+1] = {"",
+  "forceful, energetic, direct, courageous",
+  "practical, often skeptical and stubborn",
+  "inquisitive, witty, perceptive, adaptable",
+  "introspective, emotional, protective",
+  "proud, gregarious, dramatic, dignified",
+  "analytical, critical, modest, helpful",
+  "affectionate, tolerant, often indecisive, appreciates beauty",
+  "penetrating, suspicious, introspective",
+  "jovial, open minded, loves freedom",
+  "industrious, practical, disciplined",
+  "progressive, erratic, revolutionary, idealistic, humanitarian, inventive",
+  "imaginative, other worldly, impressionable"};
+
+char *szDesire[cSign+1] = {"",
+  "seeks adventure and challenge",
+  "loves serenity and inner peace",
+  "seeks out information",
+  "wants inner and outer security",
+  "desires self expression",
+  "works toward perfection",
+  "seeks balance, relationship, and calmness",
+  "desires to transform and remove outer masks",
+  "seeks meaning and new experience",
+  "works for solitude and personal integrity",
+  "desires individuality",
+  "seeks transcendence of self"};
+
+char *szLifeArea[cSign+1] = {"",
+  "establishment of personal identity",
+  "self image, self worth, and material security",
+  "communicating to and receiving from the environment",
+  "imagination, fantasies, inner feelings, and domestic life",
+  "finding joy, pleasure, and creative expression",
+  "work and feeling talented and useful",
+  "personal relationships and intimacy",
+  "sex, death, the occult, and other hard to grasp topics",
+  "changes, exploration, and the breaking of routine",
+  "career, social stature, and destiny",
+  "the future, life goals, and association with friends and groups",
+  "things that disrupt or cause disassociation with the personality"};
+
+char *szInteract[cAspect+1] = {"",
+  "is %sconnected and fused together with",
+  "%sopposes and creates tension with",
+  "is %sin conflict with",
+  "is %sin harmony with",
+  "has %sopportunity for growth, exchange, and harmony in relation with",
+  "is %sdifferent from",
+  "%sgets new perspectives in relation with",
+  "%screates internal friction with",
+  "%screates internal agitation with",
+  "%screatively relates externally with",
+  "%screatively relates internally with",
+  "", "", "", "", "", "", ""};
+
+char *szTherefore[cAspect+1] = {"",
+  "Both parts are prominent in their psyche", "Balance is needed",
+  "Adaptation is required by both sides", "", "",
+  "They can often relate in a discordant way", "", "", "", "", "",
+  "", "", "", "", "", "", ""};
+
+/* Modifier array makes the interpretation stronger for narrower orbs. */
+
+char *szModify[3][cAspect] =
+  {{"always ", "always ", "irreconcilably ", "always ", "much ",
+  "completely ", "often ", "often ", "often ", "often ", "often ",
+  "", "", "", "", "", "", ""},
+  {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},
+  {"somewhat ", "somewhat ", "somewhat ", "somewhat ", "some ", "somewhat ",
+  "sometimes ", "sometimes ", "sometimes ", "sometimes ", "sometimes ",
+  "", "", "", "", "", "", ""}};
+#endif /* INTERPRET */
 
 /* data.cpp */

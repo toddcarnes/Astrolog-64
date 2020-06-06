@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: extern.h
+** Astrolog (Version 7.00) File: extern.h
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 /*
@@ -70,9 +74,10 @@ extern int NPromptSwitches P((char *, char *[MAXSWITCHES]));
 extern int NProcessSwitchesRare P((int, char **, int, flag, flag, flag));
 extern flag FProcessSwitches P((int, char **));
 extern void InitProgram P((void));
+extern void FinalizeProgram P((void));
 
 
-/* From data.cpp & data2.cpp */
+/* From data.cpp */
 
 #define MM ciCore.mon
 #define DD ciCore.day
@@ -104,7 +109,9 @@ extern void InitProgram P((void));
 #define planet    cp0.obj
 #define planetalt cp0.alt
 #define ret       cp0.dir
+#define retalt    cp0.diralt
 #define chouse    cp0.cusp
+#define chouse3   cp0.cusp3
 #define inhouse   cp0.house
 
 #define FIgnoreA(a) (ignorea[a] || rAspOrb[a] < 0.0)
@@ -121,12 +128,12 @@ extern void InitProgram P((void));
 
 extern US us;
 extern IS is;
-extern CI ciCore, ciMain, ciTwin, ciThre, ciFour, ciTran, ciSave;
+extern CI ciCore, ciMain, ciTwin, ciThre, ciFour, ciTran, ciSave, ciGreg;
 extern CP cp0, cp1, cp2, cp3, cp4;
 extern CONST CP *rgpcp[5];
 extern CONST CI *rgpci[5];
 
-extern PT3R space[cObj+1];
+extern PT3R space[objMax];
 extern real force[objMax];
 extern GridInfo *grid;
 extern int starname[cStar+1], kObjA[objMax];
@@ -159,7 +166,8 @@ extern real rObjInf[oNorm1+6], rHouseInf[cSign+6], rAspInf[cAspect+1],
 #define kBlueA   kRainbowA[6]
 #define kPurpleA kRainbowA[7]
 
-#define KStarA(mag) \
+#define KStarA(mag) ((mag) < 1.0 ? kOrangeA : kMaroonA)
+#define KStar2A(mag) \
   ((mag) < 2.0 ? kWhiteA : ((mag) < 4.0 ? kLtGrayA : kDkGrayA))
 
 extern CONST char *szAppName, *szSignName[cSign+1], *szSignAbbrev[cSign+1],
@@ -178,20 +186,19 @@ extern char *szMindPart[oNorm+1], *szDesc[cSign+1], *szDesire[cSign+1],
   *szLifeArea[cSign+1], *szInteract[cAspect+1], *szTherefore[cAspect+1],
   *szModify[3][cAspect];
 extern CONST StrLook rgObjName[], rgSystem[], rgAspectName[];
-extern real rStarBright[cStar+1], rStarDist[cStar+1];
+extern CONST StrLookR rgZodiacOffset[];
+extern CONST char *szEclipse[etMax], rgchEclipse[etMax+1];
+extern real rStarBrightDef[cStar+1], rStarBright[cStar+1],
+  rStarDistDef[cStar+1], rStarDist[cStar+1];
 extern char *szStarCustom[cStar+1];
 extern CONST char *szObjDisp[objMax], *szAspectDisp[cAspect2+1],
   *szAspectAbbrevDisp[cAspect2+1], *szAspectGlyphDisp[cAspect2+1];
 
 extern CONST real rObjDist[oNorm+1], rObjYear[oNorm+1], rObjDiam[oVes+1],
-  rObjDay[oPlu+1], rObjMass[oPlu+1], rObjAxis[oPlu+1];
+  rObjDay[oVes+1], rObjMass[oPlu+1], rObjAxis[oPlu+1];
 extern CONST byte cSatellite[oPlu+1];
 extern CONST AI ai[cPart];
 
-extern CONST int cErrorCount[oPlu-oJup+1];
-extern CONST int iErrorOffset[oPlu-oJup+1];
-extern CONST real rErrorData[72+51+42*3];
-extern OE rgoe[oVes+cUran-2];
 extern int rgObjSwiss[cUran],
   rgTypSwiss[cUran], rgPntSwiss[cUran], rgFlgSwiss[cUran];
 extern char *szMacro[48], *szWheel[4+1];
@@ -206,6 +213,7 @@ extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 
 /* From general.cpp */
 
+#define RgAllocate(n, t, sz) ((t *)PAllocate((n) * sizeof(t), sz))
 #define PrintAltitude(deg) PrintSz(SzAltitude(deg))
 #define ErrorValR(sz, r) ErrorValN(sz, (int)r)
 #define FEqCI(ci1, ci2) (\
@@ -218,6 +226,7 @@ extern CONST char *szRayName[cRay+1], *szRayWill[cRay+1];
 extern void SwapR P((real *, real *));
 extern int CchSz P((CONST char *));
 extern int NCompareSz P((CONST char *, CONST char *));
+extern int NCompareSzI P((CONST char *, CONST char *));
 extern flag FMatchSz P((CONST char *, CONST char *));
 extern CONST char *SzInList P((CONST char *, CONST char *, int *));
 extern void ClearB P((pbyte, int));
@@ -228,6 +237,7 @@ extern real Mod P((real));
 extern real ModRad P((real));
 extern long Dvd P((long, long));
 extern int SzLookup P((CONST StrLook *, CONST char *));
+extern flag FCompareSzSubI P((CONST char *, CONST char *));
 extern void FormatR P((char *, real, int));
 extern int Mod12 P((int));
 extern real DecToDeg P((real));
@@ -278,6 +288,12 @@ extern int NFromAltN P((int));
 extern char *SzProcessProgname P((char *));
 extern char *SzPersist P((char *));
 extern pbyte PAllocate P((long, CONST char *));
+extern void DeallocateP P((void *));
+#ifdef DEBUG
+extern void Assert P((flag));
+#else
+#define Assert(f)
+#endif
 
 
 /* From io.cpp */
@@ -295,11 +311,20 @@ extern flag FInputData P((CONST char *));
 
 /* From calc.cpp */
 
-#define RBiorhythm(day, rate) (RSin(((day)/(rate))*rPi2)*100.0)
-#define HousePlaceIn2D(deg) HousePlaceIn(deg, 0.0)
+#define JulianDayFromTime(t) ((t)*36525.0+2415020.0)
+#define NHousePlaceIn2D(deg) NHousePlaceIn(deg, 0.0)
+#define EclToEqu(Z, L) CoorXform(Z, L, is.OB)
+#define EquToEcl(Z, L) CoorXform(Z, L, -is.OB)
+#define EquToLocal(Z, L, T) CoorXform(Z, L, T)
+#define Tropical(deg) ((deg) - is.rSid + us.rZodiacOffset)
+#define Untropical(deg) ((deg) + is.rSid - us.rZodiacOffset)
 
-extern int HousePlaceIn P((real, real));
-extern real HousePlaceIn3D P((real, real));
+extern long MdyToJulian P((int, int, int));
+extern real MdytszToJulian P((int, int, int, real, real, real));
+extern void JulianToMdy P((real, int *, int *, int *));
+extern real RHousePlaceIn3DCore P((real, real));
+extern real RHousePlaceIn3D P((real, real));
+extern int NHousePlaceIn P((real, real));
 extern void ComputeInHouses P((void));
 extern void ComputeHouses P((int));
 extern void ComputeStars P((real, real));
@@ -307,6 +332,7 @@ extern real Decan P((real));
 extern real Navamsa P((real));
 extern void RecToPol P((real, real, real *, real *));
 extern void SphToRec P((real, real, real, real *, real *, real *));
+extern void CoorXform P((real *, real *, real));
 extern void ComputeEphem P((real));
 extern real CastChart P((flag));
 extern void CastSectors P((void));
@@ -316,52 +342,45 @@ extern void GetAspect P((real *, real *, real *, real *, int, int));
 extern void GetParallel P((real *, real *, real *, real *, int, int));
 extern flag FCreateGrid P((flag));
 extern flag FCreateGridRelation P((flag));
+extern int NCheckEclipse P((int, int, real *));
+extern int NCheckEclipseLunar P((real *));
 extern void CreateElemTable P((ET *));
 
 #ifdef SWISS
 extern flag FSwissPlanet
-  P((int, real, flag, real *, real *, real *, real *));
+  P((int, real, flag, real *, real *, real *, real *, real *));
 extern void SwissHouse P((real, real, real, int,
   real *, real *, real *, real *, real *, real *, real *));
 extern void SwissComputeStars P((real, flag));
 extern flag SwissComputeStar P((real, ES *));
+extern flag SwissComputeAsteroid P((real, ES *, flag));
 extern double SwissJulDay P((int, int, int, real, int));
 extern void SwissRevJul P((real, int, int *, int *, int *, double *));
 #endif
 
 
+#ifdef MATRIX
 /* From matrix.cpp */
 
-#define EclToEqu(Z, L) CoorXform(Z, L, is.OB)
-#define EquToEcl(Z, L) CoorXform(Z, L, -is.OB)
-#define EquToLocal(Z, L, T) CoorXform(Z, L, T)
-#define JulianDayFromTime(t) ((t)*36525.0+2415020.0)
 #define IoeFromObj(obj) \
   ((obj) < oMoo ? 0 : ((obj) <= cPlanet ? (obj)-2 : (obj)-uranLo+cPlanet-2))
-#define Tropical(deg) ((deg) - is.rSid + us.rZodiacOffset)
-#define Untropical(deg) ((deg) + is.rSid - us.rZodiacOffset)
 
-extern real MC, Asc, RA, OB;
+extern OE rgoe[oVes+cUran-2];
 
-extern long MdyToJulian P((int, int, int));
-extern real MdytszToJulian P((int, int, int, real, real, real));
-extern void JulianToMdy P((real, int *, int *, int *));
+extern long MatrixMdyToJulian P((int, int, int));
+extern void MatrixJulianToMdy P((real, int *, int *, int *));
 extern real ProcessInput P((flag));
 extern void PolToRec P((real, real, real *, real *));
 extern real RecToSph P((real, real, real));
-extern void CoorXform P((real *, real *, real));
 extern void ComputeVariables P((real *));
 extern real CuspMidheaven P((void));
 extern real CuspAscendant P((void));
 extern real CuspEastPoint P((void));
-extern real CuspPlacidus P((real, real, flag));
 extern void HousePlacidus P((void));
 extern void HouseKoch P((void));
-extern void HouseEqual P((void));
 extern void HouseCampanus P((void));
 extern void HouseMeridian P((void));
 extern void HouseRegiomontanus P((void));
-extern void HousePorphyry P((void));
 extern void HouseMorinus P((void));
 extern void HouseTopocentric P((void));
 extern real ReadThree P((real, real, real));
@@ -370,13 +389,14 @@ extern void ErrorCorrect P((int, real *, real *, real *));
 extern void ProcessPlanet P((int, real));
 extern void ComputePlanets P((void));
 extern void ComputeLunar P((real *, real *, real *, real *));
+#endif
 
 
 #ifdef PLACALC
 /* From placalc2.cpp */
 
 extern flag FPlacalcPlanet
-  P((int, real, flag, real *, real *, real *, real *));
+  P((int, real, flag, real *, real *, real *, real *, real *));
 extern double julday P((int, int, int, double, int));
 extern void revjul P((double, int, int *, int *, int *, double *));
 #endif
@@ -423,6 +443,7 @@ extern void PrintWheelSlot P((int));
 extern void ChartWheel P((void));
 extern void PrintAspectSummary P((int *, int *, int, real));
 extern void ChartAspect P((void));
+extern void PrintAspectsToPoint P((real, int, real, char *));
 extern void PrintMidpointSummary P((int *, int, long));
 extern void ChartMidpoint P((void));
 extern void ChartHorizon P((void));
@@ -433,6 +454,8 @@ extern void PrintChart P((flag));
 
 
 /* From charts2.cpp */
+
+#define RBiorhythm(day, rate) (RSin(((day)/(rate))*rPi2)*100.0)
 
 extern void ChartListingRelation P((void));
 extern void ChartGridRelation P((void));
@@ -483,6 +506,39 @@ extern void ComputeInfluence P((real[oNorm+1], real[oNorm+1]));
 extern void ChartInfluence P((void));
 
 
+#ifdef ATLAS
+/* From atlas.cpp */
+
+extern char *SzCity P((int));
+extern flag FEnsureAtlas P((void));
+extern flag FEnsureTimezoneChanges P((void));
+extern flag FLoadAtlas P((FILE *, int));
+extern flag FLoadZoneRules P((FILE *, int, int));
+extern flag FLoadZoneChanges P((FILE *, int, int));
+extern flag FLoadZoneLinks P((FILE *, int));
+extern flag DisplayAtlasLookup P((CONST char *, size_t, int *));
+extern flag DisplayAtlasNearby P((real, real, size_t, int *));
+extern flag DisplayTimezoneChanges P((int, size_t, CI *));
+extern real ZondefFromIzn P((int));
+#endif
+
+
+#ifdef EXPRESS
+/* From express.cpp */
+
+extern char *rgszExpMacro[cLetter+1];
+
+extern int ILookupTrie P((CONST TRIE, CONST char *, int, flag));
+extern long NParseExpression P((CONST char *));
+extern real RParseExpression P((CONST char *));
+extern flag FParseExpression P((CONST char *));
+extern int NExpGet P((int));
+extern real RExpGet P((int));
+extern void ExpSetN P((int, int));
+extern void ExpSetR P((int, real));
+#endif
+
+
 #ifdef GRAPH
 /* From xdata.cpp */
 
@@ -496,7 +552,8 @@ extern KV rgbind[cColor];
 extern KV fg, bg;
 #endif
 #ifdef WIN
-extern int ikPalette[cColor];
+extern CONST int ikPalette[cColor];
+extern CONST int rgcmdMode[gMax];
 #endif
 #ifdef WCLI
 extern WI wi;
@@ -507,13 +564,13 @@ extern CONST KV rgbbmpDef[cColor];
 extern KV rgbbmp[cColor];
 extern KI kMainB[9], kRainbowB[cRainbow+1], kElemB[cElem], kAspB[cAspect+1],
   kObjB[objMax], kRayB[cRay+2];
-extern CONST char szObjectFont[oNorm+1], szAspectFont[cAspect+1],
+extern CONST char szObjectFont[oNorm+1], szAspectFont[cAspect2+1],
   *szDrawSign[cSign+2], *szDrawSign2[cSign+2], *szDrawSign3[cSign+2],
-  *szDrawObjectDef[oNorm+5], *szDrawObjectDef2[oNorm+5],
+  *szDrawObjectDef[objMax+5], *szDrawObjectDef2[objMax+5],
   *szDrawHouse[cSign+1], *szDrawHouse2[cSign+1], *szDrawHouse3[cSign+1],
   *szDrawAspectDef[cAspect2+1], *szDrawAspectDef2[cAspect2+1],
   *szDrawCh[256-32], *szWorldData[62*3], *szDrawConstel[cCnstl+1];
-extern CONST char *szDrawObject[oNorm+5], *szDrawObject2[oNorm+5],
+extern CONST char *szDrawObject[objMax+5], *szDrawObject2[objMax+5],
   *szDrawAspect[cAspect2+1], *szDrawAspect2[cAspect2+1];
 
 #define kBlackB   kMainB[0]
@@ -651,6 +708,8 @@ extern void DrawWheel
 extern void DrawSymbolRing
   P((real *, real *, real *, int, int, real, real, real,real,real,real));
 extern void DrawObjects P((ObjDraw *, int, int));
+extern void DrawAspectLine
+  P((int, int, int, int, real, real, real, real, real));
 extern flag FReadWorldData P((char **, char **, char **));
 extern flag FGlobeCalc P((real, real, int *, int *, int, int, int, int, int));
 extern flag FMapCalc P((real, real, int *, int *, flag, flag, real, real,
@@ -667,18 +726,12 @@ extern void DrawChartX P((void));
 
 /* From xcharts1.cpp */
 
-extern void LocToHorizon P((real, real, real, real, int, int, int, int,
-  int *, int *));
-extern void EquToHorizon P((real, real, real, real, int, int, int, int,
-  int *, int *));
-extern void EclToHorizon P((real, real, real, real, int, int, int, int,
-  int *, int *));
-extern void LocToHorizonSky P((real, real, real, real, int, int, real, real,
-  int *, int *));
-extern void EquToHorizonSky P((real, real, real, real, int, int, real, real,
-  int *, int *));
-extern void EclToHorizonSky P((real, real, real, real, int, int, real, real,
-  int *, int *));
+extern void LocToHorizon P((real, real, int, int, int, int, int *, int *));
+extern void EquToHorizon P((real, real, int, int, int, int, int *, int *));
+extern void EclToHorizon P((real, real, int, int, int, int, int *, int *));
+extern void LocToHorizonSky P((real, real, CONST CIRC *, int *, int *));
+extern void EquToHorizonSky P((real, real, CONST CIRC *, int *, int *));
+extern void EclToHorizonSky P((real, real, CONST CIRC *, int *, int *));
 
 extern void XChartWheel P((void));
 extern void XChartAstroGraph P((void));
@@ -692,6 +745,7 @@ extern void XChartSector P((void));
 extern void DrawArrow P((int, int, int, int));
 extern void XChartDispositor P((void));
 extern void XChartEsoteric P((void));
+extern void DrawCalendarAspect P((InDayInfo *, int, int, int));
 extern void XChartCalendar P((void));
 extern void XChartSphere P((void));
 
@@ -717,7 +771,7 @@ extern void InitColorsX P((void));
 #ifdef ISG
 extern void ResizeWindowToChart P((void));
 extern void BeginX P((void));
-extern void AddTime P((int, int));
+extern void AddTime P((CI *, int, int));
 extern void Animate P((int, int));
 extern void CommandLineX P((void));
 extern void SquareX P((int *, int *, flag));
@@ -726,6 +780,7 @@ extern void EndX P((void));
 #endif
 extern int NProcessSwitchesX P((int, char **, int, flag, flag, flag));
 extern int NProcessSwitchesRareX P((int, char **, int, flag, flag, flag));
+extern int DetectGraphicsChartMode P((void));
 extern flag FActionX P((void));
 #endif /* GRAPH */
 
@@ -741,7 +796,12 @@ extern char szFileName[cchSzMaxFile], szFileTitle[cchSzMaxFile], *szFileTemp;
 #define TextClearScreen() WinClearScreen(gs.fInverse ? kWhiteA : kBlackA)
 #define CheckMenu(cmd, f) \
   CheckMenuItem(wi.hmenu, (uint)cmd, f ? MF_CHECKED : MF_UNCHECKED);
+#define CheckPopup(cmd, f) \
+  CheckMenuItem(hmenu, (uint)cmd, f ? MF_CHECKED : MF_UNCHECKED);
 #define WiCheckMenu(cmd, f) CheckMenu(cmd, f); wi.fMenu = fTrue
+#define RadioMenu(cmd1, cmd2, i) \
+  CheckMenuRadioItem(wi.hmenu, (uint)cmd1, (uint)cmd2, i, MF_BYCOMMAND);
+#define WiRadioMenu(cmd1, cmd2, i) RadioMenu(cmd1, cmd2, i); wi.fMenu = fTrue
 #define WiDoDialog(pfn, dlg) \
   dlgproc = (DLGPROC)MakeProcInstance(pfn, wi.hinst); \
   DialogBox(wi.hinst, MAKEINTRESOURCE(dlg), wi.hwnd, dlgproc); \
@@ -751,6 +811,12 @@ extern char szFileName[cchSzMaxFile], szFileTitle[cchSzMaxFile], *szFileTemp;
 #define SetRadio(id, idLo, idHi) CheckRadioButton(hdlg, idLo, idHi, id)
 #define SetEdit(id, sz) SetDlgItemText(hdlg, id, (LPCSTR)sz)
 #define SetEditN(id, n) SetDlgItemInt(hdlg, id, n, fTrue)
+#define SetList(id, sz) \
+  SendDlgItemMessage(hdlg, id, LB_ADDSTRING, 0, (LPARAM)(LPCSTR)sz)
+#define SetListN(id, sz, n, v) \
+  v = SetList(id, sz); \
+  SendDlgItemMessage(hdlg, id, LB_SETITEMDATA, v, (LPARAM)n);
+#define ClearList(id) SendDlgItemMessage(hdlg, id, LB_RESETCONTENT, 0, 0);
 #define SetCombo(id, sz) \
   SendDlgItemMessage(hdlg, id, CB_ADDSTRING, 0, (LPARAM)(LPCSTR)sz)
 #define ClearCombo(id) SendDlgItemMessage(hdlg, id, CB_RESETCONTENT, 0, 0);

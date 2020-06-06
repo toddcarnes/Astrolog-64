@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: wdialog.cpp
+** Astrolog (Version 7.00) File: wdialog.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -105,7 +109,7 @@ void SetEditMDYT(HWND hdlg, int idMon, int idDay, int idYea, int idTim,
     sprintf(sz, "%d", Max(i, 1)); SetCombo(idDay, sz);
   }
   SetEditN(idYea, yea);
-  for (i = 2015; i < 2025; i++) {
+  for (i = 2015; i <= 2025; i++) {
     sprintf(sz, "%d", i); SetCombo(idYea, sz);
   }
   sprintf(sz, "%s", SzTim(tim));
@@ -144,8 +148,13 @@ void SetEditSZOA(HWND hdlg, int idDst, int idZon, int idLon, int idLat,
   /* three letters that don't reference daylight or war time.          */
   for (i = 0; i < cZone; i++) {
     if (szZon[i][1] && szZon[i][1] != 'D' && szZon[i][1] != 'W' &&
-      szZon[i][2] && szZon[i][2] != 'D')
-      SetCombo(idZon, szZon[i]);
+      szZon[i][2] && szZon[i][2] != 'D') {
+      if (rZon[i] != zonLMT)
+        sprintf(sz, "%s %s", SzZone(rZon[i]), szZon[i]);
+      else
+        sprintf(sz, "%s", SzZone(rZon[i]));
+      SetCombo(idZon, sz);
+    }
   }
   fT = us.fAnsiChar; us.fAnsiChar = fFalse;
   sprintf(sz, "%s", SzLocation(lon, lat));
@@ -215,8 +224,8 @@ flag FOutputSettings()
     return fFalse;
   }
 
-  sprintf(sz, "@0309  ; %s (%s) default settings file %s\n\n",
-    szAppName, szVersionCore, DEFAULT_INFOFILE); PrintFSz();
+  sprintf(sz, "@AD%s  ; %s %s default settings file %s\n\n",
+    szVerCore, szAppName, szVersionCore, DEFAULT_INFOFILE); PrintFSz();
 
   sprintf(sz, "-z %s                ", SzZone(us.zonDef)); PrintFSz();
   PrintF("; Default time zone     [hours W or E of UTC   ]\n");
@@ -240,7 +249,7 @@ flag FOutputSettings()
     "; Comment out this line to not start with chart for \"now\".\n");
   sprintf(sz, "-Yz %ld   ", us.lTimeAddition); PrintFSz();
   PrintF(
-    "; Time minute addition to be used when \"now\" charts are off.\n\n");
+    "; Time minute addition to be used if \"now\" charts are offset.\n\n");
 
   sprintf(sz, "%cs      ", ChDashF(us.fSidereal)); PrintFSz();
   PrintF(
@@ -301,15 +310,22 @@ flag FOutputSettings()
   sprintf(sz, "%cY8     ", ChDashF(us.fClip80)); PrintFSz();
   PrintF(
     "; Clip text to end of line  [\"=Y8\" clips, \"_Y8\" doesn't clip   ]\n");
+  sprintf(sz, "%cYu     ", ChDashF(us.fEclipse)); PrintFSz();
+  PrintF(
+    "; Show eclipse information  [\"=Yu\" shows, \"_Yu\" doesn't show   ]\n");
 
-  PrintF("\n\n; FILE PATHS:\n; For example, "
-    "point -Yi1 to ephemeris dir, and -Yi2 to chart files dir.\n\n");
+  PrintF("\n\n; FILE PATHS (-Yi1 through -Yi9):\n; For example, "
+    "point -Yi1 to ephemeris dir, -Yi2 to chart files dir, etc.\n\n");
   for (i = 0; i < 10; i++)
     if (us.rgszPath[i] && *us.rgszPath[i]) {
       sprintf(sz, "-Yi%d \"%s\"\n", i, us.rgszPath[i]); PrintFSz();
     }
 
-  PrintF("\n\n; DEFAULT RESTRICTIONS:\n\n-YR 0 10     ");
+  PrintF("\n\n; DEFAULT RESTRICTIONS:\n"
+    ";  0-10: Ear Sun Moo Mer Ven Mar Jup Sat Ura Nep Plu\n"
+    "; 11-21: Chi Cer Pal Jun Ves Nor Sou Lil For Ver EP\n"
+    "; 22-33: Asc 2nd 3rd Nad 5th 6th Des 8th 9th MC 11th 12th\n"
+    "; 34-42: Vul Cup Had Zeu Kro Apo Adm Vulk Pos\n\n-YR 0 10     ");
   for (i = 0; i <= 10; i++) PrintF(SzNumF(ignore[i]));
   PrintF("   ; Planets\n-YR 11 21    ");
   for (i = 11; i <= 21; i++) PrintF(SzNumF(ignore[i]));
@@ -335,7 +351,10 @@ flag FOutputSettings()
   for (i = 0; i < 5; i++) PrintF(SzNumF(ignore7[i]));
   PrintF(" ; Restrict rulerships: std, esoteric, hierarch, exalt, ray\n\n\n");
 
-  PrintF("; DEFAULT ASPECT ORBS:\n\n-YAo 1 5    ");
+  PrintF("; DEFAULT ASPECT ORBS:\n"
+    ";  1- 5: Con Opp Squ Tri Sex\n"
+    ";  6-11: Inc SSx SSq Ses Qui BQn\n"
+    "; 12-18: SQn Sep Nov BNv BSp TSp QNv\n\n-YAo 1 5    ");
   for (i = 1; i <= 5; i++) { sprintf(sz, " %.0f", rAspOrb[i]); PrintFSz(); }
   PrintF("      ; Major aspects\n-YAo 6 11   ");
   for (i = 6; i <= 11; i++) { sprintf(sz, " %.0f", rAspOrb[i]); PrintFSz(); }
@@ -480,14 +499,15 @@ flag FOutputSettings()
   PrintF(
     "; Chart border  [\"=Xu\" shows border, \"_Xu\" doesn't show     ]\n");
   sprintf(sz, ":Xb%c             ", ChUncap(gs.chBmpMode)); PrintFSz();
-  PrintF("; Bitmap file type\n");
+  PrintF(
+    "; Bitmap file type   [\"Xbb\" is Windows .bmp, \"Xbn\" is X11   ]\n");
   sprintf(sz, ":YXG %d        ", gs.nGlyphs); PrintFSz();
   PrintF("; Glyph selections   [Capricorn, Uranus, Pluto, Lilith]\n");
   sprintf(sz, ":YXg %d           ", gs.nGridCell); PrintFSz();
   PrintF("; Aspect grid cells  [\"0\" for autodetect  ]\n");
   sprintf(sz, ":YXS %.1f         ", gs.rspace); PrintFSz();
   PrintF("; Orbit radius in AU [\"0.0\" for autodetect]\n");
-  sprintf(sz, ":YXj %d           ", gs.cspace, gs.zspace); PrintFSz();
+  sprintf(sz, ":YXj %d           ", gs.cspace); PrintFSz();
   PrintF("; Orbit trail count\n");
   sprintf(sz, ":YX7 %d         ", gs.nRayWidth); PrintFSz();
   PrintF("; Esoteric ray column influence width\n");
@@ -506,6 +526,81 @@ flag FOutputSettings()
   fclose(file);
   return fTrue;
 }
+
+
+#ifdef ATLAS
+/* Shared WM_COMMAND processor for atlas and time change related button */
+/* commands. Called from DlgInfo() and DlgDefault().                    */
+
+flag FDlgInfoAtlas(HWND hdlg, WORD wParam, flag fDefault)
+{
+  CI ci;
+  char sz[cchSzMax];
+  int dcDst, dcZon, dcLon, dcLat, deLoc, ilist, i, j;
+  real lon, lat;
+
+  // Variables different between the Chart Info and Defaults dialogs.
+  dcDst = (fDefault ? dcDeDst : dcInDst);
+  dcZon = (fDefault ? dcDeZon : dcInZon);
+  dcLon = (fDefault ? dcDeLon : dcInLon);
+  dcLat = (fDefault ? dcDeLat : dcInLat);
+  deLoc = (fDefault ? deDeLoc : deInLoc);
+  ilist = (fDefault ? 11 : 14);
+
+  // "Lookup City" button:
+  if (wParam == dbInCity) {
+    GetEdit(deLoc, sz);
+    ClearList(dlIn);
+    if (!DisplayAtlasLookup(sz, (size_t)hdlg, &ilist))
+      PrintWarning("Couldn't get atlas data!");
+
+  // "Nearby Cities" button:
+  } else if (wParam == dbInCoor) {
+    GetEdit(dcLon, sz); lon = RParseSz(sz, pmLon);
+    GetEdit(dcLat, sz); lat = RParseSz(sz, pmLat);
+    ClearList(dlIn);
+    if (!DisplayAtlasNearby(lon, lat, (size_t)hdlg, &ilist))
+      PrintWarning("Couldn't get atlas data!");
+
+  // "Time Changes" button:
+  } else if (wParam == dbInChan) {
+    GetEdit(deLoc, sz);
+    if (!DisplayAtlasLookup(sz, 0, &i)) {
+      PrintWarning("Please have a valid city in the 'Location' field first.");
+      return fTrue;
+    }
+    ClearList(dlIn);
+    ci = ciMain;
+    GetEdit(dcInYea, sz); ci.yea = NParseSz(sz, pmYea);
+    if (!DisplayTimezoneChanges(is.rgae[i].izn, (size_t)hdlg, &ci))
+      PrintWarning("Couldn't get time zone data!");
+
+  // "Apply Info" button:
+  } else if (wParam == dbInAppl) {
+    j = (int)SendDlgItemMessage(hdlg, dlIn, LB_GETCURSEL, 0, 0); 
+    i = (int)SendDlgItemMessage(hdlg, dlIn, LB_GETITEMDATA, j, 0);
+    if (i < 0) {
+      GetEdit(deLoc, sz);
+      if (!DisplayAtlasLookup(sz, 0, &i)) {
+        PrintWarning("Please have a valid city selected in 'Atlas Lookups', "
+          "or a valid city already in the 'Location' field.");
+        return fTrue;
+      }
+    }
+    SetEditSz(hdlg, deLoc, SzCity(i));
+    ci = ciMain;
+    GetEdit(dcInMon, sz); ci.mon = NParseSz(sz, pmMon);
+    GetEdit(dcInDay, sz); ci.day = NParseSz(sz, pmDay);
+    GetEdit(dcInYea, sz); ci.yea = NParseSz(sz, pmYea);
+    GetEdit(dcInTim, sz); ci.tim = RParseSz(sz, pmTim);
+    if (!DisplayTimezoneChanges(is.rgae[i].izn, 0, &ci))
+      PrintWarning("Couldn't get time zone data!");
+    SetEditSZOA(hdlg, dcInDst, dcInZon, dcInLon, dcInLat,
+      ci.dst, ci.zon, is.rgae[i].lon, is.rgae[i].lat);
+  }
+  return fFalse;
+}
+#endif
 
 
 /*
@@ -664,23 +759,19 @@ flag API DlgSaveChart()
   case cmdSaveWallStretch:
   case cmdSaveWallFit:
   case cmdSaveWallFill:
-    gs.fBitmap = fTrue;
-    gs.fMeta = gs.fPS = gs.fWire = fFalse;
+    gs.ft = ftBmp;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSavePicture:
-    gs.fMeta = fTrue;
-    gs.fBitmap = gs.fPS = gs.fWire = fFalse;
+    gs.ft = ftWmf;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSavePS:
-    gs.fPS = fTrue;
-    gs.fBitmap = gs.fMeta = gs.fWire = fFalse;
+    gs.ft = ftPS;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSaveWire:
-    gs.fWire = fTrue;
-    gs.fBitmap = gs.fMeta = gs.fPS = fFalse;
+    gs.ft = ftWire;
     us.fGraphics = wi.fRedraw = fTrue;
     break;
   case cmdSaveSettings:
@@ -859,11 +950,16 @@ flag API DlgCommand(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
   switch (message) {
   case WM_INITDIALOG:
+    SetCheck(dxCo_e, !us.fExpOff);
     SetFocus(GetDlgItem(hdlg, deCo));
+#ifndef EXPRESS
+    ShowWindow(GetDlgItem(hdlg, dxCo_e), SW_HIDE);
+#endif
     return fFalse;
 
   case WM_COMMAND:
     if (wParam == IDOK) {
+      us.fExpOff = !GetCheck(dxCo_e);
       GetEdit(deCo, sz);
       FProcessCommandLine(sz);
       wi.fCast = wi.fMenuAll = fTrue;
@@ -953,17 +1049,10 @@ flag API DlgInfo(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
   switch (message) {
   case WM_INITDIALOG:
-    if (wi.nDlgChart < 2)
-      ci = ciMain;
-    else {
+    ci = *rgpci[wi.nDlgChart];
+    if (wi.nDlgChart > 1) {
       sprintf(sz, "Enter Chart #%d Info", wi.nDlgChart);
       SetWindowText(hdlg, sz);
-      if (wi.nDlgChart == 2)
-        ci = ciTwin;
-      else if (wi.nDlgChart == 3)
-        ci = ciThre;
-      else
-        ci = ciFour;
     }
     SetEditSz(hdlg, deInNam, ci.nam);
     SetEditSz(hdlg, deInLoc, ci.loc);
@@ -973,6 +1062,13 @@ LInit:
     SetEditSZOA(hdlg, dcInDst, dcInZon, dcInLon, dcInLat,
       ci.dst != dstAuto ? ci.dst : (real)is.fDst, ci.zon, ci.lon, ci.lat);
     SetFocus(GetDlgItem(hdlg, dcInMon));
+#ifndef ATLAS
+    ShowWindow(GetDlgItem(hdlg, dbInCity), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInCoor), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInChan), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInAppl), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dlIn), SW_HIDE);
+#endif
     return fFalse;
 
   case WM_COMMAND:
@@ -987,7 +1083,10 @@ LInit:
         ci = ciSave;
       goto LInit;
     }
-
+#ifdef ATLAS
+    if (FDlgInfoAtlas(hdlg, wParam, fFalse))
+      break;
+#endif
     if (wParam == IDOK) {
       GetEdit(dcInMon, sz); ci.mon = NParseSz(sz, pmMon);
       GetEdit(dcInDay, sz); ci.day = NParseSz(sz, pmDay);
@@ -1001,8 +1100,8 @@ LInit:
       EnsureN(ci.yea, FValidYea(ci.yea), "year");
       EnsureN(ci.day, FValidDay(ci.day, ci.mon, ci.yea), "day");
       EnsureR(ci.tim, FValidTim(ci.tim), "time");
-      EnsureR(ci.dst, FValidZon(ci.dst), "daylight");
-      EnsureR(ci.zon, FValidZon(ci.zon), "zone");
+      EnsureR(ci.dst, FValidZon(ci.dst), "daylight saving");
+      EnsureR(ci.zon, FValidZon(ci.zon), "time zone");
       EnsureR(ci.lon, FValidLon(ci.lon), "longitude");
       EnsureR(ci.lat, FValidLat(ci.lat), "latitude");
       GetEdit(deInNam, sz);
@@ -1041,12 +1140,19 @@ flag API DlgDefault(HWND hdlg, uint message, WORD wParam, LONG lParam)
       us.dstDef, us.zonDef, us.lonDef, us.latDef);
     SetCombo(dcDeDst, "Autodetect");
     SetEditN(dcDeCor, (int)us.lTimeAddition);
-    SetCombo(dcDeCor, "60"); SetCombo(dcDeCor, "-60");
+    SetCombo(dcDeCor, "60"); SetCombo(dcDeCor, "0"); SetCombo(dcDeCor, "-60");
     SetEditSz(hdlg, dcDeElv, SzElevation(us.elvDef));
     SetCombo(dcDeElv, "0m"); SetCombo(dcDeElv, "1000ft");
     SetEditSz(hdlg, deDeNam, us.namDef);
     SetEditSz(hdlg, deDeLoc, us.locDef);
     SetFocus(GetDlgItem(hdlg, dcDeDst));
+#ifndef ATLAS
+    ShowWindow(GetDlgItem(hdlg, dbInCity), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInCoor), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInChan), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dbInAppl), SW_HIDE);
+    ShowWindow(GetDlgItem(hdlg, dlIn), SW_HIDE);
+#endif
     return fFalse;
 
   case WM_COMMAND:
@@ -1057,8 +1163,8 @@ flag API DlgDefault(HWND hdlg, uint message, WORD wParam, LONG lParam)
       GetEdit(dcDeLat, sz); ci.lat = RParseSz(sz, pmLat);
       GetEdit(dcDeCor, sz); us.lTimeAddition = atol(sz);
       GetEdit(dcDeElv, sz); us.elvDef = RParseSz(sz, pmElv);
-      EnsureR(ci.dst, FValidZon(ci.dst), "daylight");
-      EnsureR(ci.zon, FValidZon(ci.zon), "zone");
+      EnsureR(ci.dst, FValidZon(ci.dst), "daylight saving");
+      EnsureR(ci.zon, FValidZon(ci.zon), "time zone");
       EnsureR(ci.lon, FValidLon(ci.lon), "longitude");
       EnsureR(ci.lat, FValidLat(ci.lat), "latitude");
       us.dstDef = ci.dst; us.zonDef = ci.zon;
@@ -1067,6 +1173,10 @@ flag API DlgDefault(HWND hdlg, uint message, WORD wParam, LONG lParam)
       GetEdit(deDeLoc, sz); us.locDef = SzPersist(sz);
       wi.fCast = fTrue;
     }
+#ifdef ATLAS
+    if (FDlgInfoAtlas(hdlg, wParam, fTrue))
+      break;
+#endif
     if (wParam == IDOK || wParam == IDCANCEL) {
       EndDialog(hdlg, fTrue);
       return fTrue;
@@ -1466,32 +1576,37 @@ flag API DlgStar(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
 flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
 {
-  char sz[cchSzMax];
+  char sz[cchSzMax], *pch;
   real rs, rx;
   int nh, n4, n1, i;
 
   switch (message) {
   case WM_INITDIALOG:
-    SetCombo(dcSe_s, "0.0");        // Fagan-Bradley
-    SetCombo(dcSe_s, "0.883333");   // Nirmala Chandra Lahiri (Robert Hand)
-    SetCombo(dcSe_s, "0.98");       // Krishnamurti
-    SetCombo(dcSe_s, "2.329444");   // B.V. Raman
-    SetCombo(dcSe_s, "-3.619166");  // Djwhal Khul
     SetEditR(hdlg, dcSe_s, us.rZodiacOffset, 6);
+    for (i = 0; *rgZodiacOffset[i].sz; i++) {
+      FormatR(sz, rgZodiacOffset[i].r, 6);
+      for (pch = sz; *pch; pch++)
+        ;
+      sprintf(pch, " %s", rgZodiacOffset[i].sz);
+      SetCombo(dcSe_s, sz);
+      if (us.rZodiacOffset == rgZodiacOffset[i].r)
+        SetEdit(dcSe_s, sz);
+    }
     SetEditR(hdlg, deSe_x, us.rHarmonic, -6);
     SetEditN(deSe_4, us.nDwad);
     SetCheck(dxSe_Yh, us.fBarycenter);
     SetCheck(dxSe_Yn, us.fTrueNode);
     SetCheck(dxSe_Yc0, us.fHouseAngle);
+    SetCheck(dxSe_ys, us.fSidereal2);
     SetEdit(deSe_h, szObjName[us.objCenter]);
     SetRadio(us.objOnAsc == 0 ? dr01 : (us.objOnAsc > 0 ? dr02 : dr03),
       dr01, dr03);
     SetEdit(deSe_1, szObjName[us.objOnAsc == 0 ? oSun : NAbs(us.objOnAsc)-1]);
     SetCheck(dxSe_10, us.fSolarWhole);
+    SetCheck(dxSe_sr0, us.fEquator2);
     SetCheck(dxSe_sr, us.fEquator);
     SetCheck(dxSe_yt, us.fTruePos);
     SetCheck(dxSe_yv, us.fTopoPos);
-    SetCheck(dxSe_ys, us.fSidereal2);
     SetCheck(dxSe_c3, us.fHouse3D);
     SetCheck(dxSe_A3, us.fAspect3D);
     SetCheck(dxSe_Ap, us.fAspectLat);
@@ -1532,13 +1647,14 @@ flag API DlgCalc(HWND hdlg, uint message, WORD wParam, LONG lParam)
       us.fBarycenter = GetCheck(dxSe_Yh);
       us.fTrueNode = GetCheck(dxSe_Yn);
       us.fHouseAngle = GetCheck(dxSe_Yc0);
+      us.fSidereal2 = GetCheck(dxSe_ys);
       us.objOnAsc = GetCheck(dr01) ? 0 : (GetCheck(dr02) ? n1+1 : -n1-1);
       WiCheckMenu(cmdHouseSetSolar, us.objOnAsc);
       us.fSolarWhole = GetCheck(dxSe_10);
+      us.fEquator2 = GetCheck(dxSe_sr0);
       us.fEquator = GetCheck(dxSe_sr);
       us.fTruePos = GetCheck(dxSe_yt);
       us.fTopoPos = GetCheck(dxSe_yv);
-      us.fSidereal2 = GetCheck(dxSe_ys);
       us.fHouse3D = GetCheck(dxSe_c3);
       WiCheckMenu(cmdHouseSet3D, us.fHouse3D);
       us.fAspect3D = GetCheck(dxSe_A3);
@@ -1584,71 +1700,73 @@ flag API DlgDisplay(HWND hdlg, uint message, WORD wParam, LONG lParam)
 
   switch (message) {
   case WM_INITDIALOG:
-    SetCheck(dxOb_Yr, us.fRound);
-    SetCheck(dxOb_Yd, us.fEuroDate);
-    SetCheck(dxOb_Yt, us.fEuroTime);
-    SetCheck(dxOb_Yv, us.fEuroDist);
-    SetCheck(dxOb_YC, us.fSmartCusp);
-    SetCheck(dxOb_Y8, us.fClip80);
-    SetCheck(dxOb_YR0_s, us.fIgnoreSign);
-    SetCheck(dxOb_YR0_d, us.fIgnoreDir);
+    SetCheck(dxDi_Yr, us.fRound);
+    SetCheck(dxDi_Yd, us.fEuroDate);
+    SetCheck(dxDi_Yt, us.fEuroTime);
+    SetCheck(dxDi_Yv, us.fEuroDist);
+    SetCheck(dxDi_YC, us.fSmartCusp);
+    SetCheck(dxDi_Y8, us.fClip80);
+    SetCheck(dxDi_YR0_s, us.fIgnoreSign);
+    SetCheck(dxDi_YR0_d, us.fIgnoreDir);
     if (us.objRequire >= 0)
-      SetEdit(deOb_RO, szObjName[us.objRequire]);
+      SetEdit(deDi_RO, szObjName[us.objRequire]);
     else
-      SetEdit(deOb_RO, "None");
-    SetCheck(dxOb_YO, us.fSmartSave);
-    SetCheck(dxOb_kh, us.fTextHTML);
-    SetCheck(dxOb_Yo, us.fWriteOld);
-    SetCheck(dxOb_YXf, gs.fFont);
-    SetEdit(deOb_YXp0_x, SzLength(gs.xInch));
-    SetEdit(deOb_YXp0_y, SzLength(gs.yInch));
+      SetEdit(deDi_RO, "None");
+    SetCheck(dxDi_YO, us.fSmartSave);
+    SetCheck(dxDi_kh, us.fTextHTML);
+    SetCheck(dxDi_Yo, us.fWriteOld);
+    SetCheck(dxDi_YXf, gs.fFont);
+    SetEdit(deDi_YXp0_x, SzLength(gs.xInch));
+    SetEdit(deDi_YXp0_y, SzLength(gs.yInch));
     SetRadio(gs.nOrient == 0 ? dr03 : (gs.nOrient > 0 ? dr01 : dr02),
       dr01, dr03);
     SetRadio(us.nDegForm == 0 ? dr04 : (us.nDegForm == 1 ? dr05 : dr06),
       dr04, dr06);
-    for (i = 0; i < 4; i++)
-      SetCheck(dxOb_z0 + i, ignorez[i]);
     for (i = 0; i < 5; i++)
-      SetCheck(dxOb_r0 + i, ignore7[i]);
-    SetEditN(deOb_A, us.nAsp);
-    SetEditN(deOb_I, us.nScreenWidth);
+      SetCheck(dxDi_r0 + i, ignore7[i]);
+    SetEditN(deDi_A, us.nAsp);
+    SetEditN(deDi_I, us.nScreenWidth);
+    SetCheck(dxDi_Yu, us.fEclipse);
+    for (i = 0; i < 4; i++)
+      SetCheck(dxDi_z0 + i, ignorez[i]);
     return fTrue;
 
   case WM_COMMAND:
     if (wParam == IDOK) {
-      GetEdit(deOb_A, sz); na = NParseSz(sz, pmAspect);
-      ni = GetEditN(deOb_I);
-      GetEdit(deOb_RO, sz); nro = NParseSz(sz, pmObject);
+      GetEdit(deDi_A, sz); na = NParseSz(sz, pmAspect);
+      ni = GetEditN(deDi_I);
+      GetEdit(deDi_RO, sz); nro = NParseSz(sz, pmObject);
       EnsureN(na, FValidAspect(na), "aspect count");
       EnsureN(ni, FValidScreen(ni), "text columns");
       EnsureN(nro, FItem(nro) || nro == -1, "required object");
-      us.fRound = GetCheck(dxOb_Yr);
-      us.fEuroDate = GetCheck(dxOb_Yd);
-      us.fEuroTime = GetCheck(dxOb_Yt);
-      us.fEuroDist = GetCheck(dxOb_Yv);
-      us.fSmartCusp = GetCheck(dxOb_YC);
-      us.fClip80 = GetCheck(dxOb_Y8);
-      us.fIgnoreSign = GetCheck(dxOb_YR0_s);
-      us.fIgnoreDir = GetCheck(dxOb_YR0_d);
+      us.fRound = GetCheck(dxDi_Yr);
+      us.fEuroDate = GetCheck(dxDi_Yd);
+      us.fEuroTime = GetCheck(dxDi_Yt);
+      us.fEuroDist = GetCheck(dxDi_Yv);
+      us.fSmartCusp = GetCheck(dxDi_YC);
+      us.fClip80 = GetCheck(dxDi_Y8);
+      us.fIgnoreSign = GetCheck(dxDi_YR0_s);
+      us.fIgnoreDir = GetCheck(dxDi_YR0_d);
       us.objRequire = nro;
-      us.fSmartSave = GetCheck(dxOb_YO);
-      us.fTextHTML = GetCheck(dxOb_kh);
-      us.fWriteOld = GetCheck(dxOb_Yo);
-      gs.fFont = GetCheck(dxOb_YXf);
-      GetEdit(deOb_YXp0_x, sz); gs.xInch = RParseSz(sz, pmLength);
-      GetEdit(deOb_YXp0_y, sz); gs.yInch = RParseSz(sz, pmLength);
+      us.fSmartSave = GetCheck(dxDi_YO);
+      us.fTextHTML = GetCheck(dxDi_kh);
+      us.fWriteOld = GetCheck(dxDi_Yo);
+      gs.fFont = GetCheck(dxDi_YXf);
+      GetEdit(deDi_YXp0_x, sz); gs.xInch = RParseSz(sz, pmLength);
+      GetEdit(deDi_YXp0_y, sz); gs.yInch = RParseSz(sz, pmLength);
       gs.nOrient = GetCheck(dr03) ? 0 : (GetCheck(dr01) ? 1 : -1);
       us.nDegForm = GetCheck(dr04) ? 0 : (GetCheck(dr05) ? 1 : 2);
-      for (i = 0; i < 4; i++)
-        ignorez[i] = GetCheck(dxOb_z0 + i);
+      for (i = 0; i < 5; i++)
+        ignore7[i] = GetCheck(dxDi_r0 + i);
       for (i = us.nAsp + 1; i <= na; i++)
         ignorea[i] = fFalse;
       for (i = na + 1; i <= cAspect; i++)
         ignorea[i] = fTrue;
-      for (i = 0; i < 5; i++)
-        ignore7[i] = GetCheck(dxOb_r0 + i);
       us.nAsp = na;
       us.nScreenWidth = ni;
+      us.fEclipse = GetCheck(dxDi_Yu);
+      for (i = 0; i < 4; i++)
+        ignorez[i] = GetCheck(dxDi_z0 + i);
       wi.fCast = fTrue;
     }
     if (wParam == IDOK || wParam == IDCANCEL) {
@@ -1682,14 +1800,8 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
     SetRadio(dr01 + n1, dr01, dr07);
     SetEditMDYT(hdlg, dcTrMon, dcTrDay, dcTrYea, dcTrTim,
       MonT, DayT, YeaT, TimT);
-    if (n1 == 1 || n1 == 3 || n1 == 6) {
-      n2 = us.fInDayMonth || (n1 == 1 && is.fProgress);
-      if (n2 == 1 && us.fInDayYear)
-        n2 += 1 + (NAbs(us.nEphemYears) > 1);
-    } else if (n1 == 4) {
-      n2 = 1 + us.fInDayYear + us.fInDayYear*(NAbs(us.nEphemYears) > 1);
-    } else
-      n2 = us.fInDayMonth + us.fInDayYear;
+    n2 = us.fInDayMonth + us.fInDayYear +
+      us.fInDayYear*(NAbs(us.nEphemYears) > 1);
     SetRadio(dr08 + n2, dr08, dr11);
     SetEditN(deTr_tY, us.nEphemYears);
     SetCheck(dxTr_p, is.fProgress);
@@ -1742,18 +1854,20 @@ flag API DlgTransit(HWND hdlg, uint message, WORD wParam, LONG lParam)
       }
       n2 = GetCheck(dr08) ? 0 : (GetCheck(dr09) ? 1 :
         (GetCheck(dr10) ? 2 : 3));
-      us.fInDayMonth = n2 >= 1 || (n1 == 1 && is.fProgress);
+      us.fInDayMonth = n2 >= 1;
       us.fInDayYear = us.fInDayMonth && n2 >= 2;
       if (n2 == 2 && NAbs(us.nEphemYears) > 1)
         us.nEphemYears = 0;
-      if (n1 == 2) {
-        us.fProgress = is.fProgress;
-        wi.fCast = fTrue;
-        us.fGraphics = fFalse;
-      } else if (n1 == 3 || n1 == 6)
+      if (n1 == 3 || n1 == 6)
         us.nEphemYears = (n2 <= 2 ? 1 : 5);
-      else
+      else {
         us.fGraphics = fFalse;
+        if (n1 == 2 || n1 == 5) {
+          wi.fCast = fTrue;
+          if (n1 == 2)
+            us.fProgress = is.fProgress;
+        }
+      }
       wi.fRedraw = fTrue;
     }
     if (wParam == IDOK || wParam == IDCANCEL) {
@@ -1871,16 +1985,17 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
     case 'n': nT = dr04; break;
     case 'b': nT = dr05; break;
     case 'd': nT = dr06; break;
+    case 'v': nT = dr07; break;
     default:  nT = dr01;
     }
-    SetRadio(nT, dr01, dr06);
+    SetRadio(nT, dr01, dr07);
     switch (us.nArabic) {
-    case 'z': nT = dr08; break;
-    case 'n': nT = dr09; break;
-    case 'f': nT = dr10; break;
-    default:  nT = dr07;
+    case 'z': nT = dr09; break;
+    case 'n': nT = dr10; break;
+    case 'f': nT = dr11; break;
+    default:  nT = dr08;
     }
-    SetRadio(nT, dr07, dr10);
+    SetRadio(nT, dr08, dr11);
     return fTrue;
 
   case WM_COMMAND:
@@ -1918,10 +2033,10 @@ flag API DlgChart(HWND hdlg, uint message, WORD wParam, LONG lParam)
       if (us.nStar)
         us.nStar = GetCheck(dr02) ? 'z' : (GetCheck(dr03) ? 'l' :
           (GetCheck(dr04) ? 'n' : (GetCheck(dr05) ? 'b' :
-          (GetCheck(dr06) ? 'd' : fTrue))));
+          (GetCheck(dr06) ? 'd' : (GetCheck(dr07) ? 'v' : fTrue)))));
       if (us.nArabic)
-        us.nArabic = GetCheck(dr08) ? 'z' : (GetCheck(dr09) ? 'n' :
-          (GetCheck(dr10) ? 'f' : fTrue));
+        us.nArabic = GetCheck(dr09) ? 'z' : (GetCheck(dr10) ? 'n' :
+          (GetCheck(dr11) ? 'f' : fTrue));
       wi.fCast = fTrue;
     }
     if (wParam == IDOK || wParam == IDCANCEL) {

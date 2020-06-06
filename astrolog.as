@@ -1,4 +1,4 @@
-@0309  ; Astrolog (6.50) default settings file astrolog.as
+@AD700  ; Astrolog 7.00 default settings file astrolog.as
 
 -z 8:00W                ; Default time zone     [hours W or E of UTC   ]
 -z0 Autodetect          ; Default Daylight time [0 standard, 1 daylight]
@@ -7,7 +7,7 @@
 -zj "Current moment now" "Seattle, WA" ; Default name and location
 
 ;-n      ; Comment out this line to not start with chart for "now".
--Yz 0   ; Time minute addition to be used when "now" charts are off.
+-Yz 0   ; Time minute addition to be used if "now" charts are offset.
 
 _s      ; Zodiac selection          ["_s" is tropical, "=s" is sidereal]
 :s 0.0  ; Zodiac offset value       [Change "0.0" to desired ayanamsa  ]
@@ -28,16 +28,21 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 =YC     ; Smart cusp displays       ["=YC" is smart, "_YC" is normal   ]
 =YO     ; Smart copy and printing   ["=YO" does it smart, "_YO" doesn't]
 =Y8     ; Clip text to end of line  ["=Y8" clips, "_Y8" doesn't clip   ]
+=Yu     ; Show eclipse information  ["=Yu" shows, "_Yu" doesn't show   ]
 
 
-; FILE PATHS:
-; For example, point -Yi1 to ephemeris dir, and -Yi2 to chart files dir.
+; FILE PATHS (-Yi1 through -Yi9):
+; For example, point -Yi1 to ephemeris dir, -Yi2 to chart files dir, etc.
 
 -Yi1 "C:\AST\EPH"
 -Yi2 "C:\AST\DAT"
 
 
 ; DEFAULT RESTRICTIONS:
+;  0-10: Ear Sun Moo Mer Ven Mar Jup Sat Ura Nep Plu
+; 11-21: Chi Cer Pal Jun Ves Nor Sou Lil For Ver EP
+; 22-33: Asc 2nd 3rd Nad 5th 6th Des 8th 9th MC 11th 12th
+; 34-42: Vul Cup Had Zeu Kro Apo Adm Vulk Pos
 
 -YR 0 10     1 0 0 0 0 0 0 0 0 0 0    ; Planets
 -YR 11 21    1 1 1 1 1 0 1 1 1 1 1    ; Minor planets
@@ -57,6 +62,9 @@ _Yr     ; Show rounded positions    ["=Yr" rounds, "_Yr" doesn't       ]
 
 
 ; DEFAULT ASPECT ORBS:
+;  1- 5: Con Opp Squ Tri Sex
+;  6-11: Inc SSx SSq Ses Qui BQn
+; 12-18: SQn Sep Nov BNv BSp TSp QNv
 
 -YAo 1 5     7 7 7 7 6      ; Major aspects
 -YAo 6 11    3 3 3 3 2 2    ; Minor aspects
@@ -137,13 +145,13 @@ _Xr              ; Reverse background ["_Xr" is black, "=Xr" is white     ]
 :XS 100          ; Graphics text scale [100-400]
 =XQ              ; Square charts ["=XQ" forces square, "_XQ" allows rectangle]
 =Xu              ; Chart border  ["=Xu" shows border, "_Xu" doesn't show     ]
-:Xbb             ; Bitmap file type
+:Xbb             ; Bitmap file type   ["Xbb" is Windows .bmp, "Xbn" is X11   ]
 :YXG 1111        ; Glyph selections   [Capricorn, Uranus, Pluto, Lilith]
 :YXg 0           ; Aspect grid cells  ["0" for autodetect  ]
 :YXS 0.0         ; Orbit radius in AU ["0.0" for autodetect]
 :YXj 0           ; Orbit trail count
 :YX7 600         ; Esoteric ray column influence width
-:YXf 2           ; Use actual fonts
+:YXf 0           ; Use actual fonts
 :YXp 0           ; PostScript paper orientation ["-1" portrait, "1" landscape]
 :YXp0 8.5in 11in ; PostScript paper X and Y sizes
 

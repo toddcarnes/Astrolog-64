@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: io.cpp
+** Astrolog (Version 7.00) File: io.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -86,7 +90,7 @@ FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
 #ifdef WIN
     GetModuleFileName(wi.hinst, sz, cchSzMax);
 #else
-    sprintf(sz, "%s", is.szProgName != NULL ? is.szProgName : chNull);
+    sprintf(sz, "%s", is.szProgName != NULL ? is.szProgName : "");
 #endif
     for (pch = sz; *pch; pch++)
       ;
@@ -117,11 +121,7 @@ FILE *FileOpen(CONST char *szFile, int nFileMode, char *szPath)
 #ifdef ENVIRON
     /* Next look for the file in the directory indicated by the version */
     /* specific system environment variable.                            */
-    sprintf(sz, "%s%s", ENVIRONVER, szVersionCore);
-    for (pch = sz; *pch && *pch != '.'; pch++)
-      ;
-    while (*pch && (*pch = pch[1]) != chNull)
-      pch++;
+    sprintf(sz, "%s%s", ENVIRONVER, szVerCore);
     env = getenv(sz);
     if (env && *env) {
       sprintf(sz, "%s%c%s", env, chDirSep, szFileT);
@@ -181,11 +181,14 @@ flag FProcessSwitchFile(CONST char *szFile, FILE *file)
 {
   char szLine[cchSzMax], *argv[MAXSWITCHES], ch;
   int argc, i;
+  flag fRet = fFalse;
 
-  if (file == NULL)
+  if (file == NULL) {
     file = FileOpen(szFile, 0, NULL);
-  if (file == NULL)
-    return fFalse;
+    if (file == NULL)
+      goto LDone;
+  }
+  is.fileIn = file;
 
   /* All files have to begin with the -@ switch file type identifier. */
   ch = getc(file); ungetc(ch, file);
@@ -194,7 +197,7 @@ flag FProcessSwitchFile(CONST char *szFile, FILE *file)
       "The command file '%s' is not in any valid format (character %d).",
       szFile, (int)ch);
     PrintWarning(szLine);
-    return fFalse;
+    goto LDone;
   }
 
   loop {
@@ -208,9 +211,13 @@ flag FProcessSwitchFile(CONST char *szFile, FILE *file)
     szLine[i] = chNull;
     argc = NParseCommandLine(szLine, argv);
     if (!FProcessSwitches(argc, argv))
-      return fFalse;
+      goto LDone;
   }
-  return fTrue;
+  fRet = fTrue;
+
+LDone:
+  is.fileIn = NULL;
+  return fRet;
 }
 
 
@@ -229,7 +236,7 @@ flag FOutputData(void)
     return fFalse;
   file = fopen(is.szFileOut, "w");  /* Create and open the file for output. */
   if (file == NULL) {
-    sprintf(sz, "File %s can not be created.", is.szFileOut);
+    sprintf(sz, "File '%s' can not be created.", is.szFileOut);
     PrintError(sz);
     return fFalse;
   }
@@ -249,7 +256,7 @@ flag FOutputData(void)
       fprintf(file, "%d\n%d\n%d\n%.2f\n%.2f\n%.2f\n%.2f\n", Mon, Day, Yea,
         DegToDec(Tim), DegToDec(Zon-dst), DegToDec(Lon), DegToDec(Lat));
     } else {
-      fprintf(file, "@0103  ; %s chart info.\n", szAppName);
+      fprintf(file, "@AI%s  ; %s chart info.\n", szVerCore, szAppName);
       i = us.fAnsiChar;
       us.fAnsiChar = fFalse;
       fprintf(file, "%cqb %.3s %d %d %s %s ", chSwitch, szMonth[Mon],
@@ -257,10 +264,10 @@ flag FOutputData(void)
         Dst == dstAuto ? "Autodetect" : SzZone(Dst)));
       fprintf(file, "%s %s\n", SzZone(Zon), SzLocation(Lon, Lat));
       /* Don't want double quotes within double quoted string parameters. */
-      for (pch = ciMain.nam; *pch; *pch++)
+      for (pch = ciMain.nam; *pch; pch++)
         if (*pch == '"')
           *pch = '\'';
-      for (pch = ciMain.loc; *pch; *pch++)
+      for (pch = ciMain.loc; *pch; pch++)
         if (*pch == '"')
           *pch = '\'';
       fprintf(file, "%czi \"%s\" \"%s\"\n", chSwitch, ciMain.nam, ciMain.loc);
@@ -298,7 +305,7 @@ flag FOutputData(void)
       }
 
     } else {
-      fprintf(file, "@0205  ; %s chart positions.\n", szAppName);
+      fprintf(file, "@AP%s  ; %s chart positions.\n", szVerCore, szAppName);
       fprintf(file, "%czi \"%s\" \"%s\"\n", chSwitch, ciMain.nam, ciMain.loc);
       for (i = 0; i <= cObj; i++) if (!ignore[i] || FCusp(i)) {
         fprintf(file, "%cYF ", chSwitch);
@@ -315,7 +322,7 @@ flag FOutputData(void)
           planetalt[i] : RFract(RAbs(planetalt[i]));
         fprintf(file, "%4d %13.9f,", (int)planetalt[i], rT*60.0);
         rT = i > oNorm ? 999.0 : (i == oMoo && !us.fEphemFiles ? 0.0026 :
-          RSqr(Sq(space[i].x) + Sq(space[i].y) + Sq(space[i].z)));
+          RLength3(space[i].x, space[i].y, space[i].z));
         fprintf(file, " %13.9f %13.9f\n", ret[i], rT);
       }
     }
@@ -350,12 +357,16 @@ int NParseSz(CONST char *szEntry, int pm)
   int cch, n, i;
 
   /* First strip off any leading or trailing spaces. */
-  for (cch = 0; szLocal[cch] = szEntry[cch]; cch++)
+  for (cch = 0; (szLocal[cch] = szEntry[cch]); cch++)
     ;
   while (cch && szLocal[cch-1] <= ' ')
     szLocal[--cch] = chNull;
   for (sz = szLocal; *sz && *sz <= ' '; sz++, cch--)
     ;
+#ifdef EXPRESS
+  if (sz[0] == '~')
+    return NParseExpression(sz+1);
+#endif
 
   if (cch >= 3) {
     ch0 = ChCap(sz[0]); ch1 = ChUncap(sz[1]); ch2 = ChUncap(sz[2]);
@@ -410,9 +421,23 @@ int NParseSz(CONST char *szEntry, int pm)
       break;
     /* Parse color indexes, e.g. "White" or "Whi" -> 15 for White. */
     case pmColor:
+      if (FMatchSz(sz, "Ray")) {
+        i = atoi(sz + 3);
+        if (FBetween(i, 1, cRay))
+          return kRayA[i];
+      }
       for (i = 0; i < cColor+2; i++)
         if (FMatchSz(sz, szColor[i]))
           return i;
+      for (i = 0; i < cElem; i++)
+        if (FMatchSz(sz, szElem[i]))
+          return kElemA[i];
+      for (i = 0; i <= cObj; i++)
+        if (FMatchSz(sz, szObjName[i]))
+          return kObjA[i];
+      for (i = 1; i <= cAspect; i++)
+        if (FMatchSz(sz, szAspectAbbrev[i]))
+          return kAspA[i];
       if (!FNumCh(ch0))
         return -1;
       break;
@@ -433,6 +458,12 @@ int NParseSz(CONST char *szEntry, int pm)
       }
       i = Rgb(RGBB(i), RGBG(i), RGBR(i));
       return i;
+    /* Parse day of week, e.g. "Monday" or "Mon" -> 1 for Monday. */
+    case pmWeek:
+      for (i = 0; i < cWeek; i++)
+        if (FMatchSz(sz, szDay[i]))
+          return i;
+      return -1;
     }
   }
   if (pm == pmObject && !FNumCh(sz[0]))
@@ -472,12 +503,16 @@ real RParseSz(CONST char *szEntry, int pm)
   real r;
 
   /* First strip off any leading or trailing spaces. */
-  for (cch = 0; szLocal[cch] = szEntry[cch]; cch++)
+  for (cch = 0; (szLocal[cch] = szEntry[cch]); cch++)
     ;
   while (cch && szLocal[cch-1] <= ' ')
     szLocal[--cch] = chNull;
-  for (sz = szLocal; *sz && *sz <= ' '; sz++, cch--);
+  for (sz = szLocal; *sz && *sz <= ' '; sz++, cch--)
     ;
+#ifdef EXPRESS
+  if (sz[0] == '~')
+    return RParseExpression(sz+1);
+#endif
   /* Capitalize all letters. */
   for (pch = sz; *pch; pch++)
     *pch = ChCap(*pch);
@@ -505,6 +540,21 @@ real RParseSz(CONST char *szEntry, int pm)
     for (i = 0; i < cZone; i++)
       if (NCompareSz(sz, szZon[i]) == 0)
         return rZon[i];
+    /* Allow "H" prefix for numeric zones, e.g. "H5W". */
+    if (ch == 'H') {
+      sz++, cch--;
+      ch = sz[0];
+    }
+    /* Negate the value for an "E" in the middle somewhere (e.g. "5E30"). */
+    for (i = 0; i < cch; i++) {
+      chT = sz[i];
+      if (FCapCh(chT)) {
+        if (chT == 'E')
+          fNeg = fTrue;
+        sz[i] = ':';
+        break;
+      }
+    }
   } else if (pm == pmLon || pm == pmLat) {
     /* For locations, negate the value for an "E" or "S" in the middle    */
     /* somewhere (e.g. "105E30" or "27:40S") for eastern/southern values. */
@@ -523,11 +573,21 @@ real RParseSz(CONST char *szEntry, int pm)
   if (!FNumCh(ch) && ch != '+' && ch != '-' && ch != '.')
     return rLarge;
   r = atof(sz);
+  if (r < 0.0) {
+    fNeg = fTrue;
+    neg(r);
+  }
   for (pch = sz; *pch && *pch != ':'; pch++)
     ;
   if (*pch == ':') {
     pch++;
-    r += atof(pch) / 60.0;
+    /* Check for Astrodienst style MMSS with no separator between them. */
+    if (FNumCh(*pch) && FNumCh(pch[1]) && FNumCh(pch[2]) && FNumCh(pch[3]) &&
+      !FNumCh(pch[4]) && pch[4] != ':') {
+      i = atoi(pch);
+      r += (real)(i / 100) / 60.0 + (real)(i % 100) / 3600.0;
+    } else
+      r += atof(pch) / 60.0;
     while (*pch && *pch != ':')
       pch++;
     if (*pch == ':')
@@ -555,7 +615,7 @@ real RParseSz(CONST char *szEntry, int pm)
   } else if (pm == pmZon) {
     /* Check for "E" suffix for East of GMT. */
     i = Max(cch-1, 0);
-    if (sz[i] == 'E')
+    if (sz[i] == 'E' || (cch >= 9 && sz[cch-4] == ' ' && sz[cch-5] == 'E'))
       neg(r);
   } else if (pm == pmElv) {
     /* Check for "feet" or "ft" suffix for feet instead of meters. */
@@ -672,6 +732,11 @@ flag FInputData(CONST char *szFile)
     ciCore = ciTran;
     return fTrue;
   }
+  if (NCompareSz(szFile, "__g") == 0) {
+    is.fHaveInfo = fTrue;
+    ciCore = ciGreg;
+    return fTrue;
+  }
 
   /* If we are to read from the virtual file "__1" through "__4" then that */
   /* means copy the chart information from the specified chart slot.       */
@@ -733,7 +798,7 @@ flag FInputData(CONST char *szFile)
       1, 12, pmMon);
     DD = NInputRange("Enter day   for chart (e.g. '1' '31') ",
       1, DayInMonth(MM, 0), pmDay);
-    YY = NInputRange("Enter year  for chart (e.g. '2019')   ",
+    YY = NInputRange("Enter year  for chart (e.g. '2020')   ",
       -32000, 32000, pmYea);
     if (FBetween(YY, 0, 99)) {
       sprintf(sz,
@@ -743,21 +808,35 @@ flag FInputData(CONST char *szFile)
     }
     TT = RInputRange("Enter time  for chart (e.g. '18:30' '6:30pm')  ",
       -2.0, 24.0, pmTim);
-    SS = us.fWriteOld ? 0.0 :
-      RInputRange("Enter if Daylight time in effect (e.g. 'y' '1')",
+#ifdef ATLAS
+    InputString("Enter name of city or location", sz);
+    ciCore.loc = SzPersist(sz);
+    if (DisplayAtlasLookup(sz, 0, &i)) {
+      ciCore.loc = SzPersist(sz);  // DisplayAtlasLookup changes ciCore.loc.
+      if (DisplayTimezoneChanges(is.rgae[i].izn, 0, &ciCore)) {
+        sprintf(sz, "Atlas data for %s: (%cT Zone %s) %s\n", SzCity(i),
+          ChDst(SS), SzZone(ZZ),
+          SzLocation(is.rgae[i].lon, is.rgae[i].lat));
+        PrintSz(sz);
+      } else
+        PrintWarning("Couldn't get time zone data!");
+    } else
+      PrintWarning("Couldn't find anything in atlas matching location.");
+#endif
+    SS = RInputRange("Enter if Daylight time in effect (e.g. 'y' '1')",
       -24.0, 24.0, pmDst);
-    ZZ = RInputRange("Enter time zone (e.g. '5' 'ET' for Eastern)    ",
+    ZZ = RInputRange("Enter time zone (e.g. '5W' 'ET' for Eastern)   ",
       -24.0, 24.0, pmZon);
     OO = RInputRange("Enter Longitude of place (e.g. '122W20')",
       -rDegHalf, rDegHalf, pmLon);
     AA = RInputRange("Enter Latitude  of place (e.g. '47N36') ",
       -rDegQuad, rDegQuad, pmLat);
-    if (!us.fWriteOld) {
-      InputString("Enter name or title for chart ", sz);
-      ciCore.nam = SzPersist(sz);
-      InputString("Enter name of city or location", sz);
-      ciCore.loc = SzPersist(sz);
-    }
+    InputString("Enter name or title for chart ", sz);
+    ciCore.nam = SzPersist(sz);
+#ifndef ATLAS
+    InputString("Enter name of city or location", sz);
+    ciCore.loc = SzPersist(sz);
+#endif
     PrintL();
     is.cchRow = 0;
     is.S = file;

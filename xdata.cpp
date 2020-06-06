@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xdata.cpp
+** Astrolog (Version 7.00) File: xdata.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -59,26 +63,26 @@
 
 GS gs = {
 #ifdef ISG
-  fFalse,
+  ftNone,
 #else
-  fTrue,
+  ftBmp,
 #endif
-  fFalse, fFalse, fFalse, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse, fTrue,
-  fTrue, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
+  fTrue, fTrue, fFalse, fFalse, fTrue, fTrue, fFalse, fTrue, fTrue, fFalse,
+  fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse, fFalse,
   fFalse, fTrue, fFalse, DEFAULTX, DEFAULTY,
 #ifdef WIN
   -10,
 #else
   0,
 #endif
-  200, 100, 0, 0, 0.0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
+  200, 100, 0, 0, 0, 3, 0, 0, 0.0, 0.0, BITMAPMODE, 0, 8.5, 11.0, NULL,
   0, 25, 11, oCore, 0.0, 1000, 0, 600, 1111, fFalse, fFalse, 7, "", ""};
 
 GI gi = {
   0, fFalse, -1,
   NULL, 0, NULL, NULL, 0.0, fFalse, fFalse,
   2, 1, 1, 20, 10, kWhite, kBlack, kLtGray, kDkGray, 0, 0, 0, 0, -1, -1,
-  NULL, 0, 0,
+  NULL, 0, 0, NULL,
 #ifdef SWISS
   NULL, 0,
 #endif
@@ -101,10 +105,12 @@ WI wi = {
   (HINSTANCE)NULL, (HWND)NULL, (HWND)NULL, (HMENU)NULL, (HACCEL)NULL, hdcNil,
   hdcNil, (HWND)NULL, (HPEN)NULL, (HBRUSH)NULL, (HFONT)NULL, (HANDLE)NULL,
   0, 0, 0, 0, 0, 0, 0, -1, -1,
-  0, 0, 0, fFalse, fTrue, fFalse, fTrue, fFalse, 1,
+  0, 0, 0, -1, fFalse, fTrue, fFalse, fTrue, fFalse, fFalse,
+  1, fFalse, {0, 0, 0, 0}, fFalse, fFalse,
 
   /* Window user settings. */
   fFalse, fTrue, fTrue, fFalse, fTrue, fFalse, fFalse, fFalse, fFalse, fFalse,
+  fFalse,
   0, kBlack, 1, 1000};
 
 OPENFILENAME ofn = {
@@ -141,8 +147,18 @@ KV rgbbmp[cColor];
 KV rgbind[cColor], fg, bg;
 #endif
 #ifdef WIN
-int ikPalette[cColor] =
+CONST int ikPalette[cColor] =
   {-0, -1, 1, 4, 6, 3, -8, 5, -3, -2, -4, -5, -7, 2, 7, -6};
+CONST int rgcmdMode[gMax] = {0,
+  cmdChartList, cmdChartWheel, cmdChartGrid, cmdChartHorizon, cmdChartOrbit,
+  cmdChartSector, cmdChartCalendar, cmdChartInfluence, cmdChartEsoteric,
+  cmdChartAstroGraph, cmdChartEphemeris, cmdTransit, cmdTransit,
+  cmdChartSphere, cmdChartMap, cmdChartGlobe, cmdChartPolar,
+  0/*cmdRelBiorhythm*/, cmdChartAspect, cmdChartMidpoint, cmdChartArabic,
+  cmdChartRising, cmdTransit, cmdTransit, cmdTransit, cmdTransit,
+  cmdHelpSign, cmdHelpObject, cmdHelpAspect, cmdHelpConstellation,
+  cmdHelpPlanetInfo, cmdHelpRay, cmdHelpMeaning, cmdHelpSwitch,
+  cmdHelpObscure, cmdHelpKeystroke, cmdHelpCredit};
 #endif
 char *szWheelX[4+1] = {NULL, NULL, NULL, NULL, NULL};
 
@@ -169,9 +185,9 @@ char xkey[10];
 
 #ifdef VECTOR
 //                                  ESMMVMJSUNPccpjvnslpveA23I56D89M12
-CONST char szObjectFont[oNorm+1] = ";QRSTUVWXYZ     <>    a  c     b  ";
-//                                    C OSTSisssqbssnbbtq
-CONST char szAspectFont[cAspect+1] = "!\"#$'&%()+*       ";
+CONST char szObjectFont[oNorm+1] = ";QRSTUVWXYZ     <> ?  a  c     b  ";
+//                                    C OSTSisssqbssnbbtqPC
+CONST char szAspectFont[cAspect2+1] = "!\"#$'&%()+*         ";
 #endif
 
 CONST char *szDrawSign[cSign+2] = {"",
@@ -224,7 +240,7 @@ CONST char *szDrawSign3[cSign+2] = {"",
   "BH12RFRFR2FR6ER2ER2ER4G8DGD3GDGDGD3F3R6E3U6H3L8GLG4DGDGDG2"};
     /* Capricorn #2 */
 
-CONST char *szDrawObjectDef[oNorm+5] = {
+CONST char *szDrawObjectDef[objMax+5] = {
   "ND4NL4NR4U4LGLDGD2FDRFR2ERUEU2HULHL",    /* Earth   */
   "U0BH3DGD2FDRFR2ERUEU2HULHL2GL",          /* Sun     */
   "BG3E2U2H2ER2FRDFD2GDLGL2H",              /* Moon    */
@@ -268,14 +284,20 @@ CONST char *szDrawObjectDef[oNorm+5] = {
   "BUNU2NL2NR2D2ND3LHU2ENHR2NEFD2GL",       /* Admetos  */
   "G2DGR6HUH2U4NG2F2",                      /* Vulcanus */
   "ND4U4BL3DF2R2E2UBD8UH2L2G2D",            /* Poseidon */
+  "T", "T", "T", "T", "T", "T", "T", "T",   /* Stars    */
+  "T", "T", "T", "T", "T", "T", "T", "T",
+  "T", "T", "T", "T", "T", "T", "T", "T",
+  "T", "T", "T", "T", "T", "T", "T", "T",
+  "T", "T", "T", "T", "T", "T", "T", "T",
+  "T", "T", "T", "T", "T", "T", "T",
   "BD2D0BU6NG2NF2D4LGD2FR2EU2HL",           /* Uranus #2 */
   "BL3R5EU2HL5D8R5",                        /* Pluto  #2 */
   "UERHL2G2D2F2R2ELHU",                     /* Lilith #2 */
   "ND4U4NG3F3",                             /* Pluto  #3 */
   };
-CONST char *szDrawObject[oNorm+5];
+CONST char *szDrawObject[objMax+5];
 
-CONST char *szDrawObjectDef2[oNorm+5] = {
+CONST char *szDrawObjectDef2[objMax+5] = {
   "ND8NL8NR8U8L2GLG3DGD4FDF3RFR4ERE3UEU4HUH3LHL2", /* Earth */
   "U0BU8L2GLG3DGD4FDF3RFR4ERE3UEU4HUH3LHL2",       /* Sun   */
   "BG6E3UEU2HUH3E2R4FRF3DFD4GDG3LGL4H2",           /* Moon  */
@@ -319,12 +341,17 @@ CONST char *szDrawObjectDef2[oNorm+5] = {
   "", /* Admetos   */
   "G2DG2DG2R12H2UH2UH2U8NG4F4", /* Vulcanus  */
   "", /* Poseidon  */
+  "", "", "", "", "", "", "", "", "", "",   /* Stars    */
+  "", "", "", "", "", "", "", "", "", "", 
+  "", "", "", "", "", "", "", "", "", "", 
+  "", "", "", "", "", "", "", "", "", "", 
+  "", "", "", "", "", "", "",
   "", /* Uranus #2 */
   "", /* Pluto  #2 */
   "", /* Lilith #2 */
   "", /* Pluto  #3 */
   };
-CONST char *szDrawObject2[oNorm+5];
+CONST char *szDrawObject2[objMax+5];
 
 CONST char *szDrawHouse[cSign+1] = {"",
   "BD2NLNRU4L", "BHBUR2D2L2D2R2", "BHBUR2D2NL2D2L2",

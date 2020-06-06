@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xcharts2.cpp
+** Astrolog (Version 7.00) File: xcharts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -203,14 +207,14 @@ real HousePlaceInX(real deg, real degalt)
   real rIn;
 
   if (us.fHouse3D && degalt != 0.0) {
-    rIn = HousePlaceIn3D(deg, degalt) / 30.0;
+    rIn = RHousePlaceIn3D(deg, degalt) / 30.0;
     in = (int)rIn + 1;
     deg = Mod(chouse[in] +
       (rIn - RFloor(rIn)) * MinDistance(chouse[in], chouse[Mod12(in+1)]));
   }
   if (gi.nMode == gWheel)    /* We only adjust for the -w -X combination. */
     return deg;
-  in = HousePlaceIn2D(deg);
+  in = NHousePlaceIn2D(deg);
   return Mod(ZFromS(in)+MinDistance(chouse[in], deg)/
     MinDistance(chouse[in], chouse[Mod12(in+1)])*30.0);
 }
@@ -223,7 +227,7 @@ void DrawAspectRelation(int n1, int n2, real obj1[objMax], real obj2[objMax],
   int cx, int cy, real rx, real ry, real rz)
 {
   CP cpA, cpB;
-  int i, j, n;
+  int i, j;
 
   /* Put the two sets of chart data to compare in cp1 and cp2. */
   if (n1 != 1) {
@@ -244,25 +248,11 @@ void DrawAspectRelation(int n1, int n2, real obj1[objMax], real obj2[objMax],
   /* Compute and draw the aspect lines. */
   if (!FCreateGridRelation(fFalse))
     goto LExit;
-  if (gs.fAlt)
-    neg(gs.nDashMax);
   for (j = cObj; j >= 0; j--)
     for (i = cObj; i >= 0; i--)
       if (grid->n[i][j] && FProper2(i) && FProper(j) &&
-        obj1[j] >= 0.0 && obj2[i] >= 0.0) {
-        if (gs.nDashMax >= 0)
-          n = NAbs(grid->v[i][j]/(60*60*2));
-        else
-          n = NAbs(grid->v[i][j]) * -gs.nDashMax /
-            (int)(GetOrb(i, j, grid->n[i][j])*(60.0*60.0));
-        DrawColor(kAspB[grid->n[i][j]]);
-        DrawDash(cx+POINT1(rx, rz, PX(obj1[j])),
-          cy+POINT1(ry, rz, PY(obj1[j])),
-          cx+POINT1(rx, rz, PX(obj2[i])),
-          cy+POINT1(ry, rz, PY(obj2[i])), n);
-      }
-  if (gs.fAlt)
-    neg(gs.nDashMax);
+        obj1[j] >= 0.0 && obj2[i] >= 0.0)
+        DrawAspectLine(i, j, cx, cy, obj1[j], obj2[i], rx, ry, rz);
 
 LExit:
   if (n1 != 1)
@@ -627,6 +617,10 @@ void XChartGridRelation()
         /* of planet owning the particular row or column in question.    */
 
         if (y == 0 || x == 0) {
+          if (gs.fLabelAsp) {
+            DrawColor(kDkBlueB);
+            DrawBlock(x*unit+1, y*unit+1, (x+1)*unit-1, (y+1)*unit-1);
+          }
           if (x+y > 0)
             DrawObject(y == 0 ? i : j, gi.xTurtle, gi.yTurtle);
         } else {
@@ -699,27 +693,32 @@ void XChartGridRelation()
 }
 
 
-/* Draw a chart showing a graphical ephemeris for the given month (or year */
-/* if -Ey in effect), with the date on the vertical axis and the zodiac    */
-/* on the horizontal, as done when the -E is combined with the -X switch.  */
+/* Draw a chart showing a graphical ephemeris for the given month, year,  */
+/* or range of years, with the date on the vertical axis and the zodiac   */
+/* on the horizontal, as done when the -E is combined with the -X switch. */
 
 void XChartEphemeris()
 {
   real symbol[cObj*2+2], objSav[objMax], rT;
   char sz[cchSzDef];
-  int yea, unit = 6*gi.nScale, daytot, d = 1, day, mon, monsiz,
+  int cYea, unit = 6*gi.nScale, daytot, d = 1, dd, day, mon, yea, monsiz,
     x1, y1, x2, y2, xs, ys, m, n, u, v = 0, i, j, dx;
   flag fSav;
 
-  yea = us.nEphemYears;    /* Is this -Ey -X or just -E -X? */
-  if (yea) {
-    daytot = DayInYear(Yea);
-    day = 1; mon = 1; monsiz = 31;
+  cYea = us.nEphemYears;    /* Is this -Ey -X or just -E -X? */
+  if (cYea) {
+    daytot = 0;
+    for (i = 0; i < cYea; i++)
+      daytot += DayInYear(Yea + i);
+    day = 1; mon = 1; yea = Yea; monsiz = 31;
   } else
     daytot = DayInMonth(Mon, Yea);
-  x1 = (yea ? 30 : 24)*gi.nScaleT; y1 = unit*2;
-  x2 = gs.xWin - x1; y2 = gs.yWin - y1;
+  x1 = (Min(cYea, 2)*xFont + 24)*gi.nScaleT; y1 = unit*2;
+  x2 = gs.xWin - x1;
+  y2 = gs.yWin - y1 - gs.fText * (yFont*gi.nScaleText*gi.nScaleT);
   xs = x2 - x1; ys = y2 - y1;
+  dd = (daytot / ys + 2) * (2 - us.fSeconds);
+  dd = Min(dd, 28);
 
   /* Display glyphs of the zodiac along the bottom axis. */
 
@@ -753,28 +752,29 @@ void XChartEphemeris()
   while (d <= daytot + 1) {
     n = v;
     if (gs.fLabel &&
-      ((yea && mon == Mon && day == 1) || (!yea && d == Day))) {
-      if (yea)
+      (cYea ? (mon == Mon && day == 1 && yea == Yea) : (d == Day))) {
+      // Marker line for specific day.
+      if (cYea)
         v = y1 + NMultDiv(ys, d-2+Day, daytot);
       else
         v = y1 + NMultDiv(ys, (d-1)*24 + (int)Tim, daytot*24);
       DrawColor(kDkGreenB);
-      DrawLine(x1, v, x2, v);       /* Marker line for specific day. */
+      DrawLine(x1, v, x2, v);
     }
     v = y1 + NMultDiv(ys, d-1, daytot);
-    if (!yea || day == 1) {
+    if (!gs.fEquator && (!cYea || day == 1)) {
+      // Marker line for day or month.
       DrawColor(gi.kiGray);
-      DrawDash(x1, v, x2, v, 1);    /* Marker line for day or month. */
+      DrawDash(x1, v, x2, v, cYea <= 1 || mon == 1 ? 1 : 3);
     }
     if (d > 1)
       for (i = 0; i <= cObj; i++)
         objSav[i] = planet[i];
     ciCore = ciMain;
-    if (yea) {
-      MM = mon; DD = day;
-    } else {
-      MM = Mon; DD = d;
-    }
+    if (cYea) {
+      MM = mon; DD = day; YY = yea;
+    } else
+      DD = d;
     CastChart(fTrue);
     if (us.fParallel)
       for (i = 0; i <= cObj; i++) {
@@ -786,7 +786,7 @@ void XChartEphemeris()
 
     /* Draw planet glyphs along top of chart. */
 
-    if (d < 2) {
+    if (d <= 1) {
       for (i = 0; i <= cObj; i++) {
         j = !FProper(i);
         symbol[i*2] = (j || us.nRel > rcDual) ? -rLarge : cp2.obj[i];
@@ -825,15 +825,18 @@ void XChartEphemeris()
 
     /* Label months or days in the month along the left and right edges. */
 
-    if (d <= daytot && (!yea || day == 1)) {
-      if (yea) {
-        sprintf(sz, "%.3s", szMonth[mon]);
-        i = (mon == Mon && gs.fLabel);
+    if (d <= daytot && (!cYea || (day == 1 && (cYea <= 1 || mon == 1)))) {
+      if (cYea) {
+        if (cYea <= 1)
+          sprintf(sz, "%.3s", szMonth[mon]);
+        else
+          sprintf(sz, "%4d", yea);
+        i = (cYea <= 1 ? mon == Mon : yea == Yea);
       } else {
         sprintf(sz, "%2d", d);
-        i = (d == Day && gs.fLabel);
+        i = (d == Day);
       }
-      DrawColor(i ? gi.kiOn : gi.kiLite);
+      DrawColor(gs.fLabel && i ? gi.kiOn : gi.kiLite);
       DrawSz(sz,     xFont   *gi.nScaleT, v + (yFont-2)*gi.nScaleT,
         dtLeft | dtBottom);
       DrawSz(sz, x2+(xFont-1)*gi.nScaleT, v + (yFont-2)*gi.nScaleT,
@@ -843,18 +846,21 @@ void XChartEphemeris()
     /* Now increment the day counter. For a month we always go up by one. */
     /* For a year we go up by four or until the end of the month reached. */
 
-    if (yea) {
-      i = us.fSeconds ? 2 : 4;
-      day += i;
+    if (cYea) {
+      day += dd;
       if (day > monsiz) {
-        d += i-(day-monsiz-1);
+        d += dd - (day-monsiz-1);
         if (d <= daytot + 1) {
           mon++;
-          monsiz = DayInMonth(mon, Yea);
+          if (mon > cSign) {
+            yea++;
+            mon = 1;
+          }
+          monsiz = DayInMonth(mon, yea);
           day = 1;
         }
       } else
-        d += i;
+        d += dd;
     } else
       d++;
   }
@@ -874,13 +880,14 @@ void XChartEphemeris()
 void XChartTransit(flag fTrans, flag fProg)
 {
   TransGraInfo *rgEph;
-  word **ppw, *pw;
+  word **ppw, *pw, *pw2;
   char sz[cchSzDef];
   int cAsp, cSect, cTot, ymin, x, y, asp, iw, iwFocus = -1, nMax, n, obj,
-    iy, yRow, cRow = 0, xWid, xo, yo, iSect, iFrac, xp, yp, yp2, dyp;
-  flag fMonth = us.fInDayMonth, fYear = us.fInDayYear;
+    iy, yRow, cRow = 0, xWid, xo, yo, iSect, iFrac, xp, yp, yp2, dyp, et;
+  flag fMonth = us.fInDayMonth, fYear = us.fInDayYear, fEclipse =
+    us.fEclipse && !fTrans && us.objCenter == oEar && !us.fParallel;
   CI ciT;
-  real rT;
+  real rT, rPct;
 
   /* Initialize variables. */
   rgEph = (TransGraInfo *)PAllocate(sizeof(TransGraInfo),
@@ -1003,6 +1010,30 @@ void XChartTransit(flag fTrans, flag fProg)
         rT = (real)NAbs(n) / 3600.0;
         rT /= GetOrb(x, y, asp);
         pw[iw] = 65535 - (int)(rT * (65536.0 - rSmall));
+
+        /* Check for and add eclipse information to array too. */
+        if (fEclipse) {
+          et = etNone;
+          if (asp == aCon)
+            et = NCheckEclipse(x, y, &rPct);
+          else if (asp == aOpp && x == oSun && y == oMoo)
+            et = NCheckEclipseLunar(&rPct);
+          if (et > etNone) {
+            ppw = &(*rgEph)[y][x][asp];
+            if (*ppw == NULL) {
+              *ppw = (word *)PAllocate(cTot * sizeof(word),
+                "transit eclipse entry");
+              if (*ppw == NULL)
+                goto LDone;
+              pw2 = *ppw;
+              ClearB((pbyte)pw2, cTot * sizeof(word));
+            } else
+              pw2 = *ppw;
+            rT = (et < etPartial ? 50.0 : (et > etPartial ? 450.0 : 250.0)) +
+              rPct;
+            pw2[iw] = (int)(rT * 65535.0 / 600.0);
+          }
+        }
       }
     }
   }
@@ -1020,7 +1051,8 @@ void XChartTransit(flag fTrans, flag fProg)
     sprintf(sz, "%4d", ciT.yea);
   else
     sz[0] = chNull;
-  DrawSz(sz, yp, yp, dtLeft | dtTop | dtScale2);
+  if (CchSz(sz) * xFont * gi.nScaleText < xo)
+    DrawSz(sz, yp, yp, dtLeft | dtTop | dtScale2);
 
   DrawColor(gi.kiLite);
   if (!fMonth) {
@@ -1028,7 +1060,7 @@ void XChartTransit(flag fTrans, flag fProg)
       if (!us.fEuroTime)
         sprintf(sz, "%d%c", ((x+11) % 12)+1, x < 12 ? 'a' : 'p');
       else
-        sprintf(sz, "%d:00", x);
+        sprintf(sz, "%d", x);
       DrawSz(sz, xo + x*xWid, yp, dtLeft | dtTop | dtScale2);
     }
   } else if (!fYear) {
@@ -1129,6 +1161,15 @@ void XChartTransit(flag fTrans, flag fProg)
             DrawColor(n >= nMax || ((iw <= 0 || n > pw[iw-1]) &&
               (iw >= cTot-1 || n > pw[iw+1])) ? gi.kiOn : kAspB[asp]);
             DrawBlock(xo + iw, yp-1 - dyp, xo + iw, yp-1);
+            if (fEclipse) {
+              pw2 = (*rgEph)[y][x][asp];
+              if (pw2 != NULL && pw2[iw] > 0) {
+                n = pw2[iw];
+                dyp = (n-1) * (yRow-1) / 65535;
+                DrawColor(kDkBlueB);
+                DrawBlock(xo + iw, yp-1 - dyp, xo + iw, yp-1);
+              }
+            }
           }
         }
       }
@@ -1146,6 +1187,11 @@ LDone:
         pw = (*rgEph)[x][y][asp];
         if (pw != NULL)
           DeallocateP(pw);
+        if (fEclipse) {
+          pw2 = (*rgEph)[y][x][asp];
+          if (pw2 != NULL)
+            DeallocateP(pw2);
+        }
       }
   if (rgEph != NULL)
     DeallocateP(rgEph);
@@ -1217,7 +1263,7 @@ void XChartBiorhythm()
   }
   /* Label days on top horizontal axis. */
   k = Max(us.nBioday/7, 1);
-  for (j = -us.nBioday+k; j < us.nBioday; j += k) {
+  for (j = -(us.nBioday/k)*k; j < us.nBioday; j += k) {
     x = x1 + NMultDiv(xs, j+us.nBioday, us.nBioday*2);
     sprintf(sz, "%c%d", j < 0 ? '-' : '+', NAbs(j));
     DrawSz(sz, x, y1-2*gi.nScaleT, dtBottom);

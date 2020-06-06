@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: charts2.cpp
+** Astrolog (Version 7.00) File: charts2.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -96,9 +100,9 @@ void ChartListingRelation(void)
     PrintSz("  Location");
     PrintTab(' ', us.fSeconds ? 5 : 1);
     if (us.fSeconds)
-      PrintSz(" Latitude");
+      PrintSz(!us.fEquator2 ? " Latitude" : " Declin. ");
     else
-      PrintSz("Latit.");
+      PrintSz(!us.fEquator2 ? "Latit." : "Decl. ");
   }
   AnsiColor(kMainA[FOdd(i) ? 3 : 1]);
   PrintTab(' ', 3 + us.fSeconds);
@@ -122,8 +126,8 @@ void ChartListingRelation(void)
         if (!us.fAspect3D)
           rT = MinDistance(rgpcp[j]->obj[i], rgpcp[k]->obj[i]);
         else
-          rT = PolarDistance(rgpcp[j]->obj[i], rgpcp[k]->obj[i],
-            rgpcp[j]->alt[i], rgpcp[k]->alt[i]);
+          rT = PolarDistance(rgpcp[j]->obj[i], rgpcp[j]->alt[i],
+            rgpcp[k]->obj[i], rgpcp[k]->alt[i]);
         r = Max(r, rT);
       }
     AnsiColor(kDkGrayA);
@@ -263,8 +267,8 @@ void ChartAspectRelation(void)
     count = 0;
   real ip, jp, rPowSum = 0.0;
 
-  ClearB((pbyte)ca, (cAspect + 1)*(int)sizeof(int));
-  ClearB((pbyte)co, objMax*(int)sizeof(int));
+  ClearB((pbyte)ca, sizeof(ca));
+  ClearB((pbyte)co, sizeof(co));
   loop {
     vhi = -nLarge;
 
@@ -277,6 +281,16 @@ void ChartAspectRelation(void)
           jp = RObjInf(j);
           p = (int)(rAspInf[k]*(ip+jp)/2.0*
             (1.0-RAbs((real)(grid->v[i][j]))/3600.0/GetOrb(i, j, k))*1000.0);
+#ifdef EXPRESS
+          // Adjust power with AstroExpression if one set.
+          if (FSzSet(us.szExpAsplist)) {
+            ExpSetN(iLetterW, i);
+            ExpSetN(iLetterX, k);
+            ExpSetN(iLetterY, j);
+            ExpSetN(iLetterZ, p);
+            p = NParseExpression(us.szExpAsplist);
+          }
+#endif
           switch (us.nAspectSort) {
           default:  v = p;                           break;
           case aso: v = -NAbs(grid->v[i][j]);        break;
@@ -338,7 +352,7 @@ void ChartMidpointRelation(void)
   int mcut = -1, icut, jcut, mlo, ilo, jlo, m, i, j, count = 0;
   long lSpanSum = 0;
 
-  ClearB((pbyte)cs, (cSign + 1)*(int)sizeof(int));
+  ClearB((pbyte)cs, sizeof(cs));
   loop {
     mlo = 360*60*60;
 
@@ -547,6 +561,8 @@ void CastRelation(void)
 void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
 {
   char sz[cchSzDef];
+  int nEclipse;
+  real rPct;
 
   /* If the Sun changes sign, then print out if this is a season change. */
   if (aspect == aSig) {
@@ -572,10 +588,37 @@ void PrintInDayEvent(int source, int aspect, int dest, int nVoid)
         AnsiColor(kWhiteA);
       if (aspect == aCon)
         PrintSz(" (New Moon)");
-      else if (aspect == aOpp)
+      else if (aspect == aOpp) {
         PrintSz(" (Full Moon)");
-      else if (aspect == aSqu)
+        /* Full Moons may be a lunar eclipse. */
+        if (us.fEclipse && us.objCenter == oEar) {
+          nEclipse = NCheckEclipseLunar(&rPct);
+          if (nEclipse > etNone) {
+            AnsiColor(kWhiteA);
+            sprintf(sz, " (%s Lunar Eclipse", szEclipse[nEclipse]);
+            PrintSz(sz);
+            if (us.fSeconds) {
+              sprintf(sz, " %.0f%%", rPct); PrintSz(sz);
+            }
+            PrintSz(")");
+          }
+        }
+      } else if (aspect == aSqu)
         PrintSz(" (Half Moon)");
+    }
+    /* Conjunctions may be a solar eclipse or other occultation. */
+    if (us.fEclipse && aspect == aCon && !us.fParallel) {
+      nEclipse = NCheckEclipse(source, dest, &rPct);
+      if (nEclipse > etNone) {
+        AnsiColor(kWhiteA);
+        sprintf(sz, " (%s %s%s", szEclipse[nEclipse],
+          source == oSun ? "Solar " : "", source == oSun && dest == oMoo ?
+          "Eclipse" : "Occultation"); PrintSz(sz);
+        if (us.fSeconds) {
+          sprintf(sz, " %.0f%%", rPct); PrintSz(sz);
+        }
+        PrintSz(")");
+      }
     }
   }
 
@@ -659,6 +702,8 @@ void PrintAspect(int obj1, real pos1, int ret1, int asp,
     PrintZodiac((real)obj2 * (rDegMax / (real)(cSign * us.nSignDiv)));
   } else if (asp == aHou) {
     AnsiColor(kSignA(obj2));
+    if (chart == 't' || chart == 'u' || chart == 'T' || chart == 'U')
+      PrintSz("natal ");
     sprintf(sz, "%d%s 3D House", obj2, szSuffix[obj2]); PrintSz(sz);
   } else if (asp >= 0) {
     ki = kSignA(SFromZ(pos2));
@@ -693,10 +738,14 @@ void PrintAspect(int obj1, real pos1, int ret1, int asp,
 void ChartInDayInfluence(void)
 {
   int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY];
-  real power[MAXINDAY];
+  real power[MAXINDAY], rPowSum = 0.0;
+  int ca[cAspect + 1], co[objMax];
   char sz[cchSzDef];
   int occurcount = 0, i, j, k, l, m;
   flag f;
+
+  ClearB((pbyte)ca, sizeof(ca));
+  ClearB((pbyte)co, sizeof(co));
 
   /* Go compute the aspects in the chart. */
 
@@ -717,6 +766,9 @@ void ChartInDayInfluence(void)
       l = grid->v[i][j];
       power[occurcount] = (RTransitInf(i)/4.0) * (RTransitInf(j)/4.0) *
         rAspInf[k]*(1.0-(real)NAbs(l)/3600.0/GetOrb(i, j, k));
+      rPowSum += power[occurcount];
+      ca[k]++;
+      co[i]++; co[j]++;
       occurcount++;
     }
   }
@@ -774,6 +826,7 @@ void ChartInDayInfluence(void)
   }
   if (occurcount == 0)
     PrintSz("Empty transit aspect list.\n");
+  PrintAspectSummary(ca, co, occurcount, rPowSum);
 }
 
 
@@ -784,11 +837,15 @@ void ChartInDayInfluence(void)
 void ChartTransitInfluence(flag fProg)
 {
   int source[MAXINDAY], aspect[MAXINDAY], dest[MAXINDAY];
-  real power[MAXINDAY];
+  real power[MAXINDAY], rPowSum = 0.0;
+  int ca[cAspect + 1], co[objMax];
   byte ignore3[objMax];
   char sz[cchSzDef];
   int occurcount = 0, fProgress = us.fProgress, i, j, k, l, m;
   flag f;
+
+  ClearB((pbyte)ca, sizeof(ca));
+  ClearB((pbyte)co, sizeof(co));
 
   /* Cast the natal and transiting charts as with a relationship chart. */
 
@@ -842,6 +899,9 @@ void ChartTransitInfluence(flag fProg)
       l = grid->v[i][j];
       power[occurcount] = RTransitInf(i) * (RObjInf(j)/4.0) * rAspInf[k] *
         (1.0-(real)NAbs(l)/3600.0/GetOrb(i, j, k));
+      rPowSum += power[occurcount];
+      ca[k]++;
+      co[i]++; co[j]++;
       occurcount++;
     }
   }
@@ -900,6 +960,8 @@ void ChartTransitInfluence(flag fProg)
     if (k == aCon && l == dest[i]) {    /* Print a small "R" for returns. */
       AnsiColor(kWhiteA);
       PrintSz(" R");
+      if (is.fSeconds)
+        PrintSz("eturn");
     }
     PrintL();
 #ifdef INTERPRET
@@ -908,8 +970,10 @@ void ChartTransitInfluence(flag fProg)
 #endif
     AnsiColor(kDefault);
   }
+
   if (occurcount == 0)
     PrintSz("Empty transit list.\n");
+  PrintAspectSummary(ca, co, occurcount, rPowSum);
   us.fProgress = fProgress;
   ciCore = ciMain;
   CastChart(fTrue);
@@ -1102,7 +1166,7 @@ void DisplayRelation(void)
       case 8: sprintf(sz, "Longitude: %.2f", k);                 break;
       case 9: sprintf(sz, "Latitude : %.2f", l);                 break;
       case 10:
-        l = PolarDistance(ciMain.lon, ciTwin.lon, ciMain.lat, ciTwin.lat);
+        l = PolarDistance(ciMain.lon, ciMain.lat, ciTwin.lon, ciTwin.lat);
         sprintf(sz, "Distance : %.2f (%.2f %s)", l, l / 360.0 *
           (us.fEuroDist ? 40075.0 : 24901.0), us.fEuroDist ? "km" : "miles");
         break;

@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xgeneral.cpp
+** Astrolog (Version 7.00) File: xgeneral.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -70,7 +74,7 @@ void DrawColor(KI col)
 
   if (gi.fFile) {
 #ifdef PS
-    if (gs.fPS) {
+    if (gs.ft == ftPS) {
       if (gi.kiCur != col) {
         PsStrokeForce();      /* Render existing path with current color */
         fprintf(gi.file, "%.2f %.2f %.2f c\n",
@@ -80,11 +84,11 @@ void DrawColor(KI col)
     }
 #endif
 #ifdef META
-    if (gs.fMeta)
+    if (gs.ft == ftWmf)
       gi.kiLineDes = col;
 #endif
 #ifdef WIRE
-    if (gs.fWire)
+    if (gs.ft == ftWire)
       gi.kiCur = col;
 #endif
   }
@@ -123,7 +127,7 @@ void DrawColor(KI col)
 void DrawPoint(int x, int y)
 {
   if (gi.fFile) {
-    if (gs.fBitmap) {
+    if (gs.ft == ftBmp) {
       /* Force the coordinates to be within the bounds of the bitmap array. */
 
       if (x < 0)
@@ -137,7 +141,7 @@ void DrawPoint(int x, int y)
       BmSet(gi.bm, x, y, gi.kiCur);
     }
 #ifdef PS
-    else if (gs.fPS) {
+    else if (gs.ft == ftPS) {
       DrawColor(gi.kiCur);
       PsLineCap(fTrue);
       fprintf(gi.file, "%d %d d\n", x, y);
@@ -145,7 +149,7 @@ void DrawPoint(int x, int y)
     }
 #endif
 #ifdef META
-    else if (gs.fMeta) {
+    else if (gs.ft == ftWmf) {
       gi.kiFillDes = gi.kiCur;
       MetaSelect();
       MetaEllipse(x-gi.nPenWid/2, y-gi.nPenWid/2,
@@ -166,8 +170,8 @@ void DrawPoint(int x, int y)
     if (wi.hdcPrint == hdcNil)
       SetPixel(wi.hdc, x, y, (COLORREF)rgbbmp[gi.kiCur]);
     else {
-      MoveTo(wi.hdc, x, y);
-      LineTo(wi.hdc, x, y);
+      MoveTo(wi.hdc, x,   y);
+      LineTo(wi.hdc, x+1, y);
     }
   }
 #endif
@@ -188,7 +192,7 @@ void DrawPoint(int x, int y)
 void DrawSpot(int x, int y)
 {
 #ifdef PS
-  if (gs.fPS) {
+  if (gs.ft == ftPS) {
     PsLineWidth((int)(gi.rLineWid*3.0));
     DrawPoint(x, y);
     PsLineWidth((int)(gi.rLineWid/3.0));
@@ -196,7 +200,7 @@ void DrawSpot(int x, int y)
   }
 #endif
 #ifdef META
-  if (gs.fMeta) {
+  if (gs.ft == ftWmf) {
     gi.kiFillDes = gi.kiCur;
     MetaSelect();
     MetaEllipse(x-gi.nPenWid, y-gi.nPenWid, x+gi.nPenWid, y+gi.nPenWid);
@@ -204,7 +208,7 @@ void DrawSpot(int x, int y)
   }
 #endif
 #ifdef WIRE
-  if (gs.fWire) {
+  if (gs.ft == ftWire) {
     WireLine(x-1, y,   0, x+1, y,   0);
     WireLine(x,   y-1, 0, x,   y+1, 0);
     return;
@@ -228,7 +232,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
 #endif
 
   if (gi.fFile) {
-    if (gs.fBitmap) {
+    if (gs.ft == ftBmp) {
       /* Force the coordinates to be within the bounds of the bitmap array. */
 
       if (x1 < 0)
@@ -244,7 +248,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
           BmSet(gi.bm, x, y, gi.kiCur);
     }
 #ifdef PS
-    else if (gs.fPS) {
+    else if (gs.ft == ftPS) {
       DrawColor(gi.kiCur);
       fprintf(gi.file, "%d %d %d %d rf\n",
         Max(x1-gi.nPenWid/4, 0), Max(y1-gi.nPenWid/4, 0),
@@ -252,7 +256,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
     }
 #endif
 #ifdef META
-    else if (gs.fMeta) {
+    else if (gs.ft == ftWmf) {
       gi.kiFillDes = gi.kiCur;
       MetaSelect();
       MetaRectangle(x1-gi.nPenWid/2, y1-gi.nPenWid/2,
@@ -268,7 +272,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
   }
 #ifdef X11
   else
-    XFillRectangle(gi.disp, gi.pmap, gi.gc, x1, y1, x2-x1, y2-y1);
+    XFillRectangle(gi.disp, gi.pmap, gi.gc, x1, y1, x2-x1+1, y2-y1+1);
 #endif
 #ifdef WINANY
   else {
@@ -294,7 +298,7 @@ void DrawBlock(int x1, int y1, int x2, int y2)
 void DrawBox(int x1, int y1, int x2, int y2, int xsiz, int ysiz)
 {
 #ifdef META
-  if (gs.fMeta)
+  if (gs.ft == ftWmf)
     /* For thin boxes in metafiles, we can just output one rectangle record */
     /* instead of drawing each side separately as we have to do otherwise.  */
     if (xsiz <= 1 && ysiz <= 1) {
@@ -305,7 +309,7 @@ void DrawBox(int x1, int y1, int x2, int y2, int xsiz, int ysiz)
     }
 #endif
 #ifdef WIRE
-  if (gs.fWire) {
+  if (gs.ft == ftWire) {
     DrawLine(x1, y1, x2, y1);
     DrawLine(x1, y1, x1, y2);
     DrawLine(x2, y1, x2, y2);
@@ -321,6 +325,37 @@ void DrawBox(int x1, int y1, int x2, int y2, int xsiz, int ysiz)
 
 
 #ifdef WINANY
+/* Draw a character from the Astro or Wingdings fonts on the screen. Used  */
+/* to draw sign, planet, and aspect glyphs from these fonts within charts. */
+
+void WinDrawGlyph(char ch, int x, int y, flag fAstro)
+{
+  HFONT hfont, hfontPrev;
+  SIZE size;
+  char sz[2];
+  KV kvSav;
+  int nSav;
+
+  hfont = CreateFont(12*gi.nScale, 0, 0, 0, 400, fFalse, fFalse, fFalse,
+    fAstro ? ANSI_CHARSET : SYMBOL_CHARSET, OUT_DEFAULT_PRECIS,
+    CLIP_DEFAULT_PRECIS, PROOF_QUALITY, VARIABLE_PITCH | FF_DECORATIVE,
+    fAstro ? "Astro" : "Wingdings");
+  if (hfont == NULL)
+    return;
+  hfontPrev = (HFONT)SelectObject(wi.hdc, hfont);
+  sprintf(sz, "%c", ch);
+  GetTextExtentPoint(wi.hdc, sz, 1, &size);
+  kvSav = GetTextColor(wi.hdc);
+  SetTextColor(wi.hdc, rgbbmp[gi.kiCur]);
+  nSav = SetBkMode(wi.hdc, TRANSPARENT);
+  TextOut(wi.hdc, x - (size.cx >> 1), y - (size.cy >> 1), sz, 1);
+  SetBkMode(wi.hdc, nSav);
+  SetTextColor(wi.hdc, kvSav);
+  SelectObject(wi.hdc, hfontPrev);
+  DeleteObject(hfont);
+}
+
+
 /* Clear and erase the entire graphics screen on Windows. */
 
 void WinClearScreen(KI ki)
@@ -339,7 +374,7 @@ void WinClearScreen(KI ki)
 void DrawClearScreen()
 {
 #ifdef PS
-  if (gs.fPS) {
+  if (gs.ft == ftPS) {
     /* For PostScript charts first output page orientation information. */
     if (!gi.fEps) {
       if (gs.nOrient == 0)
@@ -364,7 +399,7 @@ void DrawClearScreen()
   }
 #endif
 #ifdef META
-  if (gs.fMeta)
+  if (gs.ft == ftWmf)
     MetaInit();    /* For metafiles first go write our header information. */
 #endif
 
@@ -378,7 +413,7 @@ void DrawClearScreen()
   if (!gi.fFile)
     WinClearScreen(gi.kiCur);
   else
-#endif
+#endif /* WINANY */
     DrawBlock(0, 0, gs.xWin - 1, gs.yWin - 1);    /* Clear bitmap screen. */
 }
 
@@ -402,6 +437,8 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
       /* For non-dashed X window lines, let's have the Xlib do it for us. */
 
       XDrawLine(gi.disp, gi.pmap, gi.gc, x1, y1, x2, y2);
+      // Some XDrawLine implementations don't draw the last pixel.
+      XDrawPoint(gi.disp, gi.pmap, gi.gc, x2, y2);
 #endif
 #ifdef WINANY
       /* For Windows lines, we have to manually draw the last pixel. */
@@ -424,7 +461,7 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
 #endif /* ISG */
 
 #ifdef PS
-  if (gs.fPS) {
+  if (gs.ft == ftPS) {
 
     /* For PostScript charts we can save file size if we output a LineTo  */
     /* command when the start vertex is the same as the end vertex of the */
@@ -443,7 +480,7 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
 #endif
 
 #ifdef META
-  if (gs.fMeta) {
+  if (gs.ft == ftWmf) {
 
     /* For metafile charts we can really save file size for consecutive */
     /* lines sharing endpoints by consolidating them into a PolyLine.   */
@@ -472,7 +509,7 @@ void DrawDash(int x1, int y1, int x2, int y2, int skip)
 #endif
 
 #ifdef WIRE
-  if (gs.fWire) {
+  if (gs.ft == ftWire) {
     /* Solid non-dashed lines are supported in wireframe format. */
     if (skip == 0) {
       WireLine(x1, y1, gi.zDefault, x2, y2, gi.zDefault);
@@ -612,7 +649,7 @@ void DrawEllipse(int x1, int y1, int x2, int y2)
 
   if (gi.fFile) {
     x = (x1+x2)/2; y = (y1+y2)/2; rx = (x2-x1)/2; ry = (y2-y1)/2;
-    if (gs.fBitmap || gs.fWire) {
+    if (gs.ft == ftBmp || gs.ft == ftWire) {
       m = x + rx; n = y;
       for (i = 0; i <= nDegMax; i += DEGINC) {
         u = x + (int)(((real)rx+rRound)*RCosD((real)i));
@@ -622,7 +659,7 @@ void DrawEllipse(int x1, int y1, int x2, int y2)
       }
     }
 #ifdef PS
-    else if (gs.fPS) {
+    else if (gs.ft == ftPS) {
       PsLineCap(fFalse);
       PsStrokeForce();
       PsDash(0);
@@ -681,7 +718,7 @@ void DrawSz(CONST char *sz, int x, int y, int dt)
   }
   DrawColor(c);
 #ifdef PS
-  if (gs.fPS && gs.fFont) {
+  if (gs.ft == ftPS && gs.fFont) {
     PsFont(4);
     fprintf(gi.file, "%d %d(%s)center\n",
       x + xFont*gi.nScale*cch/2, y + yFont*gi.nScale/2, sz);
@@ -691,7 +728,7 @@ void DrawSz(CONST char *sz, int x, int y, int dt)
 #endif
   while (*sz) {
 #ifdef META
-    if (gs.fMeta && gs.fFont) {
+    if (gs.ft == ftWmf && gs.fFont) {
       gi.nFontDes = 3;
       gi.kiTextDes = gi.kiCur;
       gi.nAlignDes = 0x6 | 0 /* Center | Top */;
@@ -718,15 +755,21 @@ void DrawSz(CONST char *sz, int x, int y, int dt)
 
 void DrawSign(int i, int x, int y)
 {
+#ifdef WINANY
+  if (!gi.fFile && gs.fFont) {
+    WinDrawGlyph('^' + i - 1, x, y, fFalse);
+    return;
+  }
+#endif
 #ifdef PS
-  if (gs.fPS && gs.fFont) {
+  if (gs.ft == ftPS && gs.fFont) {
     PsFont(1);
     fprintf(gi.file, "%d %d(%c)center\n", x, y, 'A' + i - 1);
     return;
   }
 #endif
 #ifdef META
-  if (gs.fMeta && gs.fFont) {
+  if (gs.ft == ftWmf && gs.fFont) {
     gi.nFontDes = 1;
     gi.kiTextDes = gi.kiCur;
     gi.nAlignDes = 0x6 | 0x8 /* Center | Bottom */;
@@ -757,14 +800,14 @@ void DrawSign(int i, int x, int y)
 void DrawHouse(int i, int x, int y)
 {
 #ifdef PS
-  if (gs.fPS && gs.fFont) {
+  if (gs.ft == ftPS && gs.fFont) {
     PsFont(3);
     fprintf(gi.file, "%d %d(%d)center\n", x, y, i);
     return;
   }
 #endif
 #ifdef META
-  if (gs.fMeta && gs.fFont) {
+  if (gs.ft == ftWmf && gs.fFont) {
     gi.nFontDes = 2;
     gi.kiTextDes = gi.kiCur;
     gi.nAlignDes = 0x6 | 0x8 /* Center | Bottom */;
@@ -793,9 +836,7 @@ void DrawObject(int obj, int x, int y)
 {
   char szGlyph[4];
   flag fNoText = fFalse;
-#ifdef VECTOR
-  int ich;
-#endif
+  int col;
 
   if (!gs.fLabel)    /* If we are inhibiting labels, then do nothing. */
     return;
@@ -803,60 +844,75 @@ void DrawObject(int obj, int x, int y)
     obj = -obj-1;
     fNoText = fTrue;
   }
-  DrawColor(kObjB[obj]);
-  if (obj <= oNorm) {
-#ifdef VECTOR
-    ich = obj;
+
+  col = kObjB[obj];
+#ifdef EXPRESS
+  if (!us.fExpOff && FSzSet(us.szExpColObj)) {
+    ExpSetN(iLetterY, obj);
+    ExpSetN(iLetterZ, col);
+    NParseExpression(us.szExpColObj);
+    col = NExpGet(iLetterZ);
+    if (!FValidColor(col))
+      col = 0;
+  }
+#endif
+  DrawColor(col);
+
+#ifdef WINANY
+  if (!gi.fFile && gs.fFont == 1 && obj < uranLo && szObjectFont[obj] != ' ') {
+    WinDrawGlyph(szObjectFont[obj], x, y, fTrue);
+    return;
+  }
 #endif
 #ifdef PS
-    if (gs.fPS && gs.fFont == 1 && obj < uranLo && szObjectFont[ich] != ' ') {
-      PsFont(2);
-      fprintf(gi.file, "%d %d(%c)center\n", x, y, szObjectFont[ich]);
-      return;
-    }
+  if (gs.ft == ftPS && gs.fFont == 1 &&
+    obj < uranLo && szObjectFont[obj] != ' ') {
+    PsFont(2);
+    fprintf(gi.file, "%d %d(%c)center\n", x, y, szObjectFont[obj]);
+    return;
+  }
 #endif
 #ifdef META
-    if (gs.fMeta && gs.fFont == 1 &&
-      obj < uranLo && szObjectFont[ich] != ' ') {
-      gi.nFontDes = 4;
-      gi.kiTextDes = gi.kiCur;
-      gi.nAlignDes = 0x6 | 0x8 /* Center | Bottom */;
-      MetaSelect();
-      MetaTextOut(x, y+5*gi.nScale, 1);
-      MetaWord(WFromBB(szObjectFont[ich], 0));
+  if (gs.ft == ftWmf && gs.fFont == 1 &&
+    obj < uranLo && szObjectFont[obj] != ' ') {
+    gi.nFontDes = 4;
+    gi.kiTextDes = gi.kiCur;
+    gi.nAlignDes = 0x6 | 0x8 /* Center | Bottom */;
+    MetaSelect();
+    MetaTextOut(x, y+5*gi.nScale, 1);
+    MetaWord(WFromBB(szObjectFont[obj], 0));
+    return;
+  }
+#endif
+  if (szDrawObject[obj] == szDrawObjectDef[obj]) {
+    if (obj == oUra) {
+      if ((gs.nGlyphs/100)%10 > 1)
+        obj = cObj + 1;
+    } else if (obj == oPlu) {
+      if ((gs.nGlyphs/10)%10 > 1)
+        obj = cObj + (((gs.nGlyphs/10)%10 > 2) ? 4 : 2);
+    } else if (obj == oLil) {
+      if (gs.nGlyphs%10 > 1)
+        obj = cObj + 3;
+    }
+  }
+  if (FOdd(gi.nScale) || !szDrawObject2[obj][0]) {
+    if (ChCap(szDrawObject[obj][0]) != 'T') {
+      DrawTurtle(szDrawObject[obj], x, y);
       return;
     }
-#endif
-    if (szDrawObject[obj] == szDrawObjectDef[obj]) {
-      if (obj == oUra) {
-        if ((gs.nGlyphs/100)%10 > 1)
-          obj = oNorm + 1;
-      } else if (obj == oPlu) {
-        if ((gs.nGlyphs/10)%10 > 1)
-          obj = oNorm + (((gs.nGlyphs/10)%10 > 2) ? 4 : 2);
-      } else if (obj == oLil) {
-        if (gs.nGlyphs%10 > 1)
-          obj = oNorm + 3;
-      }
-    }
-    if (FOdd(gi.nScale) || !szDrawObject2[obj][0]) {
-      if (ChCap(szDrawObject[obj][0]) != 'T') {
-        DrawTurtle(szDrawObject[obj], x, y);
-        return;
-      }
-    } else {
-      if (ChCap(szDrawObject2[obj][0]) != 'T') {
-        /* Draw special hi-res object glyphs. */
-        gi.nScale >>= 1;
-        DrawTurtle(szDrawObject2[obj], x, y);
-        gi.nScale <<= 1;
-        return;
-      }
+  } else {
+    if (ChCap(szDrawObject2[obj][0]) != 'T') {
+      /* Draw special hi-res object glyphs. */
+      gi.nScale >>= 1;
+      DrawTurtle(szDrawObject2[obj], x, y);
+      gi.nScale <<= 1;
+      return;
     }
   }
 
-  /* Normally we can just go draw the glyph; however, stars don't have */
-  /* glyphs, so for these draw their three letter abbreviation.        */
+  /* Normally can just draw the glyph, however some objects don't have      */
+  /* glyphs (like stars) so for these draw their three letter abbreviation. */
 
   if (fNoText)
     return;
@@ -893,7 +949,7 @@ void DrawStar(int x, int y, ES *pes)
   else if (pes->ki != kDefault)
     kv = rgbbmp[pes->ki];
   else {
-    n = 255 - (int)((pes->mag + 1.46) / 7.0 * 224.0);
+    n = 255 - (int)((pes->mag - rStarLite) / rStarSpan * 224.0);
     n = Min(n, 255); n = Max(n, 32);
     if (gs.fInverse)
       n = 255 - n;
@@ -945,8 +1001,16 @@ LAfter:
 
 void DrawAspect(int asp, int x, int y)
 {
+  if (us.fParallel && asp <= aOpp)
+    asp += cAspect;
+#ifdef WINANY
+  if (!gi.fFile && gs.fFont == 1 && szAspectFont[asp-1] != ' ') {
+    WinDrawGlyph(szAspectFont[asp-1], x, y, fTrue);
+    return;
+  }
+#endif
 #ifdef PS
-  if (gs.fPS && gs.fFont == 1 && szAspectFont[asp-1] != ' ') {
+  if (gs.ft == ftPS && gs.fFont == 1 && szAspectFont[asp-1] != ' ') {
     PsFont(2);
     fprintf(gi.file, "%d %d(%s%c)center\n", x, y,
       asp == aSSq || asp == aSes ? "\\" : "", szAspectFont[asp-1]);
@@ -954,7 +1018,7 @@ void DrawAspect(int asp, int x, int y)
   }
 #endif
 #ifdef META
-  if (gs.fMeta && gs.fFont == 1 && szAspectFont[asp-1] != ' ') {
+  if (gs.ft == ftWmf && gs.fFont == 1 && szAspectFont[asp-1] != ' ') {
     gi.nFontDes = 4;
     gi.kiTextDes = gi.kiCur;
     gi.nAlignDes = 0x6 | 0x8 /* Center | Bottom */;
@@ -964,8 +1028,6 @@ void DrawAspect(int asp, int x, int y)
     return;
   }
 #endif
-  if (us.fParallel && asp <= aOpp)
-    asp += cAspect;
   if (FOdd(gi.nScale) || !szDrawAspect2[asp][0])
     DrawTurtle(szDrawAspect[asp], x, y);
   else {

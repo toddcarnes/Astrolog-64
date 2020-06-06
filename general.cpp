@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: general.cpp
+** Astrolog (Version 7.00) File: general.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -78,14 +82,25 @@ int CchSz(CONST char *sz)
 }
 
 
-/* Compare two strings. Return 0 if they are equal, a positive value if  */
-/* the first string is greater, and a negative if the second is greater. */
+// Compare two strings case sensitively. Return 0 if equal, negative number if
+// first less than second, and positive number if first greater than second.
 
 int NCompareSz(CONST char *sz1, CONST char *sz2)
 {
   while (*sz1 && *sz1 == *sz2)
     sz1++, sz2++;
-  return (uchar)*sz1 - (uchar)*sz2;
+  return (int)*sz1 - *sz2;
+}
+
+
+// Compare two strings case insensitively. Return 0 if equal, negative number
+// if first less than second, and positive if first greater than second.
+
+int NCompareSzI(CONST char *sz1, CONST char *sz2)
+{
+  while (*sz1 && ChCap(*sz1) == ChCap(*sz2))
+    sz1++, sz2++;
+  return (int)ChCap(*sz1) - ChCap(*sz2);
 }
 
 
@@ -103,7 +118,8 @@ flag FMatchSz(CONST char *sz1, CONST char *sz2)
 
 
 /* Return whether the first string matches any string in the second, case */
-/* sensitively. The second string is subdivided by semicolon characters.  */
+/* sensitively. The second string is subdivided by comma or semicolon     */
+/* characters. Return offset into string, and optionally index into list. */
 
 CONST char *SzInList(CONST char *sz1, CONST char *sz2, int *pisz)
 {
@@ -113,17 +129,17 @@ CONST char *SzInList(CONST char *sz1, CONST char *sz2, int *pisz)
   loop {
     for (sz1 = szStart; *sz1 && *sz1 == *sz2; sz1++, sz2++)
       ;
-    if (*sz2 == chNull || *sz2 == chSep) {
+    if (*sz2 == chNull || (*sz2 == chSep || *sz2 == chSep2)) {
       if (*sz1 == chNull) {
         if (pisz != NULL)
           *pisz = isz;
-        return sz2 + (*sz2 == chSep);
+        return sz2 + (*sz2 == chSep || *sz2 == chSep2);
       }
     } else {
-      while (*sz2 && *sz2 != chSep)
+      while (*sz2 && !(*sz2 == chSep || *sz2 == chSep2))
         sz2++;
     }
-    if (*sz2 == chSep)
+    if (*sz2 == chSep || *sz2 == chSep2)
       sz2++;
     else
       break;
@@ -164,7 +180,7 @@ real RSgn(real r)
 
 /* Given an x and y coordinate, return the angle formed by a line from the */
 /* origin to this coordinate. This is just converting from rectangular to  */
-/* polar coordinates; however, we don't determine the radius here.         */
+/* polar coordinates, however this doesn't involve the radius here.        */
 
 real Angle(real x, real y)
 {
@@ -239,10 +255,21 @@ int SzLookup(CONST StrLook *rgStrLook, CONST char *sz)
     for (pch1 = sz, pch2 = rgStrLook[irg].sz;
       *pch1 && ChCap(*pch1) == ChCap(*pch2); pch1++, pch2++)
       ;
-    if (*pch1 == chNull && pch1 - sz >= 3)
+    if (*pch1 == chNull && (*pch2 == chNull || pch1 - sz >= 3))
       return rgStrLook[irg].isz;
   }
   return -1;
+}
+
+
+// Return whether a zero terminated string is a substring of another string,
+// case insensitively.
+
+flag FCompareSzSubI(CONST char *sz1, CONST char *sz2)
+{
+  while (*sz1 && ChCap(*sz1) == ChCap(*sz2))
+    sz1++, sz2++;
+  return *sz1 == chNull;
 }
 
 
@@ -345,7 +372,7 @@ real Midpoint(real deg1, real deg2)
 /* Return the minimum great circle distance between two sets of spherical   */
 /* coordinates. This is like MinDistance() but takes latitude into account. */
 
-real PolarDistance(real lon1, real lon2, real lat1, real lat2)
+real PolarDistance(real lon1, real lat1, real lon2, real lat2)
 {
   real dLat, r;
 
@@ -453,16 +480,20 @@ void EnsureStarBright()
   real rMode;
 
   rMode = FCmSwissStar() ? 1.0 : 0.0;
-  if (rStarBright[0] != rMode) {
-    rStarBright[0] = rMode;
+  if (rStarBrightDef[0] != rMode) {
+    rStarBrightDef[0] = rMode;
 
     /* Matrix formulas have star brightnesses in a simple table. */
-    for (i = 1; i <= cStar; i++)
+    for (i = 1; i <= cStar; i++) {
 #ifdef MATRIX
-      rStarBright[i] = rStarBrightMatrix[i];
+      rStarBrightDef[i] = rStarBrightMatrix[i];
 #else
-      rStarBright[i] = 1.0;
+      rStarBrightDef[i] = 1.0;
 #endif
+      rStarBright[i] = rStarBrightDef[i];
+      /* Assume each star is 100 LY away. */
+      rStarDistDef[i] = rStarDist[i] = 100.0 * rLYToAU;
+    }
 
 #ifdef SWISS
     /* Swiss Ephemeris reads star brightnesses from an external file. */
@@ -504,7 +535,8 @@ int DaysInMonth(int month, int year)
   int d;
 
   d = DayInMonth(month, year);
-  if (year == yeaJ2G && month == monJ2G)
+  if (ciGreg.yea == yeaJ2G && ciGreg.mon == monJ2G && ciGreg.day == dayJ2G2 &&
+    year == yeaJ2G && month == monJ2G)
     d -= (dayJ2G2 - dayJ2G1 - 1);
   return d;
 }
@@ -531,7 +563,8 @@ int AddDay(int month, int day, int year, int delta)
   int d;
 
   d = day + delta;
-  if (year == yeaJ2G && month == monJ2G) {     /* Check for Julian to  */
+  if (ciGreg.yea == yeaJ2G && ciGreg.mon == monJ2G && ciGreg.day == dayJ2G2 &&
+    year == yeaJ2G && month == monJ2G) {       /* Check for Julian to  */
     if (d > dayJ2G1 && d < dayJ2G2)            /* Gregorian crossover. */
       d += NSgn(delta)*(dayJ2G2-dayJ2G1-1);
   }
@@ -620,6 +653,7 @@ void Terminate(int tc)
     sprintf(sz, "%c[0m", chEscape);    /* Get out of any Ansi color mode. */
     PrintSz(sz);
   }
+  FinalizeProgram();
   exit(NAbs(tc));
 }
 
@@ -1153,8 +1187,13 @@ char *SzZone(real zon)
 {
   static char szZon[7];
 
-  sprintf(szZon, "%d:%02d%c", (int)RAbs(zon), (int)(RFract(RAbs(zon))*60.0+
-    rRound/60.0), zon < 0.0 ? 'E' : 'W');
+  if (zon == zonLMT)
+    sprintf(szZon, "LMT");
+  else if (!is.fSeconds && RFract(RAbs(zon)) < rSmall)
+    sprintf(szZon, "%d%c", (int)RAbs(zon), zon < 0.0 ? 'E' : 'W');
+  else
+    sprintf(szZon, "%d:%02d%c", (int)RAbs(zon), (int)(RFract(RAbs(zon))*60.0+
+      rRound/60.0), zon < 0.0 ? 'E' : 'W');
   return szZon;
 }
 
@@ -1302,8 +1341,9 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
   JulianToMdy(jd - 0.5, mon, day, yea);
 #else
   time_t curtimer;
-  int min, sec;
+  int min, sec, i;
   real hr;
+  CI ci;
 
   time(&curtimer);
   sec = (int)(curtimer % 60);
@@ -1326,6 +1366,26 @@ void GetTimeNow(int *mon, int *day, int *yea, real *tim, real dst, real zon)
   curtimer += ldTime;  /* Number of days between 1/1/1970 and 1/1/4713 BC. */
   JulianToMdy((real)curtimer, mon, day, yea);
   *tim = HMS(hr, min, sec);
+  if (dst == dstAuto) {
+    /* Daylight field of 24 means autodetect whether Daylight Saving Time. */
+
+    SetCI(ci, *mon, *day, *yea, *tim, 0.0, zon, us.lonDef, us.latDef);
+    if (DisplayAtlasLookup(us.locDef, 0, &i) &&
+      DisplayTimezoneChanges(is.rgae[i].izn, 0, &ci)) {
+      hr += ci.dst;
+      while (hr < 0.0) {
+        curtimer--;
+        hr += 24.0;
+      }
+      while (hr >= 24.0) {
+        curtimer++;
+        hr -= 24.0;
+      }
+      JulianToMdy((real)curtimer, mon, day, yea);
+      *tim = HMS(hr, min, sec);
+    }
+  }
+  is.fDst = (dst > 0.0);
 #endif /* PC */
 }
 #endif /* TIME */
@@ -1376,9 +1436,10 @@ char *SzPersist(char *szSrc)
   if (is.fSzPersist)
     return szSrc;
 
-  /* Otherwise we make a copy of the string and use it. */
+  /* Otherwise make a copy of the string and use it. */
   cb = CchSz(szSrc)+1;
   szNew = (char *)PAllocate(cb, "string");
+  is.cAlloc--;
   if (szNew != NULL)
     CopyRgb((byte *)szSrc, (byte *)szNew, cb);
   return szNew;
@@ -1388,18 +1449,73 @@ char *SzPersist(char *szSrc)
 /* This is Astrolog's memory allocation routine, returning a pointer given  */
 /* a size, and a string to use when printing error if the allocation fails. */
 
-pbyte PAllocate(long lcb, CONST char *szType)
+pbyte PAllocate(long cb, CONST char *szType)
 {
   char szT[cchSzDef];
   pbyte pb;
 
-  pb = (pbyte)PAllocateCore(lcb);
+#ifdef DEBUG
+  pb = (pbyte)PAllocateCore(cb + sizeof(dword)*3);
+#else
+  pb = (pbyte)PAllocateCore(cb);
+#endif
+
+  /* Handle success or failure of the allocation. */
   if (pb == NULL && szType) {
     sprintf(szT, "%s: Not enough memory for %s (%ld bytes).",
-      szAppName, szType, lcb);
+      szAppName, szType, cb);
     PrintWarning(szT);
+  } else {
+    is.cAlloc++;
+    is.cAllocTotal++;
+    is.cbAllocSize += cb;
   }
+
+#ifdef DEBUG
+  /* Put sentinels at ends of allocation to check for buffer overruns. */
+  *(dword *)pb = dwCanary;
+  *(dword *)(pb + sizeof(dword)) = cb;
+  *(dword *)(pb + sizeof(dword)*2 + cb) = dwCanary;
+  return pb + sizeof(dword)*2;
+#else
   return pb;
+#endif
 }
+
+
+/* Free a memory buffer allocated with PAllocate. */
+
+void DeallocateP(void *pv)
+{
+  Assert(pv != NULL);
+#ifdef DEBUG
+  /* Ensure buffer wasn't overrun during its existence. */
+  pbyte pbSys;
+  dword lcb, dw;
+
+  pbSys = (pbyte)pv - sizeof(dword)*2;
+  Assert(pbSys != NULL);
+  dw = *(dword *)pbSys;
+  Assert(dw == dwCanary);
+  lcb = *(dword *)(pbSys + sizeof(dword));
+  dw = *(dword *)((pbyte)pv + lcb);
+  Assert(dw == dwCanary);
+  DeallocatePCore(pbSys);
+#else
+  DeallocatePCore(pv);
+#endif
+  is.cAlloc--;
+}
+
+
+#ifdef DEBUG
+/* Assert a condition. If not, display an error message. */
+
+void Assert(flag f)
+{
+  if (!f)
+    PrintError("Debug Assert failed!\n");
+}
+#endif
 
 /* general.cpp */

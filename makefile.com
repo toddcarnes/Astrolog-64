@@ -1,7 +1,7 @@
-$ ! Astrolog (Version 6.50) File: makefile.com (VMS version)
+$ ! Astrolog (Version 7.00) File: makefile.com (VMS version)
 $ !
 $ ! IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-$ ! not enumerated elsewhere in this program are Copyright (C) 1991-2019 by
+$ ! not enumerated elsewhere in this program are Copyright (C) 1991-2020 by
 $ ! Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 $ ! Permission is granted to freely use, modify, and distribute these
 $ ! routines provided these credits and notices remain unmodified with any
@@ -13,13 +13,14 @@ $ set ver
 $ define X11 decw$include
 $ define lnk$library sys$library:vaxcrtl
 $ CC ASTROLOG
+$ CC ATLAS
 $ CC CALC
 $ CC CHARTS0
 $ CC CHARTS1
 $ CC CHARTS2
 $ CC CHARTS3
 $ CC DATA
-$ CC DATA2
+$ CC EXPRESS
 $ CC GENERAL
 $ CC INTRPRET
 $ CC IO
@@ -43,13 +44,13 @@ $ CC SWEPH
 $ CC SWEPHLIB
 $ link/exe=astrolog.exe -
 	ASTROLOG.obj, -
+	ATLAS.obj, -
 	CALC.obj, -
 	CHARTS0.obj, -
 	CHARTS1.obj, -
 	CHARTS2.obj, -
 	CHARTS3.obj, -
 	DATA.obj, -
-	DATA2.obj, -
 	GENERAL.obj, -
 	INTRPRET.obj, -
 	IO.obj, -

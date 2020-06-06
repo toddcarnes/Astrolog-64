@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: charts0.cpp
+** Astrolog (Version 7.00) File: charts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -119,14 +123,21 @@ void DisplayCredits(void)
     "library and formulas are by Alois Treindl, also from Astrodienst AG.",
     kGreenA);
   PrintW("Original planetary calculation formulas were converted from",
-    kYellowA);
+    kDkGreenA);
   PrintW(
     "routines by James Neely, as listed in 'Manual of Computer Programming",
-    kYellowA);
+    kDkGreenA);
   PrintW(
     "for Astrologers' by Michael Erlewine, available from Matrix Software.",
-    kYellowA);
-  PrintW("PostScript graphics routines by Brian D. Willoughby.", kMagentaA);
+    kDkGreenA);
+  PrintW(
+    "Atlas list of city locations from GeoNames: https://www.geonames.org/",
+    kMagentaA);
+  PrintW("Timezone and Daylight Saving Time date changes converted from",
+    kPurpleA);
+  PrintW("TZ database: https://data.iana.org/time-zones/tz-link.html",
+    kPurpleA);
+  PrintW("PostScript graphics routines by Brian D. Willoughby.", kYellowA);
   PrintW(
     "IMPORTANT: Astrolog is free software. You can distribute and/or modify",
     kLtGrayA);
@@ -257,7 +268,7 @@ void DisplaySwitches(void)
   PrintS(" _w [<rows>]: Display chart in a graphic house wheel format.");
   PrintS(" _w0 [..]: Like _w but reverse order of objects in houses 4..9.");
   PrintS(" _g: Display aspect and midpoint grid among planets.");
-  PrintS(" _g0: Like _g but flag aspect configurations (e.g. Yod's) too.");
+  PrintS(" _g0: Like _g but flag aspect configurations (e.g. Yods) too.");
   PrintS(" _gm: For comparison charts, show midpoints instead of aspects.");
   PrintS(
     " _ga: Like _g but indicate applying/separating instead of offset orbs.");
@@ -283,7 +294,7 @@ void DisplaySwitches(void)
   PrintS(" _l0: Like _l but approximate sectors using Placidus cusps.");
   PrintS(" _j: Display astrological influences of each object in chart.");
   PrintS(" _j0: Like _j but include influences of each zodiac sign as well.");
-  PrintS(" _7: Display esoteric astrology and Ray summary for chart.");
+  PrintS(" _7: Display Esoteric Astrology and Ray summary for chart.");
   PrintS(" _L [<step>]: Display astro-graph locations of planetary angles.");
   PrintS(" _L0 [..]: Like _L but display list of latitude crossings too.");
   PrintS(" _K: Display a calendar for given month.");
@@ -311,6 +322,7 @@ void DisplaySwitches(void)
   PrintS(
     " _tp <month> <year>: Compute progressions to natal in month for chart.");
   PrintS(" _tr <month> <year>: Compute all returns in month for chart.");
+  PrintS(" _t[p]d: <month> <day> <year>: Compute transits for a single day.");
   PrintS(" _t[p]y: <year>: Compute transits/progressions for entire year.");
   PrintS(" _t[p]Y: <year> <years>: Compute transits for a number of years.");
 #ifdef TIME
@@ -333,6 +345,12 @@ void DisplaySwitches(void)
   PrintS(" _P0 [<parts>]: Like _P but display formulas with terms reversed.");
   PrintS(" _P[z,n,f]: Order parts by position, name, or formula.");
 #endif
+#ifdef ATLAS
+  PrintS(" _N [<rows>]: Lookup chart location as city in atlas.");
+  PrintS(" _Nl [<rows>]: Display nearest cities in atlas to chart location.");
+  PrintS(
+    " _Nz [<rows>]: Display all time changes in time zone of chart city.");
+#endif
 #ifdef INTERPRET
   PrintS(" _I [<columns>]: Print interpretation of selected charts.");
 #endif
@@ -351,6 +369,10 @@ void DisplaySwitches(void)
   PrintS(" _zm <month>: Set only the month of current chart.");
   PrintS(" _zy <year>: Set only the year of current chart.");
   PrintS(" _zi <name> <place>: Set name and place strings of current chart.");
+#ifdef ATLAS
+  PrintS(
+    " _zN <city>: Lookup city in atlas and set zone, Daylight, and location.");
+#endif
   PrintS(" _q <month> <date> <year> <time>: Compute chart with defaults.");
   PrintS(" _qd <month> <date> <year>: Compute chart for noon on date.");
   PrintS(" _qm <month> <year>: Compute chart for first of month.");
@@ -376,8 +398,8 @@ void DisplaySwitches(void)
   PrintS(" _C: Include angular and non-angular house cusps in charts.");
   PrintS(" _u: Include transneptunian/Uranian bodies in charts.");
   PrintS(" _U: Include locations of fixed background stars in charts.");
-  PrintS(
-    " _U[z,l,n,b,d]: Sort by position, lati, name, brightness, or distance.");
+  PrintS(" _U[z,l,n,b,d,v]: Sort stars by zodiac position, latitude, name,");
+  PrintS("   brightness, distance, or zodiac position velocity.");
   PrintS(" _A <0-18>: Specify the number of aspects to use in charts.");
   PrintS(
     " _A3: Aspects calculated by latitude combined with zodiac position.");
@@ -414,6 +436,8 @@ void DisplaySwitches(void)
   PrintS(" _s [..]: Compute a sidereal instead of standard tropical chart.");
   PrintS(" _sr: Compute right ascension locations relative to equator.");
   PrintS(
+    " _sr0: Like _sr but only display declinations instead of latitudes.");
+  PrintS(
     " _s[z,h,d]: Display locations as in zodiac, hours/minutes, or degrees.");
   PrintS(" _h [<objnum>]: Compute positions centered on specified object.");
   PrintS(
@@ -445,7 +469,7 @@ void DisplaySwitches(void)
   PrintS("\nSwitches for relationship and comparison charts:");
   PrintS(" _r <file1> <file2>: Compute a relationship synastry chart.");
   PrintS(" _rc <file1> <file2>: Compute a composite chart.");
-  PrintS(" _rm <file1> <file2>: Compute a time / space midpoint chart.");
+  PrintS(" _rm <file1> <file2>: Compute a time space midpoint chart.");
   PrintS(" _r[c,m]0 <file1> <file2> <ratio1> <ratio2>: Weighted chart.");
   PrintS(" _rd <file1> <file2>: Print time span between files' dates.");
 #ifdef BIORHYTHM
@@ -497,6 +521,7 @@ void DisplaySwitchesRare(void)
   PrintS(" _Yh: Compute location of solar system barycenter instead of Sun.");
   PrintS(" _Ys: Sidereal zodiac positions are in plane of solar system.");
   PrintS(" _Yn: Compute location of true instead of mean node.");
+  PrintS(" _Yu: Display eclipse and occultation information in charts.");
   PrintS(" _Yd: Display dates in D/M/Y instead of M/D/Y format.");
   PrintS(" _Yt: Display times in 24 hour instead of am/pm format.");
   PrintS(" _Yv: Display distance in metric instead of imperial units.");
@@ -541,6 +566,10 @@ void DisplaySwitchesRare(void)
 #ifdef SWISS
   PrintS(" _YU <obj> <name>: Change position of star to sefstars.txt entry.");
 #endif
+  PrintS(
+    " _YUb: Adjust star brightness to apparent magnitude based on distance.");
+  PrintS(
+    " _YUb0: Set brightness to distance independent absolute magnitude.");
   PrintS(
     " _YR <obj1> <obj2> <flag1>..<flag2>: Set restrictions for object range.");
   PrintS(
@@ -600,10 +629,12 @@ void DisplaySwitchesRare(void)
   PrintS(" _Yk <0..8> <0..8> <col1>..<col2>: Customize 'general' colors.");
 #ifdef SWISS
   PrintS(" _YkU <starlist>: Customize list of extra star colors.");
+  PrintS(" _YkE <astlist>: Customize list of extra asteroid colors.");
 #endif
   PrintS(" _YD <obj> <name>: Customize display name of object.");
   PrintS(
     " _YF <obj> <deg><sign><min> <deg><min> <velocity> <au>: Set position.");
+#ifdef GRAPH
   PrintS(" _YXG <0-2><0-2><0-3><0-2>: Select among different graphic glyphs");
   PrintS("  for Capricorn, Uranus, Pluto, and Lilith.");
   PrintS(" _YXD <obj> <string1> <string2>: Customize glyphs for planet.");
@@ -618,17 +649,41 @@ void DisplaySwitchesRare(void)
   PrintS(
     " _YXk0: Use more color for house boundaries in graphics charts too.");
   PrintS(" _YXK <col> <rgb>: Customize RGB value of color index.");
-  PrintS(" _YXe: Align certain charts to ecliptic.");
+  PrintS(" _YXe: Align certain charts to plane of ecliptic.");
   PrintS(" _YXa <num>: Set limit to dashedness in aspect lines drawn.");
 #ifdef SWISS
   PrintS(" _YXU <starlist> <linklist>: Define lines between extra stars."); 
 #endif
-  PrintS(" _YXf <val>: Set usage of actual system fonts in graphic file.");
+  PrintS(" _YXf <val>: Set usage of actual system fonts in graphic charts.");
   PrintS(" _YXp <-1,0,1>: Set paper orientation for PostScript files.");
   PrintS(" _YXp0 <hor> <ver>: Set paper size for PostScript files.");
+#endif /* GRAPH */
   PrintS(" _YB: Make a beep sound at the time this switch is processed.");
-  PrintS(" _0[o,i,q,X]: Disallow file output, input, exiting, and graphics.");
+  PrintS(" _YY <rows>: Load atlas list of city locations from current file.");
+  PrintS(
+    " _YY1 <rules> <entries>: Load Daylight Time rules from current file.");
+  PrintS(" _YY2 <zones> <entries>: Load time zone change lists from file.");
+  PrintS(
+    " _YY3 <rows>: Load atlas time zone to zone change mappings from file.");
+  PrintS(" _0[o,i,q,X,~]: Permanently disable file output, file input,");
+  PrintS("  program exiting, all graphics, or AstroExpressions.");
   PrintS(" _;: Ignore rest of command line and treat it as a comment.");
+#ifdef EXPRESS
+  PrintS("\nSwitches to define AstroExpressions:");
+  PrintS(" _~ <string>: Display result of string parsed as AstroExpression.");
+  PrintS(" _~a <string>: Set adjustment for aspect list powers.");
+  PrintS(" _~E <string>: Set filter for text ephemeris lines.");
+  PrintS(" _~d <string>: Set filter for transit to transit events.");
+  PrintS(" _~t <string>: Set filter for transit to natal events.");
+  PrintS(" _~j <string>: Set adjustment for object influence.");
+  PrintS(" _~O <string>: Set adjustment for object calculations.");
+  PrintS(" _~C <string>: Set adjustment for house cusp calculations.");
+  PrintS(" _~A <string>: Set adjustment for aspect orbs.");
+  PrintS(" _~kO <string>: Set adjustment for object colors.");
+  PrintS(" _~kA <string>: Set adjustment for aspect colors.");
+  PrintS(" _~M <0-26> <string>: Define the specified AstroExpression macro.");
+  PrintS(" _~0: Disable all automatic AstroExpression checks in the program.");
+#endif
 }
 
 
@@ -742,17 +797,31 @@ void PrintObjects(void)
     PrintL();
     SwissComputeStar(0.0, NULL);
     for (i = 1; SwissComputeStar(is.T, &es); i++) {
-      AnsiColor(es.ki != kDefault ? es.ki : KStarA(es.mag));
-      if (es.mag == 0.0 || es.mag >= 999.0)
+      AnsiColor(es.ki != kDefault ? es.ki : KStar2A(es.mag));
+      if (es.mag == rStarNot)
         es.mag = 99.99;
       sprintf(sz, "%4d %-8.8s ", i, es.pchDes); PrintSz(sz);
       PrintZodiac(es.lon);
-      PrintTab(' ', 3);
+      PrintCh(' ');
       PrintAltitude(es.lat);
-      AnsiColor(es.ki != kDefault ? es.ki : KStarA(es.mag));
+      AnsiColor(es.ki != kDefault ? es.ki : KStar2A(es.mag));
       sprintf(sz, " %5.2f%s%s", es.mag, *es.pchNam ? " " : "", es.pchNam);
       PrintSz(sz);
       PrintL();
+    }
+  }
+
+  /* Print extra asteroids. */
+  if (!gs.fAllStar && gs.nAstLo > 0) {
+    PrintL();
+    SwissComputeAsteroid(0.0, NULL, fFalse);
+    for (i = gs.nAstLo; SwissComputeAsteroid(is.T, &es, fFalse); i++) {
+      AnsiColor(es.ki != kDefault ? es.ki : kDefault);
+      sprintf(sz, "%6d ", i); PrintSz(sz);
+      PrintZodiac(es.lon);
+      PrintCh(' ');
+      PrintAltitude(es.lat);
+      sprintf(sz, " %s\n", es.sz); PrintSz(sz);
     }
   }
 #endif
@@ -1003,17 +1072,10 @@ void PrintOrbit(void)
   char sz[cchSzDef];
   int i, j;
   real r;
-  char chSav;
 
   /* Fill out star data arrays if necessary. */
-  if (us.nStar) {
-    chSav = us.nStar;
-    us.nStar = 'd';
+  if (us.nStar)
     CastChart(fTrue);
-    us.nStar = chSav;
-    if (us.nStar != 'd')
-      CastChart(fTrue);
-  }
 
   /* Loop over each object and print its data. */
   sprintf(sz, "%s planets:\n", szAppName); PrintSz(sz);
@@ -1031,12 +1093,11 @@ void PrintOrbit(void)
       sprintf(sz, "%7.2f", rObjYear[j]);
       PrintSz(sz);
       if (j <= oVes) {
-        sprintf(sz, "%9.3f", rObjDiam[j]/rObjDiam[oEar]);
+        sprintf(sz, "%9.3f%8.2f", rObjDiam[j]/rObjDiam[oEar], rObjDay[j]);
         PrintSz(sz);
         if (j <= oPlu) {
           r = rObjDiam[j]*1000.0/2.0;
-          sprintf(sz, "%8.2f%11.3f%8.2f%6.2f%11d",
-            rObjDay[j], rObjMass[j],
+          sprintf(sz, "%11.3f%8.2f%6.2f%11d", rObjMass[j],
             (rObjMass[j]*5.974E24/1000.0)/((4.0/3.0)*(r*r*r)*rPi),
             rObjAxis[j], cSatellite[j]);
           PrintSz(sz);
@@ -1216,7 +1277,7 @@ LNextPart:
       continue;
     sprintf(sz, "%3d: %23.23s ", ++h, ai[l].name); PrintSz(sz);
     PrintZodiac(rPart[l]);
-    j = HousePlaceIn2D(rPart[l]);
+    j = NHousePlaceIn2D(rPart[l]);
     sprintf(sz, " [%2d%s] ", j, szSuffix[j]);
     AnsiColor(kSignA(j)); PrintSz(sz); AnsiColor(kDefault);
     PrintCh('(');
@@ -1281,6 +1342,12 @@ LNextPart:
     }
     AnsiColor(kDefault);
     PrintL();
+
+    /* If the -ma switch is set, determine and display each aspect from one */
+    /* of the planets to the current part, and the aspect's orb.            */
+
+    if (us.fMidAspect)
+      PrintAspectsToPoint(rPart[l], -1, 0.0, "Part at");
   }
 }
 #endif /* ARABIC */
@@ -1306,6 +1373,7 @@ void DisplayKeysX(void)
   PrintS(" Press 't' to toggle header info on current chart on screen.");
   PrintS(" Press 'b' to toggle drawing of a border around the chart.");
   PrintS(" Press 'l' to toggle labeling of object points in chart.");
+  PrintS(" Press 'k' to toggle labeling of glyphs on aspect lines.");
   PrintS(" Press 'j' to toggle not clearing screen between chart updates.");
   PrintS(" Press 'v' to display current chart positions on text screen.");
   PrintS(" Press 'R', 'C', 'u', 'U' to toggle restriction status of minor");
@@ -1405,11 +1473,18 @@ void DisplaySwitchesX(void)
   PrintS(" _Xt: Inhibit display of chart info at bottom of graphic.");
   PrintS(" _Xu: Inhibit display of a border around graphic.");
   PrintS(" _Xl: Inhibit labeling of object points in chart graphic.");
+  PrintS(" _XA: Draw aspect glyphs over aspect lines in charts.");
   PrintS(" _Xj: Don't clear screen between chart updates, drawing trails.");
   PrintS(" _Xe: Draw Earth's equator in certain charts.");
   PrintS(" _XU: Draw all stars from sefstars.txt file in certain charts.");
   PrintS(
     " _XU[0-3]: Like _XU but set whether to show larger star dot and name.");
+  PrintS(" _XE <low> <high>: Draw range of asteroids in certain charts.");
+  PrintS(
+    " _XE[0-3] [..]: Like _XE but set whether to label ast number and name.");
+#ifdef ATLAS
+  PrintS(" _XL: Plot city locations from atlas on world map.");
+#endif
   PrintS(" _XC: Draw house boundaries or alternate info in certain charts.");
   PrintS(" _X1 <object>: Rotate wheel charts so object is at left edge.");
   PrintS(" _X2 <object>: Rotate wheel charts so object is at top edge.");
@@ -1445,12 +1520,14 @@ void DisplaySwitchesX(void)
 
 void DisplaySwitchesW(void)
 {
+  PrintS("\nSwitches to access Windows options:");
   PrintS(" _W <value>: Run given Windows menu command internally.");
   PrintS(" _WN <1-32000>: Set animation update delay in milliseconds.");
   PrintS(" _WM <1-48> <text>: Set Windows menu text for macro command.");
   PrintS(" _Wn: Don't redraw screen until user forces update.");
   PrintS(" _Wh: Set hourglass cursor when redrawing chart.");
   PrintS(" _Wt: Don't display warning and error popup messages.");
+  PrintS(" _WB <0-24> <0-24>: Set window scrollbar positions.");
   PrintS(" _Wo: Continually autosave graphics screen to bitmap file.");
   PrintS(" _Wo0: Continually autosave graphics screen to numbered files.");
   PrintS(" _Wo3: Autosave graphics screen to wireframe instead of bitmap.");
@@ -1459,6 +1536,7 @@ void DisplaySwitchesW(void)
   PrintS(" _WSd: Setup Windows desktop icon for program.");
   PrintS(" _WSx: Setup registering Windows file extensions for program.");
   PrintS(" _WSu: Unregister Windows file extensions for program.");
+  PrintS(" _WZ: Treat program as screen saver, and exit next user input.");
 }
 #endif
 #endif /* GRAPH */

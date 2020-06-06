@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: intrpret.cpp
+** Astrolog (Version 7.00) File: intrpret.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -292,7 +296,7 @@ void InterpretMidpoint(int x, int y)
   if (ret[x] + ret[y] < 0.0 && x != oNod && y != oNod)
     FieldWord("an independent, backward, introverted manner, and");
   FieldWord("the area of life dealing with");
-  i = HousePlaceIn2D(ZFromS(n) + (real)grid->v[y][x]/3600.0);
+  i = NHousePlaceIn2D(ZFromS(n) + (real)grid->v[y][x]/3600.0);
   sprintf(sz, "%s.", szLifeArea[i]); FieldWord(sz);
   FieldWord(NULL);
 }
@@ -524,6 +528,8 @@ void SortRank(real *value, int *rank, int size)
   int h, i, j, k;
   real r;
 
+  if (size <= cSign)
+    value[0] = -1.0;
   for (i = 0; i <= size; i++)
     rank[i] = -1;
   for (h = 0, i = 0; h <= size; h++) {
@@ -627,6 +633,20 @@ void ComputeInfluence(real power1[objMax], real power2[objMax])
           (1.0-RAbs((real)l)/3600.0/GetOrb(i, j, k));
       }
     }
+
+#ifdef EXPRESS
+  /* Adjust powers if AstroExpression set to do so. */
+
+  if (!us.fExpOff && FSzSet(us.szExpInf))
+    for (i = 0; i <= cObj; i++) if (!FIgnore(i)) {
+      ExpSetN(iLetterX, i);
+      ExpSetR(iLetterY, power1[i]);
+      ExpSetR(iLetterZ, power2[i]);
+      NParseExpression(us.szExpInf);
+      power1[i] = RExpGet(iLetterY);
+      power2[i] = RExpGet(iLetterZ);
+    }
+#endif
 }
 
 

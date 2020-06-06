@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xcharts0.cpp
+** Astrolog (Version 7.00) File: xcharts0.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -109,7 +113,7 @@ int DrawZodiac(real deg, int n)
 
 void DrawInfo(CI *pci, CONST char *szHeader, flag fAll)
 {
-  char sz[cchSzDef];
+  char sz[cchSzDef], szT[cchSzDef];
 
   if (szHeader != NULL)
     DrawPrint(szHeader, gi.kiOn, fFalse);
@@ -126,7 +130,8 @@ void DrawInfo(CI *pci, CONST char *szHeader, flag fAll)
       SzDate(pci->mon, pci->day, pci->yea, fTrue));
     DrawPrint(sz, gi.kiLite, fFalse);
     DrawPrint(SzTim(pci->tim), gi.kiLite, fTrue);
-    sprintf(sz, " (%cT %s UTC)", ChDst(pci->dst), SzZone(pci->zon));
+    sprintf(sz, " %s%cT Zone %s%s", is.fSeconds ? "" : "(", ChDst(pci->dst),
+      SzZone(pci->zon), is.fSeconds ? "" : ")");
     DrawPrint(sz, gi.kiLite, fFalse);
     if (*pci->loc)
       DrawPrint(pci->loc, gi.kiLite, fFalse);
@@ -143,10 +148,15 @@ void DrawInfo(CI *pci, CONST char *szHeader, flag fAll)
           (!us.fTopoPos ? "Geocentric" : "Topocentric") :
         szObjDisp[us.objCenter]));
       DrawPrint(sz, gi.kiLite, fFalse);
+      if (us.objRot1 != us.objRot2 || us.fObjRotWhole) {
+        sprintf(sz, "Rotate: %.3s to %.3s%s", szObjDisp[us.objRot1],
+          szObjDisp[us.objRot2], us.fObjRotWhole ? "'s sign" : "");
+        DrawPrint(sz, gi.kiLite, fFalse);
+      }
       if (us.objOnAsc) {
-        sprintf(sz, "Solar: %.4s%s on %.3s", szObjName[NAbs(us.objOnAsc)-1],
+        sprintf(sz, "Solar: %.4s%s on %.3s", szObjDisp[NAbs(us.objOnAsc)-1],
           us.fSolarWhole ? "'s sign" : "",
-          szObjName[us.objOnAsc > 0 ? oAsc : oMC]);
+          szObjDisp[us.objOnAsc > 0 ? oAsc : oMC]);
         DrawPrint(sz, gi.kiLite, fFalse);
       }
       if (us.fGeodetic)
@@ -155,6 +165,11 @@ void DrawInfo(CI *pci, CONST char *szHeader, flag fAll)
         DrawPrint("Special: Domal mode", gi.kiLite, fFalse);
       if (us.fDecan)
         DrawPrint("Special: Decan mode", gi.kiLite, fFalse);
+      if (us.rHarmonic != 1.0) {
+        FormatR(szT, us.rHarmonic, -5);
+        sprintf(sz, "Special: Harmonic %.7s", szT);
+        DrawPrint(sz, gi.kiLite, fFalse);
+      }
       if (us.nDwad == 1)
         DrawPrint("Special: Dwad mode", gi.kiLite, fFalse);
       else if (us.nDwad > 1) {
@@ -228,7 +243,7 @@ void DrawSidebar()
   if (!gs.fText || us.fVelocity)    /* Don't draw sidebar if */
     return;                         /* -v0 flag is set.      */
   a = us.fAnsiChar;
-  us.fAnsiChar = (!gs.fFont || (!gs.fMeta && !gs.fPS)) << 1;
+  us.fAnsiChar = (!gs.fFont || (gs.ft != ftPS && gs.ft != ftWmf)) << 1;
   DrawColor(gi.kiLite);
   if (gs.fBorder)
     DrawLine(gs.xWin-1, 0, gs.xWin-1, gs.yWin-1);
@@ -284,7 +299,7 @@ void DrawSidebar()
     sprintf(sz, "%2d%s house: ", i, szSuffix[i]);
     y = DrawPrint(sz, kSignB(i), fTrue);
     if (!is.fSeconds && (gs.nScale == 100 ||
-      !gs.fFont || !gi.fFile || gs.fBitmap) && y < gs.yWin-1) {
+      !gs.fFont || !gi.fFile || gs.ft == ftBmp) && y < gs.yWin-1) {
       s = gi.nScale;
       gi.nScale = gi.nScaleText * gi.nScaleT;
       DrawSign(SFromZ(chouse[i]),
@@ -298,12 +313,13 @@ void DrawSidebar()
 
   DrawPrint("", gi.kiLite, fFalse);
   for (i = 0; i <= oNorm; i++) if (FProper2(i) &&
-    (!FCusp(i) || MinDistance(planet[i], chouse[i-cuspLo+1]) > rSmall)) {
+    (!FCusp(i) || RAbs(planetalt[i]) > rSmall ||
+    MinDistance(planet[i], chouse[i-cuspLo+1]) > rSmall)) {
     sprintf(sz, is.fSeconds ? "%-3.3s: " : "%-4.4s: ", szObjDisp[i]);
     DrawPrint(sz, kObjB[i], fTrue);
     y = DrawZodiac(planet[i], fTrue);
     if (!is.fSeconds && i < starLo && gi.nMode != gSector && (gs.nScale ==
-      100 || !gs.fFont || !gi.fFile || gs.fBitmap) && y < gs.yWin-1) {
+      100 || !gs.fFont || !gi.fFile || gs.ft == ftBmp) && y < gs.yWin-1) {
       s = gi.nScale;
       gi.nScale = gi.nScaleText * gi.nScaleT;
       DrawObject(-i-1, gs.xWin-12*gi.nScale, y-(yFont/2-1)*gi.nScale);
@@ -390,7 +406,7 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
 {
   int i, j, k;
   real px, py, temp, ra, rb;
-  flag fStroke = gs.fPS || gs.fMeta, fSav;
+  flag fVector = (gs.ft == ftPS || gs.ft == ftWmf), fSav;
 
   /* Draw Ascendant/Descendant and Midheaven/Nadir lines across whole chart. */
 
@@ -426,7 +442,7 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
     temp = PZ(HousePlaceInX((real)i, 0.0));
     px = PX(temp); py = PY(temp);
     DrawColor(i%10 ? gi.kiGray : (gs.fColorSign ? kSignB(i/30 + 1) : gi.kiOn));
-    if ((gs.fColor || fStroke) && i%5 > 0) {
+    if ((gs.fColor || fVector) && i%5 > 0) {
       ra = r3 + (r4 - r3) * 0.20;
       rb = r3 + (r4 - r3) * 0.80;
     } else {
@@ -434,7 +450,7 @@ void DrawWheel(real *xsign, real *xhouse, int cx, int cy, real unitx,
     }
     DrawDash(cx+POINT1(unitx, ra, px), cy+POINT1(unity, ra, py),
       cx+POINT2(unitx, rb, px), cy+POINT2(unity, rb, py),
-      (!gs.fColor && !fStroke && i%5 > 0));
+      (!gs.fColor && !fVector && i%5 > 0));
   }
   us.fHouse3D = fSav;
 
@@ -594,6 +610,52 @@ void DrawObjects(ObjDraw *rgod, int cod, int zEdge)
       DrawPoint(rgod[i].x, rgod[i].y);  /* Draw small or large dot */
     else                                /* near glyph indicating   */
       DrawSpot(rgod[i].x, rgod[i].y);   /* exact object location.  */
+  }
+}
+
+
+/* Draw an aspect line between two points in a wheel chart. */
+
+void DrawAspectLine(int obj1, int obj2, int cx, int cy,
+  real deg1, real deg2, real rx, real ry, real rz)
+{
+  int asp = grid->n[obj1][obj2], orb = grid->v[obj1][obj2],
+    x1, y1, x2, y2, nDash, nSav, col;
+
+  // Get color of aspect. Modify it through AstroExpression if one defined.
+  col = kAspB[asp];
+#ifdef EXPRESS
+  if (!us.fExpOff && FSzSet(us.szExpColAsp)) {
+    ExpSetN(iLetterW, obj1);
+    ExpSetN(iLetterX, asp);
+    ExpSetN(iLetterY, obj2);
+    ExpSetN(iLetterZ, col);
+    NParseExpression(us.szExpColAsp);
+    col = NExpGet(iLetterZ);
+    if (!FValidColor(col))
+      col = 0;
+  }
+#endif
+  DrawColor(col);
+
+  // Compute coordinates of line, and draw it.
+  x1 = cx + POINT1(rx, rz, PX(deg1));
+  y1 = cy + POINT1(ry, rz, PY(deg1));
+  x2 = cx + POINT1(rx, rz, PX(deg2));
+  y2 = cy + POINT1(ry, rz, PY(deg2));
+  if ((gs.nDashMax >= 0) != gs.fAlt)
+    nDash = NAbs(orb / (60*60*2));
+  else
+    nDash = NAbs(orb) * NAbs(gs.nDashMax) /
+      (int)(GetOrb(obj1, obj2, asp)*3600.0);
+  DrawDash(x1, y1, x2, y2, nDash);
+
+  // Draw aspect glyph over middle of line.
+  if (gs.fLabelAsp) {
+    nSav = gi.nScale;
+    gi.nScale = gi.nScaleText * gi.nScaleT;
+    DrawAspect(asp, (x1 + x2) >> 1, (y1 + y2) >> 1);
+    gi.nScale = nSav;
   }
 }
 
@@ -796,6 +858,10 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
   flag fBlank;
   int isz = 0, nC, xT, yT, xDelta, yDelta, xLo, xHi, yLo, yHi;
 #endif
+#ifdef ATLAS
+  real rgzon[iznMax], zon;
+  CI ci;
+#endif
 
   /* Set up some variables. */
   rx = cx-1; ry = cy-1;
@@ -840,6 +906,8 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
         lon = nDegMax -
           (((pch[2]-'0')*10+(pch[3]-'0'))*15+(pch[4]-'0')*10+(pch[5]-'0'));
         lat = 90-((pch[6] == '-' ? -1 : 1)*((pch[7]-'0')*10+(pch[8]-'0')));
+        if (lon >= nDegMax)
+          lon -= nDegMax;
         pch += 9;
         xLo = xHi = xT = xold = x = lon;
         yLo = yHi = yT = yold = y = lat;
@@ -870,7 +938,7 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
           FGlobeCalc(x, y, &m, &n, cx, cy, rx, ry, deg);
           k = l = fTrue;
         } else {
-          xold = x = (nDegHalf+1) - lon;
+          xold = x = nDegHalf - lon;
           yold = y = 90 - lat;
         }
       }
@@ -909,7 +977,7 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
               if (rT > rDegMax)
                 rT -= rDegMax;
               if (gs.fMollewide)
-                x = 180*nScl + NMultDiv((int)rT-180, NMollewide(yT-91), 180);
+                x = 180*nScl + NMultDiv((int)rT-180, NMollewide(yT-90), 180);
               else
                 x = (int)(rT*(real)nScl);
               y = yT*nScl;
@@ -936,7 +1004,7 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
         case 'D': yDelta =  1; nC = 10-yT%10;       break;  /* Down until  */
         case 'L': xDelta = -1; nC = (xT+599)%15+1;  break;  /* Left until  */
         case 'R': xDelta =  1; nC = 15-(xT+600)%15; break;  /* Right until */
-        default: PrintError("Bad draw.");             /* Shouldn't happen. */
+        default: PrintError("Bad map draw.");         /* Shouldn't happen. */
         }
         if (chCmd >= 'a')
           nC = NFromPch(&pch);  /* Figure out how far to draw. */
@@ -1022,12 +1090,12 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
       u = (int)(Mod((real)x + deg)*(real)nScl);
       m = (int)(Mod((real)xold + deg)*(real)nScl);
       if (NAbs(u-m) <= nDegHalf) {
-        v = (y-1)*nScl;
-        n = (yold-1)*nScl;
-        i = 180*nScl;
+        v = y*nScl;
+        n = yold*nScl;
+        i = nDegHalf*nScl;
         if (gs.fMollewide && gi.nMode != gAstroGraph)
-          DrawLine(i + NMultDiv(m-i, NMollewide(yold-91), i), n,
-            i + NMultDiv(u-i, NMollewide(y-91), i), v);
+          DrawLine(i + NMultDiv(m-i, NMollewide(yold - 90), i), n,
+            i + NMultDiv(u-i, NMollewide(y - 90), i), v);
         else if (!(fSky && (x > xold || y > yold)))
           DrawLine(m, n, u, v);
       }
@@ -1092,6 +1160,64 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
       rgod[l].kv = k <= arMC ? ~0 : gi.kiLite;
     }
   }
+
+#ifdef ATLAS
+  /* Draw locations of cities from atlas. */
+
+  if (gs.fLabelCity && !fSky && FEnsureAtlas()) {
+    if (!gs.fLabelAsp)
+      DrawColor(kOrangeB);
+    if (gs.nLabelCity >= 4) {
+      // Initialize array of current offsets for each time zone area.
+      ci = ciMain;
+#ifdef WIN
+      l = wi.fNoPopup; wi.fNoPopup = fTrue;
+#endif
+      for (i = 0; i < iznMax; i++) {
+        DisplayTimezoneChanges(i, 0, &ci);
+        rgzon[i] = ci.zon - ci.dst;
+      }
+#ifdef WIN
+      wi.fNoPopup = l;
+#endif
+    }
+    for (i = 0; i < is.cae; i++) {
+      x1 = nDegHalf - is.rgae[i].lon + (!fGlobe ? deg : 0.0);
+      y1 = rDegQuad - is.rgae[i].lat;
+      if (x1 < 0.0)
+        x1 += rDegMax;
+      else if (x1 >= rDegMax)
+        x1 -= rDegMax;
+      if (!FMapCalc(x1, y1, &j, &k, fGlobe, -1, 0.0, 0.0, nScl,
+        cx, cy, rx, ry, deg)) {
+        if (gs.fLabelAsp) {
+          if (gs.nLabelCity < 3) {
+            l = is.rgae[i].icn;
+            if (gs.nLabelCity == 2 && (l == icnUS || l == icnCA))
+              DrawColor(kRainbowB[is.rgae[i].istate % 7 + 1]);
+            else
+              DrawColor(kRainbowB[l == icnUS ? 6 :
+                (l == icnFR ? 5 : l % 7 + 1)]);
+          } else if (FEnsureTimezoneChanges()) {
+            l = is.rgae[i].izn;
+            if (gs.nLabelCity == 3)
+              zon = ZondefFromIzn(l);
+            else
+              zon = rgzon[l];
+            if (zon == zonLMT)
+              DrawColor(kDkGrayB);
+            else if (zon == RFloor(zon)) {
+              l = (int)(zon + rDegMax) % 6;
+              DrawColor(kRainbowB[l + (l > 0) + 1]);
+            } else
+              DrawColor(kMagentaB);
+          }
+        }
+        DrawPoint(j, k);
+      }
+    }
+  }
+#endif
 
   /* Draw ecliptic equator and zodiac sign wedges. */
 
@@ -1176,6 +1302,21 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
       }
     }
   }
+
+  /* Draw extra asteroids. */
+
+  if (gs.nAstLo > 0) {
+    DrawColor(gi.kiGray);
+    SwissComputeAsteroid(0.0, NULL, fTrue);
+    while (SwissComputeAsteroid(is.T, &es, fTrue)) {
+      x1 = es.lon; y1 = es.lat;
+      x1 = Tropical(x1);
+      EclToEqu(&x1, &y1);
+      if (!FMapCalc(x1, y1, &j, &k, fGlobe, fSky, planet1[oMC],
+        rT, nScl, cx, cy, rx, ry, deg))
+        DrawStar(j, k, &es);
+    }
+  }
 #endif
 
   /* Draw MC, IC, Asc, and Des lines for each object, as great circles    */
@@ -1204,7 +1345,37 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
         if (!FMapCalc(x1, y1, &x, &y, fGlobe, fSky, planet1[oMC],
           rT, nScl, cx, cy, rx, ry, deg)) {
           if (xold > nNegative) {
-            if (gi.nMode != gWorldMap) {
+            if (gi.nMode != gWorldMap || gs.fMollewide) {
+              if (NAbs(xold-x) < (rx >> 2))
+                DrawLine(xold, yold, x, y);
+            } else
+              DrawWrap(xold, Min(yold, gs.yWin-1), x, y, 0, gs.xWin-1);
+          }
+          xold = x; yold = y;
+        } else
+          xold = nNegative;
+      }
+    }
+    // Draw astro-graph lines for minor house cusps, if unrestricted.
+    for (k = 1; k <= cSign; k++) {
+      if (FIgnore(cuspLo-1 + k) ||
+        (k == sAri && chouse[k] == is.Asc) ||
+        (k == sCap && chouse[k] == is.MC)  ||
+        (k == sLib && chouse[k] == Mod(is.Asc + rDegHalf)) ||
+        (k == sCan && chouse[k] == Mod(is.MC  + rDegHalf)))
+        continue;
+      DrawColor(kObjB[cuspLo-1 + k]);
+      xold = nNegative;
+      for (j = 0; j <= nDegHalf; j++) {
+        x1 = 0.0; y1 = (real)j;
+        CoorXform(&x1, &y1, rDegQuad - chouse3[k]);
+        x1 = Mod(x1 + rDegQuad);
+        CoorXform(&x1, &y1, rDegQuad + planet2[i]);
+        x1 = Mod(x1 - rDegQuad + planet1[i]);
+        if (!FMapCalc(x1, y1, &x, &y, fGlobe, fSky, planet1[oMC],
+          rT, nScl, cx, cy, rx, ry, deg)) {
+          if (xold > nNegative) {
+            if (gi.nMode != gWorldMap || gs.fMollewide) {
               if (NAbs(xold-x) < (rx >> 2))
                 DrawLine(xold, yold, x, y);
             } else
@@ -1219,8 +1390,9 @@ void DrawMap(flag fSky, flag fGlobe, real deg)
 
   /* Plot chart location. */
 
-  if (us.fLatitudeCross && !FMapCalc(Mod(180.0 - Lon + (!fGlobe ? deg : 0.0)),
-    90.0 - Lat, &j, &k, fGlobe, -1, 0.0, 0.0, nScl, cx, cy, rx, ry, deg)) {
+  if (us.fLatitudeCross && !FMapCalc(
+    Mod(rDegHalf - Lon + (!fGlobe ? deg : 0.0)), rDegQuad - Lat, &j, &k,
+    fGlobe, -1, 0.0, 0.0, nScl, cx, cy, rx, ry, deg)) {
     DrawColor(kMagentaB);
     DrawSpot(j, k);
   }
@@ -1238,24 +1410,33 @@ LDone:
 flag EnumStarsLines(flag fInit, ES **ppes1, ES **ppes2)
 {
   static char *pchCur = NULL;
+  static int iBase, iMax;
   int i1, i2;
 
+  /* Check for initialization and empty list cases. */
   if (fInit) {
     pchCur = gs.szStarsLnk;
+    iBase = iMax = 0;
     return fTrue;
   }
   if (!*pchCur)
     return fFalse;
+
   /* Parse first star index. */
-  i1 = atoi(pchCur);
+  i1 = iBase + atoi(pchCur);
+  iMax = Max(iMax, i1);
   while (FNumCh(*pchCur))
     pchCur++;
   while (*pchCur && !FNumCh(*pchCur))
     pchCur++;
+
   /* Parse second star index. */
-  i2 = atoi(pchCur);
+  i2 = iBase + atoi(pchCur);
+  iMax = Max(iMax, i2);
   while (FNumCh(*pchCur))
     pchCur++;
+  if (*pchCur == chSep2)
+    iBase = iMax + 1;
   while (*pchCur && !FNumCh(*pchCur))
     pchCur++;
   if (gi.rges == NULL ||
@@ -1278,16 +1459,17 @@ flag EnumStarsLines(flag fInit, ES **ppes1, ES **ppes2)
 
 void DrawChartX()
 {
-  char sz[cchSzDef];
+  char sz[cchSzMax];
   int i;
   flag fAltWire = fFalse, fSky, fSav;
 
   gi.nScale = gs.nScale/100;
 
-  if (gs.fBitmap || gs.fMeta)
+  if (gs.ft == ftBmp || gs.ft == ftWmf || gs.ft == ftWire)
     PrintProgress("Creating graphics chart in memory.");
   DrawClearScreen();
-  fAltWire = gs.fWire && (gi.nMode == gOrbit || gi.nMode == gSphere);
+  fAltWire = gs.ft == ftWire &&
+    (gi.nMode == gOrbit || gi.nMode == gSphere || gi.nMode == gGlobe);
 #ifdef CONSTEL
   fSky = gs.fConstel;
 #else
@@ -1318,7 +1500,7 @@ void DrawChartX()
     break;
   case gOrbit:
 #ifdef WIRE
-    if (gs.fWire)
+    if (gs.ft == ftWire)
       WireChartOrbit();
     else
 #endif
@@ -1359,7 +1541,7 @@ void DrawChartX()
     break;
   case gSphere:
 #ifdef WIRE
-    if (gs.fWire)
+    if (gs.ft == ftWire)
       WireChartSphere();
     else
 #endif
@@ -1373,7 +1555,7 @@ void DrawChartX()
     break;
   case gGlobe:
 #ifdef WIRE
-    if (gs.fWire) {
+    if (gs.ft == ftWire) {
       WireDrawGlobe(fSky, gs.rRot);
       break;
     }
@@ -1401,11 +1583,13 @@ void DrawChartX()
       sprintf(sz, "(Composite)");
     else {
       fSav = us.fAnsiChar;
-      us.fAnsiChar = (!gs.fFont || (!gs.fMeta && !gs.fPS)) << 1;
+      us.fAnsiChar = (!gs.fFont || (gs.ft != ftPS && gs.ft != ftWmf)) << 1;
       i = DayOfWeek(Mon, Day, Yea);
-      sprintf(sz, "%.3s %s %s (%cT %s UTC) %s", szDay[i],
-        SzDate(Mon, Day, Yea, 2), SzTim(Tim), ChDst(Dst),
-        SzZone(Zon), SzLocation(Lon, Lat));
+      sprintf(sz, "%s%s%.3s %s %s (%cT Zone %s) %s%s%s",
+        FSzSet(ciCore.nam) ? ciCore.nam : "", FSzSet(ciCore.nam) ? ", " : "",
+        szDay[i], SzDate(Mon, Day, Yea, 2), SzTim(Tim), ChDst(Dst),
+        SzZone(Zon), FSzSet(ciCore.loc) ? ciCore.loc : "",
+        FSzSet(ciCore.loc) ? " " : "", SzLocation(Lon, Lat));
       us.fAnsiChar = fSav;
     }
     DrawSz(sz, gs.xWin/2, gs.yWin-3*gi.nScaleT, dtBottom | dtErase | dtScale2);

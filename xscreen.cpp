@@ -1,8 +1,8 @@
 /*
-** Astrolog (Version 6.50) File: xscreen.cpp
+** Astrolog (Version 7.00) File: xscreen.cpp
 **
 ** IMPORTANT NOTICE: Astrolog and all chart display routines and anything
-** not enumerated below used in this program are Copyright (C) 1991-2019 by
+** not enumerated below used in this program are Copyright (C) 1991-2020 by
 ** Walter D. Pullen (Astara@msn.com, http://www.astrolog.org/astrolog.htm).
 ** Permission is granted to freely use, modify, and distribute these
 ** routines provided these credits and notices remain unmodified with any
@@ -28,6 +28,10 @@
 ** 'Manual of Computer Programming for Astrologers', by Michael Erlewine,
 ** available from Matrix Software.
 **
+** Atlas composed using data from https://www.geonames.org/ licensed under a
+** Creative Commons Attribution 4.0 License. Time zone changes composed using
+** public domain TZ database: https://data.iana.org/time-zones/tz-link.html
+**
 ** The PostScript code within the core graphics routines are programmed
 ** and Copyright (C) 1992-1993 by Brian D. Willoughby (brianw@sounds.wa.com).
 **
@@ -44,7 +48,7 @@
 ** Initial programming 8/28-30/1991.
 ** X Window graphics initially programmed 10/23-29/1991.
 ** PostScript graphics initially programmed 11/29-30/1992.
-** Last code change made 7/21/2019.
+** Last code change made 6/4/2020.
 */
 
 #include "astrolog.h"
@@ -58,31 +62,33 @@
 */
 
 #ifdef X11
-/* This information used to define Astrolog's X icon (Rainbow over Third */
-/* Eye) is similar to the output format used by the bitmap program.      */
+/* This information used to define Astrolog's X icon (ringed planet with */
+/* moons) is similar to the output format used by the bitmap program.    */
 /* You could extract this section and run xsetroot -bitmap on it.        */
 
-#define icon_width 63
-#define icon_height 32
+#define icon_width 48
+#define icon_height 48
 CONST uchar icon_bits[] = {
- 0x00,0x00,0x00,0xa8,0x0a,0x00,0x00,0x00,0x00,0x00,0x40,0x55,0x55,0x01,0x00,
- 0x00,0x00,0x00,0xa8,0xaa,0xaa,0x0a,0x00,0x00,0x00,0x00,0x54,0xf5,0x57,0x15,
- 0x00,0x00,0x00,0x80,0xaa,0xaa,0xaa,0xaa,0x00,0x00,0x00,0x40,0xd5,0xff,0xff,
- 0x55,0x01,0x00,0x00,0xa0,0xaa,0xaa,0xaa,0xaa,0x02,0x00,0x00,0x50,0xfd,0xff,
- 0xff,0x5f,0x05,0x00,0x00,0xa8,0xaa,0x2a,0xaa,0xaa,0x0a,0x00,0x00,0xd4,0xff,
- 0xaf,0xfa,0xff,0x15,0x00,0x00,0xaa,0x2a,0x00,0x00,0xaa,0x2a,0x00,0x00,0xf5,
- 0xbf,0xaa,0xaa,0xfe,0x57,0x00,0x80,0xaa,0x02,0x00,0x00,0xa0,0xaa,0x00,0x40,
- 0xfd,0xab,0xfa,0xaf,0xea,0x5f,0x01,0xa0,0xaa,0x80,0xff,0xff,0x80,0xaa,0x02,
- 0x50,0xff,0xea,0xff,0xff,0xab,0x7f,0x05,0xa0,0x2a,0xf0,0xff,0xff,0x07,0xaa,
- 0x02,0xd0,0xbf,0xfa,0x0f,0xf8,0xaf,0x7e,0x05,0xa8,0x0a,0xfc,0x01,0xc0,0x1f,
- 0xa8,0x0a,0xd4,0xaf,0x7e,0x00,0x00,0xbf,0xfa,0x15,0xa8,0x0a,0x3f,0x00,0x00,
- 0x7e,0xa8,0x0a,0xf4,0xaf,0x1f,0xe0,0x03,0xfc,0xfa,0x15,0xaa,0x82,0x0f,0xdc,
- 0x1d,0xf8,0xa0,0x2a,0xf4,0xab,0x07,0x23,0x62,0xf0,0xea,0x17,0xaa,0xc2,0x87,
- 0x91,0xc4,0xf0,0xa1,0x2a,0xf4,0xeb,0xc3,0xd0,0x85,0xe1,0xeb,0x17,0xaa,0xe0,
- 0x83,0x91,0xc4,0xe0,0x83,0x2a,0xf5,0xeb,0x03,0x23,0x62,0xe0,0xeb,0x57,0xaa,
- 0xe0,0x01,0xdc,0x1d,0xc0,0x83,0x2a,0xf5,0xeb,0x01,0xe0,0x03,0xc0,0xeb,0x57,
- 0xaa,0xe0,0x01,0x00,0x00,0xc0,0x83,0x2a,0xfd,0xeb,0x01,0x00,0x00,0xc0,0xeb,
- 0x5f};
+ 0x0e,0x00,0x00,0x00,0x10,0x00,0x7f,0x00,0x00,0x00,0x00,0x00,0xff,0x01,0x00,
+ 0x02,0x00,0x00,0xff,0x43,0x00,0x00,0x00,0x00,0xfe,0x0f,0x00,0x00,0x02,0x00,
+ 0x9e,0x1f,0x00,0x00,0x00,0x10,0x1e,0x7c,0xc0,0x03,0x00,0x38,0x3c,0xf8,0x7e,
+ 0x7d,0x00,0x10,0x3c,0xe0,0xab,0xaa,0x00,0x00,0x38,0xc0,0x5f,0x05,0x03,0x00,
+ 0x70,0x60,0xb5,0x12,0x04,0x00,0xf0,0xf8,0x5f,0x85,0x18,0x0e,0xe0,0xf8,0xaa,
+ 0x2a,0x90,0x33,0xc0,0xfd,0x5f,0x05,0xe0,0x47,0xc0,0xbf,0xb5,0x52,0xc0,0x4b,
+ 0x80,0xff,0x5f,0x05,0xc0,0x85,0x00,0xff,0xaa,0x2a,0x80,0x83,0x80,0xff,0x5f,
+ 0x05,0x00,0x87,0x80,0x7f,0xb5,0x92,0x00,0x4b,0x80,0xff,0x5f,0x05,0x00,0x45,
+ 0x80,0xff,0xaa,0x2a,0x00,0x33,0x80,0xff,0x5f,0x05,0x00,0x0f,0xc0,0xff,0xb5,
+ 0x52,0x00,0x02,0xc0,0xff,0x5f,0x05,0x00,0x02,0xc1,0xff,0xab,0x2a,0x00,0x02,
+ 0xe0,0xff,0x5f,0x05,0x00,0x02,0x38,0x5f,0xbf,0x92,0x00,0x01,0x58,0xfe,0x5f,
+ 0x05,0x00,0x81,0xbc,0xfc,0xbe,0x2a,0x00,0x01,0x7c,0xfc,0x7f,0x05,0x00,0x01,
+ 0x3c,0xbc,0xf5,0x52,0x00,0x01,0x58,0xfe,0xff,0x05,0x80,0x00,0xb8,0xff,0xea,
+ 0x2b,0xc0,0x01,0xe0,0xfe,0xdf,0x0f,0xc0,0x23,0x00,0x5c,0xb5,0x9f,0xa0,0x03,
+ 0x00,0xf8,0x5f,0x3d,0x10,0x07,0x00,0xf8,0xaa,0xfa,0x18,0x0f,0x08,0xe0,0x5f,
+ 0xf5,0x05,0x0e,0x1c,0xc0,0xb5,0xea,0x03,0x1c,0x08,0x00,0x5f,0x85,0x07,0x3c,
+ 0x00,0x00,0xbe,0x7e,0x1f,0x3c,0x00,0x10,0xc0,0x03,0x3e,0x78,0x00,0x00,0x00,
+ 0x00,0xf8,0x79,0x00,0x00,0x00,0x00,0xf0,0x7f,0x00,0x00,0x20,0x00,0xc0,0xff,
+ 0x00,0x00,0x00,0x00,0x82,0xff,0x00,0x00,0x00,0x00,0x00,0xfe,0x40,0x00,0x00,
+ 0x00,0x00,0x70};
 #endif
 
 
@@ -322,79 +328,82 @@ void BeginX()
 }
 
 
-/* Add a certain amount of time to the current hour/day/month/year quantity */
-/* defining the present chart. This is used by the chart animation feature. */
+/* Add a certain amount of time to the hour/day/month/year quantity that    */
+/* defines a particular chart. This is used by the chart animation feature. */
 /* We can add or subtract anywhere from 1 to 9 seconds, minutes, hours,     */
 /* days, months, years, decades, centuries, or millenia in any one call.    */
 /* This is mainly just addition to the appropriate quantity, but we have    */
 /* to check for overflows, e.g. Dec 30 + 3 days = Jan 2 of Current year + 1 */
 
-void AddTime(int mode, int toadd)
+void AddTime(CI *pci, int mode, int toadd)
 {
-  int d;
-  real h, m;
+  int d, h;
+  real m;
 
   if (!FBetween(mode, 1, 9))
     mode = 4;
 
-  h = RFloor(TT);
-  m = RFract(TT)*60.0;
+  h = (int)RFloor(pci->tim);
+  m = RFract(pci->tim)*60.0;
+  if (m < 60.0 && m + 1.0/rLarge >= 60.0)  /* Avoid roundoff error. */
+    m = 60.0;
   if (mode == 1)
-    m += 1.0/60.0*(real)toadd;    /* Add seconds. */
+    m += 1.0/60.0*(real)toadd;         /* Add seconds. */
   else if (mode == 2)
-    m += (real)toadd;             /* Add minutes. */
+    m += (real)toadd;                  /* Add minutes. */
 
   /* Add hours, either naturally or if minute value overflowed. */
 
-  if (m < 0.0 || m >= 60.0 || mode == 3) {
+  if (m >= 60.0 || m < 0.0 || mode == 3) {
     if (m >= 60.0) {
       m -= 60.0; toadd = NSgn(toadd);
     } else if (m < 0.0) {
       m += 60.0; toadd = NSgn(toadd);
     }
-    h += (real)toadd;
+    h += toadd;
   }
 
   /* Add days, either naturally or if hour value overflowed. */
 
-  if (h >= 24.0 || h < 0.0 || mode == 4) {
-    if (h >= 24.0) {
-      h -= 24.0; toadd = NSgn(toadd);
-    } else if (h < 0.0) {
-      h += 24.0; toadd = NSgn(toadd);
+  if (h >= 24 || h < 0 || mode == 4) {
+    if (h >= 24) {
+      h -= 24; toadd = NSgn(toadd);
+    } else if (h < 0) {
+      h += 24; toadd = NSgn(toadd);
     }
-    DD = AddDay(MM, DD, YY, toadd);
+    pci->day = AddDay(pci->mon, pci->day, pci->yea, toadd);
   }
 
   /* Add months, either naturally or if day value overflowed. */
 
-  if (DD > (d = DayInMonth(MM, YY)) || DD < 1 || mode == 5) {
-    if (DD > d) {
-      DD -= d; toadd = NSgn(toadd);
-    } else if (DD < 1) {
-      DD += DayInMonth(Mod12(MM - 1), YY);
+  d = DayInMonth(pci->mon, pci->yea);
+  if (pci->day > d || pci->day < 1 || mode == 5) {
+    if (pci->day > d) {
+      pci->day -= d; toadd = NSgn(toadd);
+    } else if (pci->day < 1) {
+      pci->day += DayInMonth(Mod12(pci->mon - 1), pci->yea);
       toadd = NSgn(toadd);
     }
-    MM += toadd;
+    pci->mon += toadd;
   }
 
   /* Add years, either naturally or if month value overflowed. */
 
-  if (MM > 12 || MM < 1 || mode == 6) {
-    if (MM > 12) {
-      MM -= 12; toadd = NSgn(toadd);
-    } else if (MM < 1) {
-      MM += 12; toadd = NSgn(toadd);
+  if (pci->mon > 12 || pci->mon < 1 || mode == 6) {
+    if (pci->mon > 12) {
+      pci->mon -= 12; toadd = NSgn(toadd);
+    } else if (pci->mon < 1) {
+      pci->mon += 12; toadd = NSgn(toadd);
     }
-    YY += toadd;
+    pci->yea += toadd;
   }
   if (mode == 7)
-    YY += 10 * toadd;      /* Add decades.   */
+    pci->yea += 10 * toadd;      /* Add decades.   */
   else if (mode == 8)
-    YY += 100 * toadd;     /* Add centuries. */
+    pci->yea += 100 * toadd;     /* Add centuries. */
   else if (mode == 9)
-    YY += 1000 * toadd;    /* Add millenia.  */
-  TT = h + m/60.0;         /* Recalibrate hour time. */
+    pci->yea += 1000 * toadd;    /* Add millenia.  */
+  pci->tim = (real)h + m/60.0;   /* Recalibrate hour time. */
 }
 
 
@@ -406,7 +415,7 @@ void Animate(int mode, int toadd)
 {
   if (((gi.nMode == gAstroGraph || gi.nMode == gSphere) && gs.fAnimMap) ||
     ((gi.nMode == gWorldMap || gi.nMode == gGlobe || gi.nMode == gPolar) &&
-    (!gs.fAlt || gs.fAnimMap))) {
+    (gs.fAlt || gs.fAnimMap))) {
     gs.rRot += (real)toadd;
     if (gs.rRot >= rDegMax)     /* For animating map displays, add */
       gs.rRot -= rDegMax;       /* in appropriate degree value.    */
@@ -422,22 +431,29 @@ void Animate(int mode, int toadd)
     /* animation mode, go get whatever time it is now.   */
     FInputData(szNowCore);
 #else
-    if (us.nRel <= rcDual)
-      ciCore = ciTwin;
-    else
-      ciCore = ciMain;
-    AddTime(1, toadd);
+    mode = 1;
+    goto LNotNow;
 #endif
   } else {  /* Otherwise add on appropriate time vector to chart info. */
-    if (us.nRel <= rcDual)
+#ifndef TIME
+LNotNow:
+#endif
+    if (us.nRel == rcDual || us.nRel <= rcTransit)
       ciCore = ciTwin;
+    else if (us.fProgress || us.fTransit || us.fTransitInf || us.fTransitGra)
+      ciCore = ciTran;
     else
       ciCore = ciMain;
-    AddTime(mode, toadd);
+    AddTime(&ciCore, mode, toadd);
   }
-  if (us.nRel <= rcDual) {
+  if (us.nRel == rcDual || us.nRel <= rcTransit) {
     ciTwin = ciCore;
     ciCore = ciMain;
+  } else if (us.fProgress || us.fTransit || us.fTransitInf || us.fTransitGra) {
+    ciTran = ciCore;
+    ciCore = ciMain;
+    if (us.fProgress)
+      is.JDp = MdytszToJulian(MonT, DayT, YeaT, TimT, us.dstDef, us.zonDef);
   } else
     ciMain = ciCore;
   if (us.nRel)
@@ -572,11 +588,10 @@ void InteractX()
   PAINTSTRUCT ps;
   MSG msg;
 #endif
-  int fResize = fFalse, fRedraw = fTrue,
+  int fResize = fFalse, fRedraw = fTrue, fNoChart = fFalse,
     fBreak = fFalse, fPause = fFalse, fCast = fFalse, xcorner = 7,
     mousex = -1, mousey = -1, buttonx = -1, buttony = -1, dir = 1,
     length, key, i;
-  flag fT;
   KI coldrw = gi.kiLite;
 
   neg(gs.nAnim);
@@ -700,7 +715,8 @@ void InteractX()
       /* Clear the screen and set up a buffer to draw in. */
 
 #ifdef X11
-      XFillRectangle(gi.disp, gi.pmap, gi.pmgc, 0, 0, gs.xWin, gs.yWin);
+      if (!gs.fJetTrail)
+        XFillRectangle(gi.disp, gi.pmap, gi.pmgc, 0, 0, gs.xWin, gs.yWin);
 #endif
 #ifdef MACG
       SetPort(gi.wpAst);
@@ -726,7 +742,10 @@ void InteractX()
         PatBlt(wi.hdc, 0, 0, gs.xWin, gs.yWin,
           gs.fInverse ? WHITENESS : BLACKNESS);
 #endif
-      DrawChartX();
+      if (fNoChart)
+        fNoChart = fFalse;
+      else
+        DrawChartX();
 
       /* Make the drawn chart visible in the current screen buffer. */
 
@@ -917,6 +936,10 @@ void InteractX()
             break;
           case 'l':
             inv(gs.fLabel);
+            fRedraw = fTrue;
+            break;
+          case 'k':
+            inv(gs.fLabelAsp);
             fRedraw = fTrue;
             break;
           case 'j':
@@ -1119,10 +1142,7 @@ void InteractX()
             fResize = fCast = fTrue;
             break;
           case chDelete:
-            fT = gs.fJetTrail;
-            gs.fJetTrail = fFalse;
-            DrawClearScreen();
-            gs.fJetTrail = fT;
+            fRedraw = fNoChart = fTrue;
             break;
           case 'z'-'`': coldrw = kBlack;   break;
           case 'e'-'`': coldrw = kMaroon;  break;
@@ -1229,8 +1249,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     ch1 = ChCap(ch1);
     if (FValidBmpmode(ch1))
       gs.chBmpMode = ch1;
-    SwitchF2(gs.fBitmap);
-    gs.fPS = gs.fMeta = gs.fWire = fFalse;
+    gs.ft = FSwitchF2(gs.ft == ftBmp) * ftBmp;
     break;
 
 #ifdef PS
@@ -1239,8 +1258,8 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       ErrorArgv("Xp");
       return tcError;
     }
-    gs.fPS = fTrue + (ch1 != '0');
-    gs.fBitmap = gs.fMeta = gs.fWire = fFalse;
+    gs.ft = FSwitchF2(gs.ft == ftPS) * ftPS;
+    gs.fPSComplete = (ch1 == '0');
     break;
 #endif
 
@@ -1263,8 +1282,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     }
     if (ch1 == '0')
       SwitchF(gs.fFont);
-    SwitchF2(gs.fMeta);
-    gs.fBitmap = gs.fPS = gs.fWire = fFalse;
+    gs.ft = FSwitchF2(gs.ft == ftWmf) * ftWmf;
     break;
 #endif
 
@@ -1274,8 +1292,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       ErrorArgv("X3");
       return tcError;
     }
-    SwitchF2(gs.fWire);
-    gs.fBitmap = gs.fPS = gs.fMeta = fFalse;
+    gs.ft = FSwitchF2(gs.ft == ftWire) * ftWire;
     break;
 #endif
 
@@ -1288,8 +1305,8 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       ErrorArgc("Xo");
       return tcError;
     }
-    if (!gs.fBitmap && !gs.fPS && !gs.fMeta && !gs.fWire)
-      gs.fBitmap = fTrue;
+    if (gs.ft == ftNone)
+      gs.ft = ftBmp;
     gi.szFileOut = SzPersist(argv[1]);
     darg++;
     break;
@@ -1388,6 +1405,10 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     SwitchF(gs.fLabel);
     break;
 
+  case 'A':
+    SwitchF(gs.fLabelAsp);
+    break;
+
   case 'j':
     SwitchF(gs.fJetTrail);
     break;
@@ -1401,6 +1422,26 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     if (FBetween(ch1, '0', '3'))
       gs.nAllStar = (ch1 - '0');
     break;
+
+  case 'E':
+    if (argc <= 2) {
+      ErrorArgc("XE");
+      return tcError;
+    }
+    if (FBetween(ch1, '0', '3'))
+      gs.nAstLabel = (ch1 - '0');
+    gs.nAstLo = atoi(argv[1]);
+    gs.nAstHi = atoi(argv[2]);
+    darg += 2;
+    break;
+
+#ifdef ATLAS
+  case 'L':
+    SwitchF(gs.fLabelCity);
+    if (FBetween(ch1, '1', '4'))
+      gs.nLabelCity = (ch1 - '0');
+    break;
+#endif
 
   case 'C':
     SwitchF(gs.fHouseExtra);
@@ -1477,7 +1518,6 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     gi.nMode = gSphere;
     if (ch1 == '0')
       SwitchF(gs.fSouth);
-    is.fHaveInfo = fTrue;
     break;
 
   case 'W':
@@ -1492,7 +1532,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     gi.nMode = gWorldMap;
     if (ch1 == '0')
       SwitchF(gs.fMollewide);
-    is.fHaveInfo = fTrue;
+    is.fHaveInfo |= gs.fAlt;
     break;
 
   case 'G':
@@ -1515,7 +1555,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     gi.nMode = gGlobe;
     if (ch1 == '0')
       SwitchF(gs.fSouth);
-    is.fHaveInfo = fTrue;
+    is.fHaveInfo |= gs.fAlt;
     break;
 
   case 'P':
@@ -1533,7 +1573,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
       SwitchF(gs.fSouth);
     else if (ch1 == 'v')
       SwitchF(gs.fPrintMap);
-    is.fHaveInfo = fTrue;
+    is.fHaveInfo |= gs.fAlt;
     break;
 
 #ifdef CONSTEL
@@ -1541,7 +1581,7 @@ int NProcessSwitchesX(int argc, char **argv, int pos,
     if (!fMap && gi.nMode != gGlobe && gi.nMode != gPolar)
       gi.nMode = gWorldMap;
     inv(gs.fConstel);
-    is.fHaveInfo = fTrue;
+    is.fHaveInfo |= gs.fAlt;
     break;
 #endif
 
@@ -1610,22 +1650,23 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
     break;
 
   case 'D':
-    if (argc <= 3) {
+    if (argc <= 3 - (ch1 == '1')) {
       ErrorArgc("YXD");
       return tcError;
     }
     i = NParseSz(argv[1], pmObject);
-    if (!FNorm(i)) {
+    if (!FItem(i)) {
       ErrorValN("YXD", i);
       return tcError;
     }
-    szDrawObject[i]  = argv[2][0] ? SzPersist(argv[2]) : szDrawObjectDef[i];
-    szDrawObject2[i] = argv[3][0] ? SzPersist(argv[3]) : szDrawObjectDef2[i];
-    darg += 3;
+    szDrawObject[i] = argv[2][0] ? SzPersist(argv[2]) : szDrawObjectDef[i];
+    szDrawObject2[i] = (ch1 == '1' ? "" : (argv[3][0] ? SzPersist(argv[3]) :
+      szDrawObjectDef2[i]));
+    darg += 3 - (ch1 == '1');
     break;
 
   case 'A':
-    if (argc <= 3) {
+    if (argc <= 3 - (ch1 == '1')) {
       ErrorArgc("YXA");
       return tcError;
     }
@@ -1634,9 +1675,10 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
       ErrorValN("YXA", i);
       return tcError;
     }
-    szDrawAspect[i]  = argv[2][0] ? SzPersist(argv[2]) : szDrawAspectDef[i];
-    szDrawAspect2[i] = argv[3][0] ? SzPersist(argv[3]) : szDrawAspectDef2[i];
-    darg += 3;
+    szDrawAspect[i] = argv[2][0] ? SzPersist(argv[2]) : szDrawAspectDef[i];
+    szDrawAspect2[i] = (ch1 == '1' ? "" : (argv[3][0] ? SzPersist(argv[3]) :
+      szDrawAspectDef2[i]));
+    darg += 3 - (ch1 == '1');
     break;
 
   case 'v':
@@ -1701,10 +1743,6 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
     }
     i = atoi(argv[1]);
     if (ch1 != '0') {
-      if (i < 0) {
-        ErrorValN("YXj", i);
-        return tcError;
-      }
       gs.cspace = i;
       if (gi.rgspace != NULL) {
         DeallocateP(gi.rgspace);
@@ -1773,7 +1811,7 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
     gs.szStarsLnk = SzPersist(argv[2]);
     gi.cStarsLin = *gs.szStarsLin != chNull;
     for (pch = gs.szStarsLin; *pch; pch++)
-      if (*pch == chSep)
+      if (*pch == chSep || *pch == chSep2)
         gi.cStarsLin++;
     if (gi.rges != NULL) {
       DeallocateP(gi.rges);
@@ -1825,6 +1863,33 @@ int NProcessSwitchesRareX(int argc, char **argv, int pos,
 }
 
 
+/* Figure out what graphics mode a graphics chart should be generated in, */
+/* based on various command switches in effect, e.g. -L combined with -X, */
+/* -g combined with -X, and so on.                                        */
+
+int DetectGraphicsChartMode()
+{
+  int nMode;
+
+  if (us.fWheel)                     nMode = gHouse;
+  else if (us.fGrid || us.fMidpoint) nMode = gGrid;
+  else if (us.fHorizon)              nMode = gHorizon;
+  else if (us.fOrbit)                nMode = gOrbit;
+  else if (us.fSector)               nMode = gSector;
+  else if (us.fInfluence)            nMode = gDisposit;
+  else if (us.fEsoteric)             nMode = gEsoteric;
+  else if (us.fAstroGraph)           nMode = gAstroGraph;
+  else if (us.fCalendar)             nMode = gCalendar;
+  else if (us.fEphemeris)            nMode = gEphemeris;
+  else if (us.fInDayGra)             nMode = gTraTraGra;
+  else if (us.fTransitGra)           nMode = gTraNatGra;
+  else if (us.nRel == rcBiorhythm)   nMode = gBiorhythm;
+  else                               nMode = gWheel;
+
+  return nMode;
+}
+
+
 /* This is the main interface to all the graphics features. This routine     */
 /* is called from the main program if any of the -X switches were specified, */
 /* and it sets up for and goes and generates the appropriate graphics chart. */
@@ -1834,45 +1899,15 @@ flag FActionX()
 {
   int i, n;
 
-  gi.fFile = (gs.fBitmap || gs.fPS || gs.fMeta || gs.fWire);
+  gi.fFile = (gs.ft != ftNone);
 #ifdef PS
-  gi.fEps = gs.fPS > fTrue;
+  gi.fEps = !gs.fPSComplete;
 #endif
 
-  /* First figure out what graphic mode to generate the chart in, based on */
-  /* various non-X command switches, e.g. -L combined with -X, -g combined */
-  /* with -X, and so on, and determine the size the window is to be, too.  */
+  if (gi.nMode == 0)
+    gi.nMode = DetectGraphicsChartMode();
 
-  if (gi.nMode == 0) {
-    if (us.fWheel)
-      gi.nMode = gHouse;
-    else if (us.fGrid || us.fMidpoint)
-      gi.nMode = gGrid;
-    else if (us.fHorizon)
-      gi.nMode = gHorizon;
-    else if (us.fOrbit)
-      gi.nMode = gOrbit;
-    else if (us.fSector)
-      gi.nMode = gSector;
-    else if (us.fInfluence)
-      gi.nMode = gDisposit;
-    else if (us.fEsoteric)
-      gi.nMode = gEsoteric;
-    else if (us.fAstroGraph)
-      gi.nMode = gAstroGraph;
-    else if (us.fCalendar)
-      gi.nMode = gCalendar;
-    else if (us.fEphemeris)
-      gi.nMode = gEphemeris;
-    else if (us.fInDayGra)
-      gi.nMode = gTraTraGra;
-    else if (us.fTransitGra)
-      gi.nMode = gTraNatGra;
-    else if (us.nRel == rcBiorhythm)
-      gi.nMode = gBiorhythm;
-    else
-      gi.nMode = gWheel;
-  }
+  /* Determine the pixel size the graphics chart is to have. */
 
   if (gi.nMode == gGrid) {
     if (us.nRel <= rcDual && us.fMidpoint && !us.fAspList)
@@ -1905,8 +1940,8 @@ flag FActionX()
   if (fSidebar)
     gs.xWin -= SIDESIZE;
 #endif
-  gi.nScaleT =
-    gs.fPS ? PSMUL : (gs.fMeta ? METAMUL : (gs.fWire ? WIREMUL : 1));
+  gi.nScaleT = gs.ft == ftPS ? PSMUL : (gs.ft == ftWmf ? METAMUL :
+    (gs.ft == ftWire ? WIREMUL : 1));
 #ifdef WIN
   if (wi.hdcPrint != hdcNil)
     gi.nScaleT = METAMUL;
@@ -1924,21 +1959,17 @@ flag FActionX()
     if (gs.yWin > BITMAPY)
       gs.yWin = BITMAPY;
     BeginFileX();
-    if (gs.fBitmap) {
+    if (gs.ft == ftBmp) {
       gi.cbBmpRow = (gs.xWin + 1) >> 1;
-      if (!FEnsureGrid())
-        return fFalse;
       if ((gi.bm = PAllocate(gi.cbBmpRow * gs.yWin, NULL)) == NULL)
         return fFalse;
     }
 #ifdef PS
-    else if (gs.fPS)
+    else if (gs.ft == ftPS)
       PsBegin();
 #endif
 #ifdef META
-    else if (gs.fMeta) {
-      if (!FEnsureGrid())
-        return fFalse;
+    else if (gs.ft == ftWmf) {
       for (gi.cbMeta = MAXMETA; gi.cbMeta > 0 &&
         (gi.bm = PAllocate(gi.cbMeta, NULL)) == NULL;
         gi.cbMeta -= MAXMETA/8)
@@ -1986,8 +2017,10 @@ flag FActionX()
     DrawChartX();
   if (gi.fFile) {    /* Write bitmap to file if in that mode. */
     EndFileX();
-    if (gs.fBitmap || gs.fMeta || gs.fWire)
+    if (gs.ft == ftBmp || gs.ft == ftWmf || gs.ft == ftWire) {
       DeallocateP(gi.bm);
+      gi.bm = NULL;
+    }
   }
 #ifdef ISG
   else {
