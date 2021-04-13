@@ -837,9 +837,9 @@ void ChartAspect(void)
       i = rgobjList[i0];
       if (FIgnore(i))
         continue;
-      for (j0 = 0; j0 < i; j0++) {
+      for (j0 = 0; j0 <= is.nObj; j0++) {
         j = rgobjList[j0];
-        if (FIgnore(j))
+        if (j >= i || FIgnore(j))
           continue;
         k = grid->n[j][i];
         if (k > 0) {
