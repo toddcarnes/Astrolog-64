@@ -851,7 +851,8 @@ flag FOutputSettings()
     { sprintf(sz, " %.3s", szColor[kObjU[i]]); PrintFSz(); }
   PrintF("                  ; Moons\n-YkO 84 84 ");
   sprintf(sz, " %.3s", szColor[kObjU[84]]); PrintFSz();
-  PrintTab(' ', 45); PrintF("; Fixed stars\n\n-YkA 1 5   ");
+  for (i = 0; i < 46; i++) PrintF(" ");
+  PrintF("; Fixed stars\n\n-YkA 1 5   ");
 
   for (i = 1; i <= 5; i++)
     { sprintf(sz, " %.3s", szColor[kAspA[i]]); PrintFSz(); }
